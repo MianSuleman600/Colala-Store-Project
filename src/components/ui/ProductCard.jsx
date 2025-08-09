@@ -1,7 +1,7 @@
 // src/components/ui/ProductCard.jsx
 import React, { useState } from 'react';
 import { Star, MapPin, Truck, Check } from 'lucide-react';
-import SponsoredTagIcon from '../../assets/icons/sponsored.png';
+import SponsoredTagIcon from '../../assets/icons/Sponsored.png';
 import shoppingCartIcon from '../../assets/icons/shopping-cart.png';
 import shopIcon from '../../assets/icons/shoppp.png';
 import { useDispatch } from 'react-redux';
