@@ -26,7 +26,7 @@ import StoreProfileModal from '../components/models/StoreProfileModal'; // IMPOR
 import storeIcon from '../assets/icons/storee.png';
 import productIcon from '../assets/icons/product.png';
 import checkIcon from '../assets/icons/check.png';
-import chartbarIcon from '../assets/icons/chartbar.png';
+import chartbarIcon from '../assets/icons/ChartBar.png';
 import shoppingCartIcon from '../assets/icons/ShoppingCart.png';
 import shoppingBagImage from '../assets/images/bag.png';
 
