@@ -13,7 +13,7 @@ import ManageCouponsIcon from '../../assets/icons/settingsIcons/manage.png';
 import PromotedProductsIcon from '../../assets/icons/settingsIcons/promote.png';
 import ReferralsIcon from '../../assets/icons/settingsIcons/refrel.png';
 import ReviewsIcon from '../../assets/icons/settingsIcons/review.png';
-import ShoppingCartIcon from '../../assets/icons/settingsIcons/shoppingCartSimple.png';
+import ShoppingCartIcon from '../../assets/icons/settingsIcons/ShoppingCartSimple.png';
 import SupportIcon from '../../assets/icons/settingsIcons/support.png';
 
 // Define sidebar items with specific colors for their icons/text when inactive
