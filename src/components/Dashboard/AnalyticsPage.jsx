@@ -103,7 +103,7 @@ const AnalyticsPage = ({ brandColor }) => {
     ];
 
     return (
-        <div className="p-4 md:p-0">
+        <div className="p-2 md:p-0">
               <ScrollToTop/>
             <h2 className="text-3xl font-bold text-gray-800 mb-6">Analytics</h2>
 
@@ -127,11 +127,11 @@ const AnalyticsPage = ({ brandColor }) => {
             </div>
 
             {/* Bar Chart Section */}
-            <div className="bg-white p-4 rounded-2xl shadow-md mb-8 h-80">
+            <div className="bg-white  rounded-2xl shadow-md mb-8 h-80">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                         data={chartData}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                        margin={{ top: 20, right: 3, left:0, bottom: 5 }}
                     >
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
                         <XAxis dataKey="name" axisLine={false} tickLine={false} />
@@ -139,7 +139,7 @@ const AnalyticsPage = ({ brandColor }) => {
                         {/* Use the custom tooltip component */}
                         <Tooltip content={<CustomChartTooltip />} cursor={{ fill: 'rgba(0,0,0,0.1)' }} />
                         <Legend
-                            wrapperStyle={{ paddingTop: '20px' }}
+                            wrapperStyle={{ paddingTop: '10px' }}
                             align="left"
                             verticalAlign="top"
                             iconType="circle"
