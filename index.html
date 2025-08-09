@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite1.svg" />
+    <meta name="theme-color" content="#ff6600" />
+    <link rel="apple-touch-icon" href="/pwa-192x192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- OPTIMIZATION: Added a meta description for SEO. This helps search engines understand your content. -->
+    <meta name="description" content="Colala Mall - Your one-stop shop for everything you need. Discover products and chat with sellers.">
+
+    <title>Colala Mall</title>
+
+    <!-- 
+      OPTIMIZATION: Preloading the Largest Contentful Paint (LCP) image.
+      This tells the browser to download the most important image as soon as possible.
+      You need to replace "path/to/your-lcp-image.webp" with the actual path to the image
+      that is largest and most prominent on your page.
+      Using a next-gen format like WebP is also a best practice for smaller file sizes.
+    -->
+    <!-- <link rel="preload" as="image" href="path/to/your-lcp-image.webp"> -->
+    
+    <!-- OPTIMIZATION: Preloading your custom fonts to improve First Contentful Paint (FCP) -->
+    <!-- This tells the browser to fetch the font files as a high-priority resource, preventing
+         a "flash of invisible text" (FOIT) and improving render time. -->
+    <link rel="preload" href="/src/assets/fonts/Manrope/Manrope-VariableFont_wght.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" href="/src/assets/fonts/Oleo_Script/OleoScript-Regular.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" href="/src/assets/fonts/Oleo_Script/OleoScript-Bold.ttf" as="font" type="font/ttf" crossorigin>
+</head>
+
+<body>
+    <div id="root"></div>
+    <div id="modal-root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+</body>
+
+</html>

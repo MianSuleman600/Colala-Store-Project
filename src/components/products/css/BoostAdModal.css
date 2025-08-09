@@ -1,0 +1,41 @@
+/* Custom Scrollbar for Webkit browsers (Chrome, Safari, Edge) */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px; /* Width of the scrollbar */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    /* Make the track slightly transparent or match the parent background */
+    background: transparent; 
+    border-radius: 50px; /* Rounded corners for the track */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #f58756; /* Color of the scrollbar thumb */
+    border-radius: 10px; /* Rounded corners for the thumb */
+    /* Remove the border here, as it can cause issues with rounding */
+}
+
+/* Custom Scrollbar for Firefox */
+.custom-scrollbar {
+    scrollbar-width: thin; /* "auto" or "thin" */
+    scrollbar-color: #f58756 transparent; /* thumb color track color */
+}
+
+/* Specific styling for the modal content area to ensure top rounding */
+.modal-content-area {
+    /* This creates the rounded corners for the content area */
+    border-top-left-radius: 1rem; /* rounded-2xl */
+    border-top-right-radius: 1rem; /* rounded-2xl */
+    position: relative; /* Needed for z-index if you decide to use it */
+    /* Ensure the background covers the rounded corners */
+    background-clip: padding-box; 
+    /* To ensure the scrollbar doesn't go over the top rounded corners, 
+       we can add a slight padding to the right or rely on the parent's overflow-hidden. */
+    /* If still seeing issues, consider: */
+    /* padding-right: 12px; /* Adjust based on scrollbar width */
+}
+
+/* Ensure the scrollbar doesn't break the parent's rounded corners */
+.bg-f58756.rounded-2xl {
+    overflow: hidden; /* This is crucial for clipping the scrollbar at the edges */
+}
