@@ -1,6 +1,6 @@
 import React from 'react';
 import ImagePlaceholder from '../ui/ImagePlaceholder';
-import shareIcon from '../../assets/icons/share.png';
+import shareIcon from '../../assets/icons/Shareee.png';
 import leftIcon from '../../assets/icons/caretLeft.png';
 
 const StoreHeader = ({
