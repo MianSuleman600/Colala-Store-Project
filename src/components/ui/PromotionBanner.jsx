@@ -1,57 +1,47 @@
 // src/components/ui/PromotionalBanner.jsx
 import React from 'react';
-import Button from './Button'; // Assuming Button component path: src/components/ui/Button.jsx
-import { useGetStoreProfileQuery } from '../../services/storeProfileApi'; // Import the RTK Query hook
-import { useSelector } from 'react-redux'; // Import useSelector to get userId
-import shoppingBagImage from '../../assets/images/bag.png'; // Local image asset
+import Button from './Button';
+import { useGetStoreProfileQuery } from '../../services/storeProfileApi';
+import { useSelector } from 'react-redux';
+import shoppingBagImage from '../../assets/images/bag.png';
 
 /**
- * Helper function to determine contrast text color (black or white)
- * based on the background color's luminance.
- * @param {string} hexcolor - The background color in hex format (e.g., '#RRGGBB').
- * @returns {string} The contrast text color ('#000000' for dark background, '#FFFFFF' for light background).
+ * Get contrast text color for background
  */
 const getContrastTextColor = (hexcolor) => {
     if (!hexcolor || typeof hexcolor !== 'string') {
-        return '#FFFFFF'; // Default to white if color is invalid
+        return '#FFFFFF';
     }
-
-    // Remove '#' if present
     const cleanHex = hexcolor.startsWith('#') ? hexcolor.slice(1) : hexcolor;
+    const expandedHex =
+        cleanHex.length === 3
+            ? cleanHex.split('').map((char) => char + char).join('')
+            : cleanHex;
 
-    // Handle shorthand hex codes (e.g., #FFF)
-    const expandedHex = cleanHex.length === 3
-        ? cleanHex.split('').map(char => char + char).join('')
-        : cleanHex;
-
-    // Parse R, G, B values
     const r = parseInt(expandedHex.substring(0, 2), 16);
     const g = parseInt(expandedHex.substring(2, 4), 16);
     const b = parseInt(expandedHex.substring(4, 6), 16);
 
-    // Calculate luminance (perceived brightness)
-    // Formula: (0.299*R + 0.587*G + 0.114*B) / 255
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
-    // Use a threshold to decide between dark and light text
-    // A common threshold is 0.5, but 0.4 or 0.6 can be used depending on preference
-    return luminance > 0.5 ? '#000000' : '#FFFFFF'; // Return black for light background, white for dark
+    return luminance > 0.5 ? '#000000' : '#FFFFFF';
 };
 
 /**
- * PromotionalBanner Component
- * Displays a promotional banner with a title, description, and a call-to-action button,
- * dynamically styled using the store's brand color and displaying the promotional banner image.
- *
- * @param {object} props
- * @param {string} [props.storeName] - The name of the store to display in the main title. If not provided,
- * it will attempt to fetch it from the store profile.
- * @param {string} [props.titlePrefix='Shop with ease on'] - The prefix text before the store name in the title.
- * @param {string} [props.description='Shop from a variety of stores for your retail or wholesale products'] - The descriptive text below the title.
- * @param {string} [props.buttonText='Shop Now'] - The text displayed on the call-to-action button.
- * @param {function} [props.onButtonClick] - Callback function to be executed when the "Shop Now" button is clicked.
- * @param {string} [props.className=''] - Additional Tailwind CSS classes to apply to the main banner container.
+ * Lighten a hex color
  */
+const lightenColor = (hex, percent) => {
+    const num = parseInt(hex.replace('#', ''), 16);
+    let r = (num >> 16) + percent;
+    let g = ((num >> 8) & 0x00ff) + percent;
+    let b = (num & 0x0000ff) + percent;
+
+    r = r < 255 ? (r < 0 ? 0 : r) : 255;
+    g = g < 255 ? (g < 0 ? 0 : g) : 255;
+    b = b < 255 ? (b < 0 ? 0 : b) : 255;
+
+    return '#' + (b | (g << 8) | (r << 16)).toString(16).padStart(6, '0');
+};
+
 const PromotionalBanner = ({
     storeName: propStoreName,
     titlePrefix = 'Shop with ease on',
@@ -60,31 +50,26 @@ const PromotionalBanner = ({
     onButtonClick,
     className = ''
 }) => {
-    // Get userId from Redux
     const { userId, isLoggedIn, userName } = useSelector((state) => state.user);
-
-    // Fetch the store profile data using the userId
     const { data: storeProfile, isLoading, error } = useGetStoreProfileQuery(userId, {
-        skip: !isLoggedIn || !userId, // Skip the query if user is not logged in or userId is not available
+        skip: !isLoggedIn || !userId,
     });
 
-    // Determine the actual store name to display
-    const currentStoreName = propStoreName || storeProfile?.name || userName || 'Our Store'; // Fallback to userName then a generic name
+    const currentStoreName =
+        propStoreName || storeProfile?.name || userName || 'Our Store';
 
-    // Determine the brand color, with a fallback to a default if not yet loaded
-    const brandColor = storeProfile?.brandColor || '#EF4444'; // Use '#EF4444' as a default if not available
-
-    // Determine the contrasting text color for elements on the brandColor background
+    const brandColor = storeProfile?.brandColor || '#EF4444';
     const contrastTextColor = getContrastTextColor(brandColor);
+    const lighterCurveColor = lightenColor(brandColor, 40); // 40 = slightly lighter shade
 
-    // Determine the promotional banner image URL
-    // Use the fetched URL, otherwise fall back to the local image
-    const promotionalImageUrl = storeProfile?.promotionalBannerImageUrl || shoppingBagImage;
+    const promotionalImageUrl =
+        storeProfile?.promotionalBannerImageUrl || shoppingBagImage;
 
-    // You might want to show a loading state or error state for the banner itself
     if (isLoading && isLoggedIn && userId) {
         return (
-            <div className={`relative w-full rounded-2xl p-6 md:p-8 lg:p-10 flex items-center justify-center bg-gray-100 shadow-lg ${className}`}>
+            <div
+                className={`relative w-full rounded-2xl p-6 md:p-8 lg:p-10 flex items-center justify-center bg-gray-100 shadow-lg ${className}`}
+            >
                 <p className="text-gray-600">Loading banner...</p>
             </div>
         );
@@ -95,7 +80,7 @@ const PromotionalBanner = ({
         return (
             <div
                 className={`relative w-full rounded-2xl p-6 md:p-8 lg:p-10 flex flex-col md:flex-row items-center justify-between overflow-hidden shadow-lg ${className}`}
-                style={{ backgroundColor: '#ccc' }} // Fallback background color
+                style={{ backgroundColor: '#ccc' }}
             >
                 <div className="relative z-10 flex flex-col items-center md:items-start text-center md:text-left mb-6 md:mb-0 md:w-1/2 lg:w-2/3">
                     <h2 className="text-2xl md:text-3xl lg:text-4xl mb-3 leading-tight text-gray-800">
@@ -111,9 +96,9 @@ const PromotionalBanner = ({
                         Shop Now
                     </Button>
                 </div>
-                 <div className="relative z-10 w-full md:w-1/2 lg:w-1/3 flex justify-center items-center mt-6 md:mt-0">
+                <div className="relative z-10 w-full md:w-1/2 lg:w-1/3 flex justify-center items-center mt-6 md:mt-0">
                     <img
-                        src={shoppingBagImage} // Fallback to default image
+                        src={shoppingBagImage}
                         alt="Shopping Bag"
                         className="w-40 md:w-48 lg:w-60 h-auto object-contain drop-shadow-xl"
                     />
@@ -122,21 +107,42 @@ const PromotionalBanner = ({
         );
     }
 
-
     return (
         <div
             className={`relative w-full rounded-2xl p-6 md:p-8 lg:p-10 flex flex-col md:flex-row items-center justify-between overflow-hidden shadow-lg ${className}`}
             style={{ backgroundColor: brandColor }}
         >
-            {/* The absolute-positioned curve divs were removed as they used non-standard Tailwind and would break responsiveness. */}
+            {/* Curved shapes */}
+            <div
+                className="absolute top-0 left-0 w-40 h-40"
+                style={{
+                    backgroundColor: lighterCurveColor,
+                    borderBottomRightRadius: '100%',
+                    transform: 'translate(-5%, -20%)',
+                    zIndex: 0,
+                }}
+            ></div>
 
-            {/* Content Section (Text and Button) */}
+            <div
+                className="absolute bottom-0 left-0 w-40 h-40"
+                style={{
+                    backgroundColor: lighterCurveColor,
+                    borderTopRightRadius: '100%',
+                    transform: 'translate(-5%, 30%)',
+                    zIndex: 0,
+                }}
+            ></div>
+
+            {/* Text Section */}
             <div className="relative z-10 flex flex-col items-center md:items-start text-center md:text-left mb-6 md:mb-0 md:w-1/2 lg:w-2/3">
                 <h2
                     className="text-2xl md:text-3xl lg:text-4xl mb-3 leading-tight"
                     style={{ color: contrastTextColor }}
                 >
-                    {titlePrefix} <span style={{ fontFamily: 'Oleo Script', color: contrastTextColor }}>{currentStoreName}</span>
+                    {titlePrefix}{' '}
+                    <span style={{ fontFamily: 'Oleo Script', color: contrastTextColor }}>
+                        {currentStoreName}
+                    </span>
                 </h2>
                 <p
                     className="text-sm md:text-base lg:text-lg mb-6 max-w-md"
@@ -153,13 +159,17 @@ const PromotionalBanner = ({
                 </Button>
             </div>
 
-            {/* Image Section (Promotional Banner Image) */}
+            {/* Image Section */}
             <div className="relative z-10 w-full md:w-1/2 lg:w-1/3 flex justify-center items-center mt-6 md:mt-0">
                 <img
                     src={promotionalImageUrl}
                     alt="Promotional Banner"
                     className="w-40 md:w-48 lg:w-60 h-auto object-contain drop-shadow-xl"
-                    onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/200x200/cccccc/333333?text=Promo+Image"; }}
+                    onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src =
+                            'https://placehold.co/200x200/cccccc/333333?text=Promo+Image';
+                    }}
                 />
             </div>
         </div>
