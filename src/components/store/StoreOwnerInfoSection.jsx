@@ -100,7 +100,7 @@ const StoreOwnerInfoSection = ({
                         {/* Profile Header (Name and Verified Icon) */}
                         <div className="flex items-center mb-4">
                             {/* Profile Picture Placeholder (replace with actual image if available) */}
-                           
+
                             <h3 className="text-xl font-bold text-gray-800 flex items-center">
                                 {currentStoreData.name}
                                 {/* CORRECTED: Use img tag for the local image */}
@@ -161,11 +161,16 @@ const StoreOwnerInfoSection = ({
 
                         {/* Sales Banner */}
                         <div
-                            className="flex items-center justify-center gap-2 w-full p-3 rounded-xl font-medium"
+                            className="flex items-center justify-center gap-2 w-full p-1 rounded-lg 
+               text-sm sm:text-base flex-wrap sm:flex-nowrap text-center"
                             style={{ backgroundColor: brandColor, color: contrastTextColor }}
                         >
-                            <img src={MegaphoneIcon} alt="" className="h-4 w-4"/>
-                            <span>{currentStoreData.salesMessage}</span>
+                            <img
+                                src={MegaphoneIcon}
+                                alt=""
+                                className="h-4 w-4 flex-shrink-0"
+                            />
+                            <span className="break-words">{currentStoreData.salesMessage}</span>
                         </div>
 
                         {/* Social Media Icons */}

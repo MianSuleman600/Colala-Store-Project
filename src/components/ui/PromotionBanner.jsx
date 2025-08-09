@@ -39,37 +39,6 @@ const getContrastTextColor = (hexcolor) => {
 };
 
 /**
- * Helper function to lighten or darken a hex color.
- * @param {string} hex - The hex color string (e.g., '#RRGGBB').
- * @param {number} percent - The percentage to lighten (positive) or darken (negative).
- * @returns {string} The adjusted hex color.
- */
-const adjustBrightness = (hex, percent) => {
-    if (!hex || typeof hex !== 'string') {
-        return '#000000'; // Default to black if color is invalid
-    }
-
-    const cleanHex = hex.startsWith('#') ? hex.slice(1) : hex;
-    // Pad to 6 characters if shorthand is used (e.g., #F00 -> #FF0000)
-    const fullHex = cleanHex.length === 3 ? cleanHex.split('').map(c => c + c).join('') : cleanHex;
-
-    let r = parseInt(fullHex.substring(0, 2), 16);
-    let g = parseInt(fullHex.substring(2, 4), 16);
-    let b = parseInt(fullHex.substring(4, 6), 16);
-
-    r = Math.min(255, Math.max(0, r + percent));
-    g = Math.min(255, Math.max(0, g + percent));
-    b = Math.min(255, Math.max(0, b + percent));
-
-    // Convert back to hex and pad with leading zeros if necessary
-    return '#' +
-        ((1 << 24) + (r << 16) + (g << 8) + b)
-        .toString(16)
-        .slice(1)
-        .toUpperCase();
-};
-
-/**
  * PromotionalBanner Component
  * Displays a promotional banner with a title, description, and a call-to-action button,
  * dynamically styled using the store's brand color and displaying the promotional banner image.
@@ -84,7 +53,7 @@ const adjustBrightness = (hex, percent) => {
  * @param {string} [props.className=''] - Additional Tailwind CSS classes to apply to the main banner container.
  */
 const PromotionalBanner = ({
-    storeName: propStoreName, // Renamed to avoid conflict with fetched storeName
+    storeName: propStoreName,
     titlePrefix = 'Shop with ease on',
     description = 'Shop from a variety of stores for your retail or wholesale products',
     buttonText = 'Shop Now',
@@ -108,9 +77,6 @@ const PromotionalBanner = ({
     // Determine the contrasting text color for elements on the brandColor background
     const contrastTextColor = getContrastTextColor(brandColor);
 
-    // Determine a slightly darker shade of the brand color for the curves
-    const curveColor = adjustBrightness(brandColor, -20); // Darken by 20 units (adjust as needed)
-
     // Determine the promotional banner image URL
     // Use the fetched URL, otherwise fall back to the local image
     const promotionalImageUrl = storeProfile?.promotionalBannerImageUrl || shoppingBagImage;
@@ -126,7 +92,6 @@ const PromotionalBanner = ({
 
     if (error && isLoggedIn && userId) {
         console.error("Error fetching store profile for PromotionalBanner:", error);
-        // You can render a fallback banner or just nothing
         return (
             <div
                 className={`relative w-full rounded-2xl p-6 md:p-8 lg:p-10 flex flex-col md:flex-row items-center justify-between overflow-hidden shadow-lg ${className}`}
@@ -141,12 +106,12 @@ const PromotionalBanner = ({
                     </p>
                     <Button
                         onClick={onButtonClick}
-                        className="bg-white py-3 px-8 rounded-2xl text-base hover:bg-gray-100 transition-colors shadow-md text-gray-800"
+                        className="w-full sm:w-auto bg-white py-3 px-8 rounded-2xl text-base hover:bg-gray-100 transition-colors shadow-md text-gray-800"
                     >
                         Shop Now
                     </Button>
                 </div>
-                 <div className="relative z-10 md:w-1/2 lg:w-1/3 flex justify-center items-center">
+                 <div className="relative z-10 w-full md:w-1/2 lg:w-1/3 flex justify-center items-center mt-6 md:mt-0">
                     <img
                         src={shoppingBagImage} // Fallback to default image
                         alt="Shopping Bag"
@@ -161,50 +126,39 @@ const PromotionalBanner = ({
     return (
         <div
             className={`relative w-full rounded-2xl p-6 md:p-8 lg:p-10 flex flex-col md:flex-row items-center justify-between overflow-hidden shadow-lg ${className}`}
-            style={{ backgroundColor: brandColor }} // Apply the dynamic brand color to the banner background
+            style={{ backgroundColor: brandColor }}
         >
-            {/* Top-left curve/shape - Apply curveColor */}
-            {/* The absolute positioning and sizes might need fine-tuning with actual design */}
-            <div
-                className="absolute -top-37 -left-1 w-55 rounded-bl-4xl rounded-br-full h-50 transform z-0"
-                style={{ backgroundColor: curveColor }} // Apply dynamic curve color
-            ></div>
-            <div
-                className="absolute -bottom-28 left-0 w-60 rounded-t-full rounded-br-3xl h-50 rotate-45 transform z-0"
-                style={{ backgroundColor: curveColor }} // Apply dynamic curve color
-            ></div>
+            {/* The absolute-positioned curve divs were removed as they used non-standard Tailwind and would break responsiveness. */}
 
             {/* Content Section (Text and Button) */}
             <div className="relative z-10 flex flex-col items-center md:items-start text-center md:text-left mb-6 md:mb-0 md:w-1/2 lg:w-2/3">
                 <h2
                     className="text-2xl md:text-3xl lg:text-4xl mb-3 leading-tight"
-                    style={{ color: contrastTextColor }} // Apply contrasting text color
+                    style={{ color: contrastTextColor }}
                 >
                     {titlePrefix} <span style={{ fontFamily: 'Oleo Script', color: contrastTextColor }}>{currentStoreName}</span>
                 </h2>
                 <p
                     className="text-sm md:text-base lg:text-lg mb-6 max-w-md"
-                    style={{ color: contrastTextColor }} // Apply contrasting text color
+                    style={{ color: contrastTextColor }}
                 >
                     {description}
                 </p>
                 <Button
                     onClick={onButtonClick}
-                    // Button background remains white for contrast, text color becomes the brand color
-                    className="bg-white py-3 px-8 rounded-2xl text-base hover:bg-gray-100 transition-colors shadow-md"
-                    style={{ color: brandColor }} // Apply brand color to button text
+                    className="w-full sm:w-auto bg-white py-3 px-8 rounded-2xl text-base hover:bg-gray-100 transition-colors shadow-md"
+                    style={{ color: brandColor }}
                 >
                     {buttonText}
                 </Button>
             </div>
 
             {/* Image Section (Promotional Banner Image) */}
-            <div className="relative z-10 md:w-1/2 lg:w-1/3 flex justify-center items-center">
+            <div className="relative z-10 w-full md:w-1/2 lg:w-1/3 flex justify-center items-center mt-6 md:mt-0">
                 <img
-                    src={promotionalImageUrl} // Use the fetched promotional banner image
+                    src={promotionalImageUrl}
                     alt="Promotional Banner"
                     className="w-40 md:w-48 lg:w-60 h-auto object-contain drop-shadow-xl"
-                    // Fallback for image loading errors: displays a grey placeholder
                     onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/200x200/cccccc/333333?text=Promo+Image"; }}
                 />
             </div>

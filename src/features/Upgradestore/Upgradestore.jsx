@@ -367,7 +367,7 @@ const UpgradeStorePage = () => {
                 </div>
 
                 {/* Right Content Area - Form Steps */}
-                <div className="flex-1 p-6 md:p-8 flex flex-col">
+                <div className="flex-1 p-6  md:p-8 flex flex-col overflow-y-auto">
                     {/* Progress Bar (visible on both small and large screens) */}
                     <div className="w-full bg-gray-200 rounded-full h-4 mb-8">
                         <div

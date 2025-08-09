@@ -218,17 +218,7 @@ const OrdersPage = () => {
             {/* Header with brand color */}
            
                
-                {/* Back button for mobile on the header */}
-                {showOrderDetails && (
-                    <button
-                        onClick={handleBackToList}
-                        className="lg:hidden flex items-center space-x-2 p-2 rounded-full"
-                        style={{ color: contrastTextColor, backgroundColor: 'rgba(0,0,0,0.1)' }}
-                    >
-                        <ArrowLeftIcon className="h-5 w-5" />
-                        <span className="text-sm font-medium hidden sm:inline">Back</span>
-                    </button>
-                )}
+              
             
 
             <div className="grid grid-cols-1 lg:grid-cols-[30%_70%] lg:gap-8">
