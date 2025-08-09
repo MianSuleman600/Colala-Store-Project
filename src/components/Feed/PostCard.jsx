@@ -15,7 +15,7 @@ import DownloadIcon from '../../assets/icons/Download.png';
 import CommentIcon from '../../assets/icons/comment.png';
 import TrashIcon from '../../assets/icons/delete.png';
 import PencilSquareIcon from '../../assets/icons/Pencil.png';
-import LinkIcon from '../../assets/icons/shareee.png'; // Assuming this is for the 'Share this post' icon
+import LinkIcon from '../../assets/icons/Shareee.png'; // Assuming this is for the 'Share this post' icon
 
 // Dummy images for demonstration
 import userProfilePic from '../../assets/images/profileImage.png'; // User's profile pic
