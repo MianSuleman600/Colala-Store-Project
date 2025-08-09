@@ -1,7 +1,7 @@
 import React from 'react';
 import ImagePlaceholder from '../ui/ImagePlaceholder';
 import shareIcon from '../../assets/icons/Shareee.png';
-import leftIcon from '../../assets/icons/caretLeft.png';
+import leftIcon from '../../assets/icons/CaretLeft.png';
 
 const StoreHeader = ({
     bannerImageUrl,
