@@ -1,4 +1,3 @@
-// src/routes/AppRouter.jsx
 import React, { useState, Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, Outlet, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -102,24 +101,24 @@ function AppRouter() {
                     {/* Layout with nested routes */}
                     <Route path="/" element={<MainLayout />}>
                         <Route index element={<HomePage />} />
-                        <Route path="checkout" element={<ProtectedRoute component={CheckoutPage} />} />
-                        <Route path="store-upgrade" element={<ProtectedRoute component={UpgradeStorePage} />} />
-                        <Route path="add-product" element={<ProtectedRoute component={AddProductPage} />} />
-                        <Route path="add-service" element={<ProtectedRoute component={AddServicePage} />} />
-                        <Route path="statistics" element={<ProtectedRoute component={StatCard} />} />
-                        <Route path="subscription" element={<ProtectedRoute component={SubscriptionPage} />} />
-                        <Route path="my-products" element={<ProtectedRoute component={MyProductsPage} />} />
-                        <Route path="my-products/:productId/details" element={<ProtectedRoute component={ProductDetailsPage} />} />
-                        <Route path="my-products/:productId/boost-setup" element={<BoostProductSetupPage />} />
-                        <Route path="my-products/:productId/boost-preview" element={<BoostAdPreviewPage />} />
-                        <Route path="my-services" element={<MyServicesPage />} />
-                        <Route path="my-services/:serviceId/details" element={<ServiceDetailsPage />} />
+                        <Route path="checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
+                        <Route path="store-upgrade" element={<ProtectedRoute><UpgradeStorePage /></ProtectedRoute>} />
+                        <Route path="add-product" element={<ProtectedRoute><AddProductPage /></ProtectedRoute>} />
+                        <Route path="add-service" element={<ProtectedRoute><AddServicePage /></ProtectedRoute>} />
+                        <Route path="statistics" element={<ProtectedRoute><StatCard /></ProtectedRoute>} />
+                        <Route path="subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
+                        <Route path="my-products" element={<ProtectedRoute><MyProductsPage /></ProtectedRoute>} />
+                        <Route path="my-products/:productId/details" element={<ProtectedRoute><ProductDetailsPage /></ProtectedRoute>} />
+                        <Route path="my-products/:productId/boost-setup" element={<ProtectedRoute><BoostProductSetupPage /></ProtectedRoute>} />
+                        <Route path="my-products/:productId/boost-preview" element={<ProtectedRoute><BoostAdPreviewPage /></ProtectedRoute>} />
+                        <Route path="my-services" element={<ProtectedRoute><MyServicesPage /></ProtectedRoute>} />
+                        <Route path="my-services/:serviceId/details" element={<ProtectedRoute><ServiceDetailsPage /></ProtectedRoute>} />
                         <Route path="feed" element={<FeedPage />} />
-                        <Route path="chat" element={<ProtectedRoute component={ChatPage} />} />
-                        <Route path="orders" element={<ProtectedRoute component={OrdersPage} />} />
-                        <Route path="settings" element={<ProtectedRoute component={SellerDashboardPage} />} />
-                        <Route path="wallet/escrow" element={<WalletDashboard type="escrow" />} />
-                        <Route path="wallet/shopping" element={<WalletDashboard type="shopping" />} />
+                        <Route path="chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+                        <Route path="orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
+                        <Route path="settings" element={<ProtectedRoute><SellerDashboardPage /></ProtectedRoute>} />
+                        <Route path="wallet/escrow" element={<ProtectedRoute><WalletDashboard type="escrow" /></ProtectedRoute>} />
+                        <Route path="wallet/shopping" element={<ProtectedRoute><WalletDashboard type="shopping" /></ProtectedRoute>} />
                     </Route>
                 </Routes>
             </Suspense>

@@ -94,7 +94,7 @@ const StoreOwnerInfoSection = ({
 
     return (
         <Card className={`p-6 ${!isLoggedIn ? 'opacity-70' : ''}`}>
-            <div className="bg-white rounded-lg space-y-4">
+            <div className=" rounded-lg space-y-4">
                 {isLoggedIn ? (
                     <>
                         {/* Profile Header (Name and Verified Icon) */}

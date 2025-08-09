@@ -143,7 +143,7 @@ const FeedPage = () => {
   }
 
   return (
-    <div className="relative min-h-screen bg-gray-50">
+    <div className="relative min-h-screen ">
       {/* Main content area */}
       <div className="container mx-auto flex flex-col justify-center p-4 md:p-8">
         <div className="lg:w-1/2 sm:w-full mx-auto flex flex-col justify-center">
