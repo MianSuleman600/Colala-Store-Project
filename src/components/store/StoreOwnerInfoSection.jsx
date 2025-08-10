@@ -11,10 +11,12 @@ import {
     MapPinIcon, PhoneIcon, EnvelopeIcon, TagIcon, UserCircleIcon
 } from '@heroicons/react/24/outline';
 // Importing solid icons for the stats section
-import { ShoppingBagIcon, UsersIcon, StarIcon } from '@heroicons/react/24/solid';
 // CORRECTED IMPORT AND USAGE:
 import VerifiedIcon from '../../assets/icons/varified.png'; // Renamed import for clarity
 import MegaphoneIcon from '../../assets/icons/Megaphone.png'
+import ShoppingBagIcon from '../../assets/icons/shop.png';
+import UsersIcon from '../../assets/icons/profile.png';
+import  StarIcon from '../../assets/icons/star.png'
 
 
 
@@ -134,44 +136,49 @@ const StoreOwnerInfoSection = ({
                                 </div>
                             </div>
                         </div>
-
                         {/* Statistics Section */}
-                        <div className="grid grid-cols-3 text-center bg-white rounded-xl pt-4 shadow-sm">
+                        <div className="grid grid-cols-3 text-center  bg-white rounded-2xl pt-4 shadow-lg overflow-hidden">
+
                             {/* Qty Sold */}
                             <div className="flex flex-col items-center border-r border-gray-300">
-                                <ShoppingBagIcon className="h-6 w-6 text-gray-500 mb-1" />
+                                <img src={ShoppingBagIcon} className="h-6 w-6 text-gray-500 mb-1" />
                                 <span className="font-semibold text-gray-800">{currentStoreData.productsSold}</span>
                                 <span className="text-xs text-gray-500">Qty Sold</span>
                             </div>
 
                             {/* Followers */}
                             <div className="flex flex-col items-center border-r border-gray-300">
-                                <UsersIcon className="h-6 w-6 text-gray-500 mb-1" />
+                                <img src={UsersIcon} className="h-6 w-6 text-gray-500 mb-1" />
                                 <span className="font-semibold text-gray-800">{currentStoreData.followers}</span>
                                 <span className="text-xs text-gray-500">Followers</span>
                             </div>
 
                             {/* Ratings */}
                             <div className="flex flex-col items-center">
-                                <StarIcon className="h-6 w-6 text-gray-500 mb-1" />
+                                <img src={StarIcon} className="h-6 w-6 text-gray-500 mb-1" />
                                 <span className="font-semibold text-gray-800">{currentStoreData.ratings}</span>
                                 <span className="text-xs text-gray-500">Ratings</span>
                             </div>
+
+                            {/* Sales Banner */}
+                            <div
+                                className="col-span-3 flex items-center justify-center shadow-2xl gap-2 w-full p-2 rounded-b-2xl 
+        text-sm sm:text-base flex-wrap sm:flex-nowrap text-center"
+                                style={{ backgroundColor: brandColor, color: contrastTextColor }}
+                            >
+                                <img
+                                    src={MegaphoneIcon}
+                                    alt=""
+                                    className="h-4 w-4 flex-shrink-0"
+                                    
+                                />
+                                <span className="break-words">{currentStoreData.salesMessage}</span>
+                            </div>
                         </div>
 
-                        {/* Sales Banner */}
-                        <div
-                            className="flex items-center justify-center gap-2 w-full p-1 rounded-lg 
-               text-sm sm:text-base flex-wrap sm:flex-nowrap text-center"
-                            style={{ backgroundColor: brandColor, color: contrastTextColor }}
-                        >
-                            <img
-                                src={MegaphoneIcon}
-                                alt=""
-                                className="h-4 w-4 flex-shrink-0"
-                            />
-                            <span className="break-words">{currentStoreData.salesMessage}</span>
-                        </div>
+
+
+
 
                         {/* Social Media Icons */}
                         <StoreSocialLinks isLoggedIn={isLoggedIn} />
@@ -180,14 +187,14 @@ const StoreOwnerInfoSection = ({
                         <div className="flex space-x-4 mt-4">
                             <Button
                                 onClick={handleAddProduct}
-                                className="flex-1 py-2 px-4 rounded-lg font-semibold"
+                                className="flex-1 py-2 px-4 rounded-2xl "
                                 style={{ backgroundColor: brandColor, color: contrastTextColor }}
                             >
                                 Add Product
                             </Button>
                             <Button
                                 onClick={handleAddService}
-                                className="flex-1 py-2 px-4 rounded-lg font-semibold bg-gray-800 text-white hover:bg-gray-700"
+                                className="flex-1 py-2 px-4 rounded-2xl  bg-black text-white hover:bg-gray-700"
                             >
                                 Add Service
                             </Button>

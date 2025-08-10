@@ -9,7 +9,10 @@ import WalletDashboard from './WalletDashboard';
 const DashboardHeader = ({ brandColor, contrastTextColor, toggleSidebar, showHamburger, storeProfile }) => {
     const navigate = useNavigate();
 
-
+    // Handler to navigate to the home page when the profile section is clicked
+    const handleProfileClick = () => {
+        navigate('/');
+    };
 
     // We get the data from props instead of fetching it again here
     const escrowBalance = storeProfile?.escrowBalance?.toLocaleString() || '50,000';
@@ -36,8 +39,11 @@ const DashboardHeader = ({ brandColor, contrastTextColor, toggleSidebar, showHam
                 </div>
             )}
 
-            {/* Profile Section */}
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-white shadow-md">
+            {/* Profile Section - Now clickable to navigate to the home page */}
+            <div 
+                className="flex items-center gap-4 p-4 rounded-xl bg-white shadow-md cursor-pointer"
+                onClick={handleProfileClick}
+            >
                 <img
                     src={storeProfile?.profilePictureUrl || 'https://googleusercontent.com/file_content/0'}
                     alt="Store Avatar"

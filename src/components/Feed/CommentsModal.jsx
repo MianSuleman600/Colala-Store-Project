@@ -112,7 +112,7 @@ const CommentsModal = ({ isOpen, onClose, post, onAddComment ,brandColor,contras
             className="max-w-xl w-full h-[80vh] flex flex-col overflow-hidden"
         >
             {/* Keeping the original structure from your request */}
-            <div className="flex-grow overflow-y-auto p-4 space-y-4">
+            <div className="flex-grow overflow-y-auto scrollbar-custom p-4 space-y-4">
                 {dummyComments.map(comment => (
                     <div key={comment.id} className="flex items-start space-x-3">
                         <img

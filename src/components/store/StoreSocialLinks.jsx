@@ -20,20 +20,32 @@ const StoreSocialLinks = ({ isLoggedIn }) => {
     }
 
     return (
-        <div className="flex justify-start  space-x-4 w-full py-4"> {/* Added padding for spacing */}
-            <a href="#" target="_blank" rel="noopener noreferrer">
-                <img src={whatsappIcon} alt="WhatsApp" className="w-6 h-6" />
-            </a>
-            <a href="#" target="_blank" rel="noopener noreferrer">
-                <img src={instagramIcon} alt="Instagram" className="w-6 h-6" />
-            </a>
-            <a href="#" target="_blank" rel="noopener noreferrer">
-                <img src={xIcon} alt="X (Twitter)" className="w-6 h-6" />
-            </a>
-            <a href="#" target="_blank" rel="noopener noreferrer">
-                <img src={facebookIcon} alt="Facebook" className="w-6 h-6" />
-            </a>
-        </div>
+       <div className="flex justify-start space-x-4 w-full py-4">
+    {/* WhatsApp */}
+    <a href="#" target="_blank" rel="noopener noreferrer" 
+       className="p-2 shadow-md  shadow-emerald-700 rounded-lg bg-white">
+        <img src={whatsappIcon} alt="WhatsApp" className="w-6 h-6" />
+    </a>
+
+    {/* Instagram */}
+    <a href="#" target="_blank" rel="noopener noreferrer" 
+       className="p-2 shadow-md shadow-emerald-700 rounded-lg bg-white">
+        <img src={instagramIcon} alt="Instagram" className="w-6 h-6" />
+    </a>
+
+    {/* X (Twitter) */}
+    <a href="#" target="_blank" rel="noopener noreferrer" 
+       className="p-2 shadow-md  shadow-emerald-700 rounded-lg bg-white">
+        <img src={xIcon} alt="X (Twitter)" className="w-6 h-6" />
+    </a>
+
+    {/* Facebook */}
+    <a href="#" target="_blank" rel="noopener noreferrer" 
+       className="p-2 shadow-md  shadow-emerald-700 rounded-lg bg-white">
+        <img src={facebookIcon} alt="Facebook" className="w-6 h-6" />
+    </a>
+</div>
+
     );
 };
 
