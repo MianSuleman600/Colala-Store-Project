@@ -91,7 +91,8 @@ const ChatMessage = ({ message, currentUserProfilePic, otherUserProfilePic, bran
     };
 
     return (
-        <div className={`flex items-end ${alignment} mb-4 group`}>
+        // The group class is still needed for the hover effect on larger screens
+        <div className={`flex items-end ${alignment} mb-4 group relative`}>
             {/* Show profile picture for received messages */}
             {!isSent && (
                 <img
@@ -106,12 +107,14 @@ const ChatMessage = ({ message, currentUserProfilePic, otherUserProfilePic, bran
             <div className={`flex flex-col ${isSent ? 'items-end' : 'items-start'}`}>
                 {/* Options menu for sent messages */}
                 {isSent && (
-                    <div className="relative mb-1 flex items-center">
-                        <div className="group-hover:block hidden">
-                            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-1 rounded-full text-gray-500 hover:bg-gray-200">
-                                <MoreVertical size={16} />
-                            </button>
-                        </div>
+                    <div className="absolute top-0 right-10 flex items-center">
+                        <button
+                            onClick={() => setIsMenuOpen(!isMenuOpen)}
+                            className="p-1 rounded-full text-gray-500 hover:bg-gray-200 opacity-0 group-hover:opacity-100 transition-opacity md:opacity-100 md:group-hover:block md:hidden block"
+                        >
+                            <MoreVertical size={16} />
+                        </button>
+
                         {isMenuOpen && (
                             <div className="absolute top-0 right-8 bg-white shadow-lg rounded-md border border-gray-200 z-10">
                                 <button
