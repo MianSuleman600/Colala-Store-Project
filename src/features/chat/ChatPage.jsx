@@ -1,11 +1,11 @@
+// src/pages/ChatPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import ChatListItem from '../../components/Chat/ChatListItem';
 import ChatConversation from '../../components/Chat/ChatConversation';
-import { ChevronLeft } from 'lucide-react'; // Import for the back button on mobile
 import { useGetStoreProfileQuery } from '../../services/storeProfileApi';
 
-// Dummy Data
+// Dummy Data (make sure these imports are correct based on your project structure)
 import userProfilePicSasha from '../../assets/images/profileImage.png';
 import userProfilePicVee from '../../assets/images/feed/2.png';
 import userProfilePicAdam from '../../assets/images/feed/3.png';
@@ -106,10 +106,21 @@ const dummyChats = [
 ];
 
 const ChatPage = () => {
-    // RTK Query hook to fetch brand colors
+    // 1. ALL HOOKS MUST BE AT THE TOP LEVEL
     const userId = 'default_user_id';
     const { data: storeProfile, error, isLoading } = useGetStoreProfileQuery(userId);
 
+    const [activeChatId, setActiveChatId] = useState(null);
+    const [chats, setChats] = useState(dummyChats);
+
+    useEffect(() => {
+        const isLargeScreen = window.innerWidth >= 768;
+        if (isLargeScreen && chats.length > 0) {
+            setActiveChatId(chats[0].id);
+        }
+    }, [chats]);
+
+    // 2. NOW, CONDITIONAL RENDERS FOR LOADING/ERROR
     if (isLoading) {
         return <div className="p-8 text-center text-gray-600">Loading...</div>;
     }
@@ -118,41 +129,56 @@ const ChatPage = () => {
         return <div className="p-8 text-center text-red-600">Error: {error.message}</div>;
     }
 
-    // Use fetched colors or fallbacks
     const brandColor = storeProfile?.brandColor || '#EF4444';
     const contrastColor = storeProfile?.contrastColor || '#FFFFFF';
 
-    const [activeChatId, setActiveChatId] = useState(null);
+    const activeChat = chats.find(chat => chat.id === activeChatId);
 
-    // This effect ensures a chat is pre-selected on large screens
-    // so the "Select a chat" message doesn't show by default.
-    useEffect(() => {
-        const isLargeScreen = window.innerWidth >= 768;
-        if (isLargeScreen && dummyChats.length > 0) {
-            setActiveChatId(dummyChats[0].id);
-        }
-    }, []); // Only runs once on mount
+    const handleSendMessage = (messagePayload) => {
+        const { text, file } = messagePayload;
 
-    const activeChat = dummyChats.find(chat => chat.id === activeChatId);
-
-    const handleSendMessage = (messageText) => {
-        if (!messageText.trim() || !activeChat) return;
+        if ((!text.trim() && !file) || !activeChat) return;
 
         const newMessage = {
             id: `msg-${Date.now()}`,
             type: 'sent',
-            text: messageText,
+            text: text.trim(),
+            file: file,
             time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
             likes: 0
         };
 
-        const chatIndex = dummyChats.findIndex(chat => chat.id === activeChatId);
+        const chatIndex = chats.findIndex(chat => chat.id === activeChatId);
         if (chatIndex !== -1) {
-            dummyChats[chatIndex].messages.push(newMessage);
-            dummyChats[chatIndex].lastMessage = messageText;
-            dummyChats[chatIndex].time = newMessage.time;
-            setActiveChatId(null); // Simple re-render trigger
-            setTimeout(() => setActiveChatId(dummyChats[chatIndex].id), 0);
+            const newChats = [...chats];
+            newChats[chatIndex].messages.push(newMessage);
+            newChats[chatIndex].lastMessage = text.trim();
+            newChats[chatIndex].time = newMessage.time;
+            setChats(newChats);
+        }
+    };
+
+    // New function to handle editing a message
+    const handleEditMessage = (messageId, newText) => {
+        const chatIndex = chats.findIndex(chat => chat.id === activeChatId);
+        if (chatIndex !== -1) {
+            const newChats = [...chats];
+            const messageIndex = newChats[chatIndex].messages.findIndex(msg => msg.id === messageId);
+            if (messageIndex !== -1) {
+                newChats[chatIndex].messages[messageIndex].text = newText;
+                setChats(newChats);
+            }
+        }
+    };
+
+    // New function to handle deleting a message
+    const handleDeleteMessage = (messageId) => {
+        const chatIndex = chats.findIndex(chat => chat.id === activeChatId);
+        if (chatIndex !== -1) {
+            const newChats = [...chats];
+            const filteredMessages = newChats[chatIndex].messages.filter(msg => msg.id !== messageId);
+            newChats[chatIndex].messages = filteredMessages;
+            setChats(newChats);
         }
     };
 
@@ -161,7 +187,7 @@ const ChatPage = () => {
             {/* Left Panel: Chat List */}
             <div className={`w-full md:w-1/4 md:min-w-[280px] rounded-2xl overflow-y-auto scrollbar-custom mt-4
                 ${activeChatId ? 'hidden md:block' : 'block'}`}>
-                {dummyChats.map(chat => (
+                {chats.map(chat => (
                     <ChatListItem
                         key={chat.id}
                         chat={chat}
@@ -179,6 +205,8 @@ const ChatPage = () => {
                     <ChatConversation
                         chat={activeChat}
                         onSendMessage={handleSendMessage}
+                        onEditMessage={handleEditMessage} // Pass the edit handler
+                        onDeleteMessage={handleDeleteMessage} // Pass the delete handler
                         brandColor={brandColor}
                         onBack={() => setActiveChatId(null)}
                     />

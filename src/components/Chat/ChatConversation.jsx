@@ -1,15 +1,17 @@
 // src/components/Chat/ChatConversation.jsx
 import React, { useRef, useEffect, useState } from 'react';
 import ChatMessage from './ChatMessage';
-import { SendHorizonal, ShoppingCart, ChevronLeft } from 'lucide-react'; // Import ChevronLeft for the back button
-import { getContrastTextColor } from '../../utils/colorUtils'; // Import utility for contrast color
+import { SendHorizonal, ShoppingCart, ChevronLeft, Paperclip, X } from 'lucide-react';
+import { getContrastTextColor } from '../../utils/colorUtils';
+import currentUserProfilePic from '../../assets/images/profileImage.png';
 
-// Assuming current user's profile picture for sent messages
-import currentUserProfilePic from '../../assets/images/profileImage.png'; //
-
-const ChatConversation = ({ chat, onSendMessage, onBack, brandColor }) => {
+// The ChatConversation component now receives `onEditMessage` and `onDeleteMessage` callbacks
+const ChatConversation = ({ chat, onSendMessage, onEditMessage, onDeleteMessage, onBack, brandColor }) => {
     const messagesEndRef = useRef(null);
+    const fileInputRef = useRef(null);
     const [messageInput, setMessageInput] = useState('');
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [editingMessageId, setEditingMessageId] = useState(null); // State to hold the ID of the message being edited
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -17,13 +19,26 @@ const ChatConversation = ({ chat, onSendMessage, onBack, brandColor }) => {
 
     useEffect(() => {
         scrollToBottom();
-    }, [chat.messages]); // Scroll to bottom when new messages arrive
+    }, [chat.messages]);
 
     const handleSend = () => {
-        if (messageInput.trim()) {
-            onSendMessage(messageInput);
-            setMessageInput('');
+        if (!messageInput.trim() && !selectedFile) return;
+
+        if (editingMessageId) {
+            // If we are in edit mode, call the onEditMessage function
+            onEditMessage(editingMessageId, messageInput.trim());
+            setEditingMessageId(null);
+        } else {
+            // Otherwise, send a new message
+            const messagePayload = {
+                text: messageInput.trim(),
+                file: selectedFile,
+            };
+            onSendMessage(messagePayload);
         }
+
+        setMessageInput('');
+        setSelectedFile(null);
     };
 
     const handleKeyPress = (e) => {
@@ -33,14 +48,25 @@ const ChatConversation = ({ chat, onSendMessage, onBack, brandColor }) => {
         }
     };
 
-    // Calculate contrast text color for the brandColor for the send button
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setSelectedFile(file);
+        }
+    };
+
+    // New function to handle editing a message from the child component
+    const handleEdit = (message) => {
+        setEditingMessageId(message.id);
+        setMessageInput(message.text);
+    };
+
     const sendButtonContrastTextColor = getContrastTextColor(brandColor);
 
     return (
         <div className="flex flex-col rounded-lg shadow-black h-full bg-white">
             {/* Chat Header */}
             <div className="flex items-center p-4 border-b border-gray-200 bg-white flex-shrink-0 rounded-t-lg">
-                {/* Back button visible only on small screens */}
                 <button
                     onClick={onBack}
                     className="p-2 mr-2 md:hidden rounded-full hover:bg-gray-100 text-gray-600"
@@ -49,13 +75,12 @@ const ChatConversation = ({ chat, onSendMessage, onBack, brandColor }) => {
                     <ChevronLeft size={24} />
                 </button>
                 <div className="flex items-center flex-1">
-                    {/* OPTIMIZATION: Added width and height attributes to prevent Cumulative Layout Shift (CLS). */}
                     <img
                         src={chat.userProfilePic}
                         alt={chat.userName}
                         className="w-10 h-10 rounded-full object-cover mr-3"
-                        width={40} // `w-10` is 2.5rem or 40px
-                        height={40} // `h-10` is 2.5rem or 40px
+                        width={40}
+                        height={40}
                     />
                     <div>
                         <h3 className="font-semibold text-gray-800">{chat.userName}</h3>
@@ -75,31 +100,75 @@ const ChatConversation = ({ chat, onSendMessage, onBack, brandColor }) => {
                         message={msg}
                         currentUserProfilePic={currentUserProfilePic}
                         otherUserProfilePic={chat.userProfilePic}
-                        brandColor={brandColor} // <--- Pass brandColor to ChatMessage
+                        brandColor={brandColor}
+                        onEdit={() => handleEdit(msg)} // Pass the edit handler
+                        onDelete={() => onDeleteMessage(msg.id)} // Pass the delete handler
                     />
                 ))}
                 <div ref={messagesEndRef} />
             </div>
 
             {/* Chat Input Area */}
-            <div className="flex items-center p-4 border-t border-gray-200 bg-white flex-shrink-0 rounded-b-lg">
+            <div className="flex flex-col p-4 border-t border-gray-200 bg-white flex-shrink-0 rounded-b-lg">
+                {selectedFile && (
+                    <div className="flex items-center text-sm text-gray-600 mb-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                        <Paperclip size={16} className="mr-2" />
+                        <span>{selectedFile.name}</span>
+                        <button
+                            onClick={() => setSelectedFile(null)}
+                            className="ml-auto text-gray-400 hover:text-gray-600"
+                            aria-label="Remove file"
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
+                )}
+                {editingMessageId && (
+                    <div className="flex items-center text-sm text-gray-600 mb-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                        <span className="flex-1">Editing message...</span>
+                        <button
+                            onClick={() => {
+                                setEditingMessageId(null);
+                                setMessageInput('');
+                            }}
+                            className="ml-auto text-blue-400 hover:text-blue-600"
+                            aria-label="Cancel editing"
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
+                )}
                 <div className="flex items-center flex-grow bg-gray-100 px-4 py-2 rounded-2xl border border-gray-200">
                     <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                    />
+                    <button
+                        onClick={() => fileInputRef.current.click()}
+                        className="p-2 rounded-full text-gray-500 hover:bg-gray-200"
+                        aria-label="Attach file"
+                        disabled={editingMessageId !== null} // Disable file attachments while editing
+                    >
+                        <Paperclip size={20} />
+                    </button>
+                    <input
                         type="text"
-                        className="flex-grow bg-transparent focus:outline-none text-gray-700 placeholder-gray-500"
-                        placeholder="Type a message"
+                        className="flex-grow bg-transparent focus:outline-none text-gray-700 placeholder-gray-500 ml-2"
+                        placeholder={editingMessageId ? "Edit your message" : "Type a message"}
                         value={messageInput}
                         onChange={(e) => setMessageInput(e.target.value)}
                         onKeyPress={handleKeyPress}
                     />
                     <button
                         onClick={handleSend}
-                        disabled={!messageInput.trim()}
+                        disabled={!messageInput.trim() && !selectedFile}
                         className="ml-2 p-2 rounded-full flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{ backgroundColor: brandColor, color: sendButtonContrastTextColor }}
-                        aria-label="Send message"
+                        aria-label={editingMessageId ? "Save edited message" : "Send message"}
                     >
-                        <SendHorizonal size={20} className='-rotate-50' />
+                        <SendHorizonal size={20} />
                     </button>
                 </div>
             </div>
