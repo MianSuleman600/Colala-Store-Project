@@ -8,9 +8,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
 
-    // ✅ PWA configuration
+    // ✅ PWA configuration (optimized for OneSignal + offline)
     VitePWA({
       registerType: 'autoUpdate', // Updates service worker automatically
+      injectRegister: 'auto',     // Automatically injects SW registration
       includeAssets: [
         'favicon.ico',
         'apple-touch-icon.png',
@@ -78,6 +79,13 @@ export default defineConfig({
             }
           }
         ]
+      },
+
+      // ✅ Dev mode support for testing on localhost
+      devOptions: {
+        enabled: true,
+        type: 'module',
+        navigateFallback: 'index.html'
       }
     })
   ]
