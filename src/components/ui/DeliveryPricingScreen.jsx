@@ -1,7 +1,7 @@
 // src/components/ui/DeliveryPricingScreen.jsx
 import React, { useState } from 'react';
 import Button from './Button'; // Adjust path as needed
-import DeliveryPriceModal from './DeliveryPriceModal'; // Adjust path as needed
+import DeliveryPriceModal from '../models/DeliveryPriceModal'; // Adjust path as needed
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 
 /**

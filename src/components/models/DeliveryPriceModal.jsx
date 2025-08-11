@@ -1,6 +1,7 @@
+// DeliveryPriceModal.jsx
 import React, { useState, useEffect } from 'react';
-import Input from './Input'; // Adjust path as needed
-import Button from './Button'; // Still import for other buttons like Cancel
+import Input from '../ui/Input'; // Adjust path as needed
+import Button from '../ui/Button'; // Still import for other buttons like Cancel
 import LocationSelectModal from './LocationSelectModal'; // Adjust path as needed
 import { XMarkIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
@@ -24,6 +25,9 @@ const DeliveryPriceModal = ({ initialData, onSave, onCancel }) => {
 
     const [showLocationSelectModal, setShowLocationSelectModal] = useState(false);
     const [modalTargetField, setModalTargetField] = useState(null); // 'state' or 'localGovernment' for current modal
+
+    // Add state to store the list of local governments for the selected state
+    const [localGovernments, setLocalGovernments] = useState([]);
 
     useEffect(() => {
         console.log("DeliveryPriceModal: initialData changed. Resetting form.");
@@ -79,10 +83,31 @@ const DeliveryPriceModal = ({ initialData, onSave, onCancel }) => {
 
     const handleSelectLocation = (selectedLocation) => {
         console.log(`DeliveryPriceModal: Selected location ${selectedLocation} for ${modalTargetField}.`);
-        setFormData(prev => ({
-            ...prev,
-            [modalTargetField]: selectedLocation
-        }));
+
+        // Check if the user is selecting a State
+        if (modalTargetField === 'state') {
+            setFormData(prev => ({
+                ...prev,
+                state: selectedLocation,
+                localGovernment: '', // IMPORTANT: Reset local government when a new state is selected
+            }));
+            // Here you would fetch the local governments for the selected state
+            // For now, let's use a dummy list
+            if (selectedLocation === 'Lagos State') {
+                setLocalGovernments(['Ajeromi-Ifelodun', 'Alimosho', 'Amuwo-Odofin', 'Apapa', 'Badagry', 'Epe', 'Eti-Osa', 'Ibeju-Lekki', 'Ifako-Ijaiye', 'Ikeja', 'Ikorodu', 'Kosofe', 'Lagos Island', 'Lagos Mainland', 'Mushin', 'Ojo', 'Oshodi-Isolo', 'Shomolu', 'Surulere']);
+            } else if (selectedLocation === 'FCT, Abuja') {
+                setLocalGovernments(['Abaji', 'Bwari', 'Gwagwalada', 'Kuje', 'Kwali', 'Municipal Area Council']);
+            } else {
+                setLocalGovernments([]);
+            }
+        } else {
+            // If the user is selecting a Local Government
+            setFormData(prev => ({
+                ...prev,
+                [modalTargetField]: selectedLocation
+            }));
+        }
+
         setValidationErrors(prev => ({ ...prev, [modalTargetField]: '' }));
         setShowLocationSelectModal(false);
         setModalTargetField(null); // Clear the target field
@@ -90,6 +115,7 @@ const DeliveryPriceModal = ({ initialData, onSave, onCancel }) => {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            {/* ... Modal content ... */}
             <div className="relative w-full max-w-sm rounded-[20px] bg-white p-6 shadow-lg transform transition-all scale-100 opacity-100 animate-slide-in-up">
                 {/* Close Button */}
                 <button
@@ -145,14 +171,13 @@ const DeliveryPriceModal = ({ initialData, onSave, onCancel }) => {
                         <label htmlFor="markForFreeDelivery" className="text-sm text-gray-700">Mark for free delivery</label>
                     </div>
 
-                    {/* DIAGNOSTIC CHANGE: Using native button for Save to rule out custom Button component issues */}
                     <button
                         type="submit"
                         className="w-full rounded-[15px] bg-redd py-3 text-white text-base shadow-md hover:bg-redd"
                     >
                         Save
                     </button>
-                    <Button // Keeping your custom Button component for Cancel, as it's type="button"
+                    <Button
                         type="button"
                         onClick={onCancel}
                         className="w-full rounded-[15px] border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200"
@@ -169,9 +194,9 @@ const DeliveryPriceModal = ({ initialData, onSave, onCancel }) => {
                     onSelectLocation={handleSelectLocation}
                     title={modalTargetField === 'state' ? 'State' : 'Local Government'}
                     currentValue={modalTargetField === 'state' ? formData.state : formData.localGovernment}
-                    // You can pass actual lists of states/LGAs here if you have them
-                    // locations={yourListOfAllStates}
-                    // popularLocations={yourListOfPopularStates}
+                    // IMPORTANT: Pass the relevant list of locations to the modal
+                    locations={modalTargetField === 'state' ? ['Lagos State', 'FCT, Abuja', 'Ogun State'] : localGovernments}
+                    popularLocations={modalTargetField === 'state' ? ['Lagos State', 'FCT, Abuja'] : []}
                 />
             )}
         </div>

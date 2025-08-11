@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy, useEffect } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { Routes, Route, Outlet, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import ScrollToTop from '../components/ui/ScrollToTop.jsx';
@@ -29,6 +29,7 @@ const UpgradeStorePage = lazy(() => import('../features/Upgradestore/Upgradestor
 
 // Main layout with NavBar
 const MainLayout = () => {
+    // This hook call is valid as it's inside a functional component.
     const { isLoggedIn } = useSelector((state) => state.user);
     const [showRegisterModal, setShowRegisterModal] = useState(false);
     const navigate = useNavigate();
@@ -74,21 +75,6 @@ const MainLayout = () => {
 
 // Router definition
 function AppRouter() {
-    const { isLoggedIn } = useSelector((state) => state.user);
-
-    // OPTIMIZATION: Use preloading hints to fetch code for likely next pages.
-    // This effect runs once when the user is logged in, silently fetching the code
-    // for the Home and Feed pages to make navigation feel instantaneous.
-    useEffect(() => {
-        if (isLoggedIn) {
-            console.log("Preloading Home and Feed pages...");
-            // Preload the HomePage module
-            HomePage.preload && HomePage.preload();
-            // Preload the FeedPage module
-            FeedPage.preload && FeedPage.preload();
-        }
-    }, [isLoggedIn]);
-
     return (
         <>
             <ScrollToTop />
@@ -97,10 +83,11 @@ function AppRouter() {
                     {/* Public Routes */}
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
-
-                    {/* Layout with nested routes */}
                     <Route path="/" element={<MainLayout />}>
                         <Route index element={<HomePage />} />
+                        <Route path="feed" element={<FeedPage />} />
+
+                        {/* Protected Routes */}
                         <Route path="checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
                         <Route path="store-upgrade" element={<ProtectedRoute><UpgradeStorePage /></ProtectedRoute>} />
                         <Route path="add-product" element={<ProtectedRoute><AddProductPage /></ProtectedRoute>} />
@@ -113,7 +100,6 @@ function AppRouter() {
                         <Route path="my-products/:productId/boost-preview" element={<ProtectedRoute><BoostAdPreviewPage /></ProtectedRoute>} />
                         <Route path="my-services" element={<ProtectedRoute><MyServicesPage /></ProtectedRoute>} />
                         <Route path="my-services/:serviceId/details" element={<ProtectedRoute><ServiceDetailsPage /></ProtectedRoute>} />
-                        <Route path="feed" element={<FeedPage />} />
                         <Route path="chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
                         <Route path="orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
                         <Route path="settings" element={<ProtectedRoute><SellerDashboardPage /></ProtectedRoute>} />

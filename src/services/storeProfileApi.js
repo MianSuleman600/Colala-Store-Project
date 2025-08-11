@@ -1,56 +1,12 @@
+// src/features/api/storeProfileApi.js
+
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import profileImage from '../assets/images/profileImage.png';
-import bannerImage from '../assets/images/bannerImage.png';
-import PromotionalBannerImage from '../assets/images/bag.png';
+import MOCK_STORE_PROFILES_DB, { hydrateImagePaths, saveDbToLocalStorage } from '../utils/db';
+import { setStoreProfile, login } from '../features/auth/userSlice';
+import { resetRegistration } from '../features/auth/registrationSlice';
 
-
-// A map to store mock profiles by ID.
-// In a real app, this would be a database or a backend API.
-// For localStorage, we'll store a JSON stringified version of this map.
-let MOCK_STORE_PROFILES_DB = {
-    // We'll use a placeholder ID 'default_user_id' for initial setup.
-    // You should replace this with a real user ID from your Redux state if available.
-    // Or, during login/registration, create a unique ID and store a profile for it.
-    'default_user_id': { // This ID should match what you get from `userId` in Redux
-        name: 'Sasha Stores',
-        email: 'sashastores@example.com',
-        phoneNumber: '0901234456',
-        location: 'Lagos',
-        categories: ['Electronics'],
-        profilePictureUrl: profileImage,
-        bannerImageUrl: bannerImage,
-        promotionalBannerImageUrl:  PromotionalBannerImage ,
-        showPhoneOnProfile: true,
-        brandColor: '#EF4444',
-    },
-    // Add more mock profiles if needed for different IDs
-    // 'another_user_id': { /* ... another profile data ... */ }
-};
-
+// A mock utility to simulate network latency
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-// Initialize localStorage with mock data if not already present
-// This ensures each user ID can have its own profile stored.
-if (!localStorage.getItem('mockStoreProfiles')) {
-    localStorage.setItem('mockStoreProfiles', JSON.stringify(MOCK_STORE_PROFILES_DB));
-} else {
-    // If it exists, load it. This allows changes made via updateStoreProfile to persist.
-    MOCK_STORE_PROFILES_DB = JSON.parse(localStorage.getItem('mockStoreProfiles'));
-    // Ensure default images are correctly re-mapped if the stored paths are strings
-    for (const id in MOCK_STORE_PROFILES_DB) {
-        if (MOCK_STORE_PROFILES_DB[id].profilePictureUrl && String(MOCK_STORE_PROFILES_DB[id].profilePictureUrl).includes('assets/images/profileImage.png')) {
-            MOCK_STORE_PROFILES_DB[id].profilePictureUrl = profileImage;
-        }
-        if (MOCK_STORE_PROFILES_DB[id].bannerImageUrl && String(MOCK_STORE_PROFILES_DB[id].bannerImageUrl).includes('assets/images/bannerImage.png')) {
-            MOCK_STORE_PROFILES_DB[id].bannerImageUrl = bannerImage;
-        }
-         if (MOCK_STORE_PROFILES_DB[id].promotionalBannerImageUrl &&
-        String(MOCK_STORE_PROFILES_DB[id].promotionalBannerImageUrl).includes('assets/images/bag.png')) {
-        MOCK_STORE_PROFILES_DB[id].promotionalBannerImageUrl = PromotionalBannerImage;
-    }
-    }
-}
-
 
 export const storeProfileApi = createApi({
     reducerPath: 'storeProfileApi',
@@ -58,66 +14,68 @@ export const storeProfileApi = createApi({
     tagTypes: ['StoreProfile'],
 
     endpoints: (builder) => ({
-        // UPDATED: Now accepts an 'id' argument
         getStoreProfile: builder.query({
-            queryFn: async (id) => { // <<< IMPORTANT: Added 'id' parameter
+            queryFn: async (id) => {
                 await delay(500); // Simulate network delay
                 try {
-                    const storedProfiles = JSON.parse(localStorage.getItem('mockStoreProfiles') || '{}');
-                    let profileToReturn = storedProfiles[id]; // Try to find profile by ID
+                    let profileToReturn = MOCK_STORE_PROFILES_DB[id];
 
                     if (!profileToReturn) {
-                        // If no profile found for this ID, use a default or create one
-                        // For demonstration, let's create a very basic one or use MOCK_INITIAL_STORE_PROFILE as a base.
-                        // In a real app, this would typically mean the profile doesn't exist.
                         console.warn(`No mock profile found for ID: ${id}. Returning a generic one.`);
                         profileToReturn = {
-                            ...MOCK_STORE_PROFILES_DB['default_user_id'], // Use the default template
-                            name: `Store for User ${id}`, // Customize name
+                            ...MOCK_STORE_PROFILES_DB['default_user_id'],
+                            name: `Store for User ${id}`,
                             email: `${id}@example.com`,
-                            // Ensure image modules are correctly assigned if using local defaults
-                            profilePictureUrl: profileImage,
-                            bannerImageUrl: bannerImage,
-                            // Add any other default properties
                         };
-                        // Optionally, save this new default profile to localStorage for next time
-                        storedProfiles[id] = profileToReturn;
-                        localStorage.setItem('mockStoreProfiles', JSON.stringify(storedProfiles));
-                    } else {
-                        // Ensure local image paths are re-mapped to actual imported modules
-                        if (String(profileToReturn.profilePictureUrl).includes('assets/images/profileImage.png')) {
-                            profileToReturn.profilePictureUrl = profileImage;
-                        }
-                        if (String(profileToReturn.bannerImageUrl).includes('assets/images/bannerImage.png')) {
-                            profileToReturn.bannerImageUrl = bannerImage;
-                        }
+                        MOCK_STORE_PROFILES_DB[id] = profileToReturn;
+                        saveDbToLocalStorage(MOCK_STORE_PROFILES_DB);
                     }
-
+                    
                     return { data: profileToReturn };
                 } catch (error) {
                     console.error("Error fetching store profile:", error);
                     return { error: { status: 'FETCH_ERROR', data: error.message } };
                 }
             },
-            // The providesTags should now include the ID if you're fetching specific profiles
             providesTags: (result, error, id) => [{ type: 'StoreProfile', id }],
         }),
 
-        // UPDATED: Now expects 'id' in the patch for specific store update
         updateStoreProfile: builder.mutation({
-            queryFn: async ({ id, ...patch }) => { // IMPORTANT: Destructure 'id' from patch
+            queryFn: async (payload) => {
                 await delay(500); // Simulate network delay
+                console.log('API received payload:', payload);
+
+                const { id, data } = payload;
+                console.log('API received data type:', typeof data);
+
                 try {
-                    let storedProfiles = JSON.parse(localStorage.getItem('mockStoreProfiles') || '{}');
-                    let currentProfile = storedProfiles[id];
+                    let currentProfile = MOCK_STORE_PROFILES_DB[id];
 
                     if (currentProfile) {
-                        let updatedProfile = { ...currentProfile, ...patch };
-                        storedProfiles[id] = updatedProfile;
-                        localStorage.setItem('mockStoreProfiles', JSON.stringify(storedProfiles));
+                        let updatedFields = {};
+                        
+                        if (data instanceof FormData) {
+                            updatedFields = Object.fromEntries(data.entries());
+                        } else if (data && typeof data === 'object') {
+                            updatedFields = data;
+                        } else {
+                            console.error("Invalid data format for updateStoreProfile mutation. Expected FormData or a plain object.");
+                            return { error: { status: 'UPDATE_ERROR', data: 'Invalid data format provided for update.' } };
+                        }
+                        
+                        const updatedProfile = { ...currentProfile, ...updatedFields };
+
+                        for (const key in updatedProfile) {
+                            if (updatedProfile[key] instanceof File) {
+                                updatedProfile[key] = `simulated-url-for-${key}-${id}`;
+                            }
+                        }
+
+                        MOCK_STORE_PROFILES_DB[id] = updatedProfile;
+                        saveDbToLocalStorage(MOCK_STORE_PROFILES_DB);
+
                         return { data: updatedProfile };
                     } else {
-                        // If trying to update a non-existent profile, you might create it or return an error
                         return { error: { status: 'NOT_FOUND', data: `Profile with ID ${id} not found for update.` } };
                     }
                 } catch (error) {
@@ -125,10 +83,69 @@ export const storeProfileApi = createApi({
                     return { error: { status: 'UPDATE_ERROR', data: error.message } };
                 }
             },
-            // Invalidate the specific tag for the updated profile
+            
+            async onQueryStarted({ id, data }, { dispatch, queryFulfilled }) {
+                try {
+                    const { data: updatedProfileData } = await queryFulfilled;
+                    dispatch(setStoreProfile(updatedProfileData));
+                    console.log('✅ storeProfileApi: userSlice updated with new profile data.');
+                } catch (error) {
+                    console.error('❌ storeProfileApi: Failed to update userSlice:', error);
+                }
+            },
             invalidatesTags: (result, error, { id }) => [{ type: 'StoreProfile', id }],
+        }),
+        
+        registerUser: builder.mutation({
+            queryFn: async (formData) => {
+                await delay(1000);
+                const data = Object.fromEntries(formData.entries());
+                console.log('🟢 Mock registration request received:', data);
+
+                if (data.email === 'test@error.com') {
+                    return { error: { status: 400, data: 'Email is already taken. Please use a different one.' } };
+                }
+                
+                const newUserId = `user_${Date.now()}`;
+                
+                const newProfile = {
+                    name: data.storeName,
+                    email: data.email,
+                    phoneNumber: data.phoneNumber,
+                    location: data.storeLocation,
+                    categories: JSON.parse(data.categories),
+                    profilePictureUrl: `simulated-url-for-profilePicture-${newUserId}`,
+                    bannerImageUrl: `simulated-url-for-bannerImage-${newUserId}`,
+                    promotionalBannerImageUrl: null,
+                    showPhoneOnProfile: true,
+                    brandColor: data.selectedColor,
+                };
+                
+                MOCK_STORE_PROFILES_DB[newUserId] = newProfile;
+                saveDbToLocalStorage(MOCK_STORE_PROFILES_DB);
+                
+                console.log('✅ Mock registration successful. New user ID:', newUserId);
+
+                return { data: { success: true, message: 'User registered successfully', userId: newUserId } };
+            },
+            // --- NEW LOGIC FOR REGISTRATION ---
+            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+                try {
+                    const { data } = await queryFulfilled;
+                    if (data && data.userId) {
+                        // Log the user into the userSlice
+                        dispatch(login({ userId: data.userId, userName: arg.get('storeName') }));
+                        // Reset the registration form data in the registrationSlice
+                        dispatch(resetRegistration());
+                        console.log('✅ storeProfileApi: Registration successful. User logged in and registration form reset.');
+                    }
+                } catch (error) {
+                    console.error('❌ storeProfileApi: Failed to handle registration side effects:', error);
+                }
+            },
+            // --- END NEW LOGIC ---
         }),
     }),
 });
 
-export const { useGetStoreProfileQuery, useUpdateStoreProfileMutation } = storeProfileApi;
+export const { useGetStoreProfileQuery, useUpdateStoreProfileMutation, useRegisterUserMutation } = storeProfileApi;

@@ -1,100 +1,15 @@
 // D:\Project\frontend\src\features\auth\registrationSlice.js
 
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice } from '@reduxjs/toolkit';
 
-// Helper function to calculate profile completion percentage
-const calculateCompletion = (formData, requiredFields) => {
-    let completedFieldsCount = 0;
-    const totalRequiredFields = requiredFields.length;
-
-    if (totalRequiredFields === 0) {
-        return 100; // Avoid division by zero if no fields are defined as required
-    }
-
-    requiredFields.forEach(field => {
-        const value = formData[field];
-
-        // Check for basic truthiness (non-null, non-undefined, non-empty string)
-        if (value !== null && value !== undefined && value !== '') {
-            // Special handling for specific field types
-            if (Array.isArray(value)) {
-                // For arrays (like deliveryPricing, selectedAddOnServices, categories), check if they have elements
-                if (value.length > 0) {
-                    completedFieldsCount++;
-                }
-            } else if (typeof value === 'object' && value instanceof File) {
-                // For File objects (e.g., ninSlip, cacCertificate, profilePicture, storeBanner, storeVideo)
-                completedFieldsCount++; // Presence of the file object means it's "complete" for now
-            } else if (typeof value === 'object' && value !== null) {
-                // For nested objects (like storeAddress), check if its required sub-fields are complete
-                if (field === 'storeAddress') {
-                    const addressRequired = ['state', 'localGovernment', 'fullAddress'];
-                    const addressCompleted = addressRequired.every(subField =>
-                        value[subField] !== null && value[subField] !== undefined && value[subField] !== ''
-                    );
-                    if (addressCompleted) {
-                        completedFieldsCount++;
-                    }
-                } else {
-                    // For other generic objects, consider them complete if not empty
-                    if (Object.keys(value).length > 0) {
-                        completedFieldsCount++;
-                    }
-                }
-            } else {
-                // For primitive values (strings, numbers, booleans)
-                completedFieldsCount++;
-            }
-        }
-    });
-
-    return Math.round((completedFieldsCount / totalRequiredFields) * 100);
-};
-
-
-// Define initialFormState as a function to ensure a fresh object is returned every time.
-// This prevents unintended shared references when resetting the state.
-const getInitialFormState = () => ({
-    // Level 1 fields
-    storeName: '',
-    email: '',
-    phoneNumber: '',
-    storeLocation: '',
-    password: '',
-    referralCode: '',
-    // Level 2 fields
-    businessName: '',
-    businessType: '',
-    ninNumber: '',
-    cacNumber: '',
-    ninSlip: null,       // File object
-    cacCertificate: null, // File object
-    profilePicture: null, // File object (from Level1, but could be updated later)
-    storeBanner: null,    // File object (from Level1, but could be updated later)
-    // Level 3 fields (and potentially "Upgrade Store" fields)
-    storeVideo: null,
-    hasPhysicalStore: false,
-    storeAddress: {
-        state: '',
-        localGovernment: '',
-        fullAddress: '',
-        openingHours: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => ({ day, from: '', to: '' })),
-    },
-    deliveryPricing: [], // Array of delivery price objects
-    selectedColor: '#FF0000', // This is the temporary color for registration
-    selectedAddOnServices: [], // From your Register.jsx
-    categories: [], // Assuming categories are also part of store setup from Level1
-});
-
+// --- CONSTANTS ---
 // Define the fields required for 100% profile completion
-// IMPORTANT: Customize this list based on what truly makes a profile "100% complete" for your app.
-// This list will determine the completion percentage.
 const REQUIRED_PROFILE_FIELDS = [
     'email',
     'storeName',
     'phoneNumber',
     'storeLocation',
-    'password', // Assuming password is required for initial registration
+    'password',
     'businessName',
     'businessType',
     'ninNumber',
@@ -103,79 +18,104 @@ const REQUIRED_PROFILE_FIELDS = [
     'cacCertificate',
     'profilePicture',
     'storeBanner',
-    // 'storeVideo', // This might be optional if hasPhysicalStore is false
-    'storeAddress', // This will be checked for its sub-fields in calculateCompletion
+    'storeAddress', // This field will be checked for its sub-fields
     'deliveryPricing',
     'selectedColor',
-    'categories', // From Level1
+    'categories',
 ];
 
+// Define required sub-fields for nested objects to make the logic scalable
+const NESTED_REQUIRED_FIELDS = {
+    storeAddress: ['state', 'localGovernment', 'fullAddress'],
+};
 
-// Create an async thunk for the API call
-export const registerUser = createAsyncThunk(
-    'registration/registerUser',
-    async (formData, { rejectWithValue }) => {
-        try {
-            console.log('🟢 [registerUser] Raw formData received from frontend:', formData);
+// --- HELPER FUNCTION (could be moved to a utils file) ---
+// Helper function to calculate profile completion percentage
+const calculateCompletion = (formData, requiredFields) => {
+    let completedFieldsCount = 0;
+    const totalRequiredFields = requiredFields.length;
 
-            const data = new FormData();
+    if (totalRequiredFields === 0) {
+        return 100;
+    }
 
-            for (const key in formData) {
-                if (formData[key] !== null && formData[key] !== undefined) {
-                    if (formData[key] instanceof File) {
-                        data.append(key, formData[key]);
-                    } else if (
-                        typeof formData[key] === 'object' &&
-                        !Array.isArray(formData[key])
-                    ) {
-                        // Handle nested objects like storeAddress
-                        data.append(key, JSON.stringify(formData[key]));
-                    } else if (Array.isArray(formData[key])) {
-                        // Handle arrays like deliveryPricing, selectedAddOnServices, categories
-                        data.append(key, JSON.stringify(formData[key]));
-                    } else {
-                        data.append(key, formData[key]);
-                    }
+    requiredFields.forEach(field => {
+        const value = formData[field];
+        if (!value) {
+            return;
+        }
+
+        if (Array.isArray(value)) {
+            if (value.length > 0) {
+                completedFieldsCount++;
+            }
+        } else if (typeof value === 'object' && value !== null) {
+            // Check for file objects created by our handleChange function
+            if (value.file instanceof File) {
+                completedFieldsCount++;
+                return; // Exit this iteration early
+            }
+
+            const subFields = NESTED_REQUIRED_FIELDS[field];
+            if (subFields) {
+                const isNestedObjectComplete = subFields.every(subField =>
+                    value[subField] !== null && value[subField] !== undefined && value[subField] !== ''
+                );
+                if (isNestedObjectComplete) {
+                    completedFieldsCount++;
+                }
+            } else {
+                if (Object.keys(value).length > 0) {
+                    completedFieldsCount++;
                 }
             }
-
-            console.log('🧾 [registerUser] FormData being sent. (Note: FormData content cannot be easily logged directly):');
-            // For debugging FormData content, you can iterate it like this:
-            // for (let pair of data.entries()) {
-            //     console.log(pair[0]+ ': ' + pair[1]);
-            // }
-
-
-            // --- IMPORTANT: Replace 'YOUR_API_ENDPOINT_HERE' with your actual backend API URL ---
-            const response = await fetch('YOUR_API_ENDPOINT_HERE', {
-                method: 'POST',
-                body: data, // FormData correctly sets 'Content-Type: multipart/form-data'
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                return rejectWithValue(errorData.message || 'Registration failed');
-            }
-
-            const responseData = await response.json();
-            console.log('✅ [registerUser] Registration successful:', responseData);
-
-            return responseData; // This will be the action.payload on success
-        } catch (error) {
-            return rejectWithValue(error.message || 'Network error occurred.');
+        } else {
+            completedFieldsCount++;
         }
-    }
-);
+    });
 
+    return Math.round((completedFieldsCount / totalRequiredFields) * 100);
+};
+
+// --- INITIAL STATE ---
+const getInitialFormState = () => ({
+    storeName: '',
+    email: '',
+    phoneNumber: '',
+    storeLocation: '',
+    password: '',
+    referralCode: '',
+    businessName: '',
+    businessType: '',
+    ninNumber: '',
+    cacNumber: '',
+    ninSlip: null,
+    cacCertificate: null,
+    profilePicture: null,
+    storeBanner: null,
+    storeVideo: null,
+    hasPhysicalStore: false,
+    storeAddress: {
+        state: '',
+        localGovernment: '',
+        fullAddress: '',
+        openingHours: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => ({ day, from: '', to: '' })),
+    },
+    deliveryPricing: [],
+    selectedColor: '#FF0000',
+    selectedAddOnServices: [],
+    categories: [],
+});
+
+// --- SLICE ---
 const registrationSlice = createSlice({
     name: 'registration',
     initialState: {
         formData: getInitialFormState(),
         currentStep: 1,
-        status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
-        error: null,
-        profileCompletion: 0, // NEW: Initial completion is 0
-        requiredFields: REQUIRED_PROFILE_FIELDS, // NEW: Reference the defined required fields
+        // 🔴 Removed: status and error properties, as they're now handled by RTK Query
+        profileCompletion: 0,
+        requiredFields: REQUIRED_PROFILE_FIELDS,
     },
     reducers: {
         updateField: (state, action) => {
@@ -191,7 +131,6 @@ const registrationSlice = createSlice({
             }
             current[path[path.length - 1]] = value;
 
-            // NEW: Recalculate completion after every field update
             state.profileCompletion = calculateCompletion(state.formData, state.requiredFields);
         },
         setStep: (state, action) => {
@@ -200,36 +139,18 @@ const registrationSlice = createSlice({
         resetRegistration: (state) => {
             state.formData = getInitialFormState();
             state.currentStep = 1;
-            state.status = 'idle';
-            state.error = null;
-            state.profileCompletion = 0; // NEW: Reset completion too
+            // 🔴 Removed: state.status and state.error resets
+            state.profileCompletion = 0;
         },
-        // NEW: Action to explicitly set completion (useful if loading from backend)
-        setProfileCompletion: (state, action) => {
-            state.profileCompletion = action.payload;
-        },
+        // 🟢 New reducer to reset form data on successful submission, if needed
+        // This is optional and depends on your specific app flow
+        resetFormData: (state) => {
+             state.formData = getInitialFormState();
+        }
     },
-    extraReducers: (builder) => {
-        builder
-            .addCase(registerUser.pending, (state) => {
-                state.status = 'loading';
-                state.error = null;
-            })
-            .addCase(registerUser.fulfilled, (state) => {
-                state.status = 'succeeded';
-                state.error = null;
-                // NEW: Recalculate completion after successful registration
-                state.profileCompletion = calculateCompletion(state.formData, state.requiredFields);
-                // You might store a user token or user ID here if the backend returns it
-                // state.user = action.payload.user;
-            })
-            .addCase(registerUser.rejected, (state, action) => {
-                state.status = 'failed';
-                state.error = action.payload || 'An unknown error occurred';
-            });
-    },
+    // 🔴 Removed: extraReducers, as the registerUser thunk is no longer needed
 });
 
-export const { updateField, setStep, resetRegistration, setProfileCompletion } = registrationSlice.actions;
+export const { updateField, setStep, resetRegistration, resetFormData } = registrationSlice.actions;
 
 export default registrationSlice.reducer;

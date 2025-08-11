@@ -252,7 +252,7 @@ const Level2 = ({
                             <Button
                                 type="button"
                                 onClick={handleBackClick}
-                                className="w-[54px] flex items-center justify-center gap-2 rounded-[15px] border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200"
+                                className="w-[54px] cursor-pointer flex items-center justify-center gap-2 rounded-[15px] border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200"
                                 aria-label="Go back to Level 1"
                             >
                                 <ArrowLeftIcon className="h-5 w-5" />
@@ -262,7 +262,7 @@ const Level2 = ({
                                 <Button
                                     type="button"
                                     onClick={handleSaveAndExit}
-                                    className="rounded-[15px] py-3 text-base shadow-md bg-black text-white hover:bg-gray-800"
+                                    className="rounded-[15px] cursor-pointer py-3 text-base shadow-md bg-black text-white hover:bg-gray-800"
                                 >
                                     Save and Exit
                                 </Button>
@@ -270,7 +270,7 @@ const Level2 = ({
                             <Button
                                 type="button"
                                 onClick={handleProceed}
-                                className="flex-1 rounded-[15px] py-3 text-base shadow-md"
+                                className="flex-1 rounded-[15px] cursor-pointer py-3 text-base shadow-md"
                                 style={{ ...brandBgStyle, ...contrastTextStyle, ...brandHoverStyle }}
                             >
                                 Proceed
@@ -279,7 +279,7 @@ const Level2 = ({
                         {mode === 'register' && onLoginClick && (
                             <Button
                                 onClick={onLoginClick}
-                                className="w-full rounded-[15px] border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200 mt-4"
+                                className="w-full rounded-[15px] cursor-pointer border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200 mt-4"
                             >
                                 Login
                             </Button>
@@ -369,7 +369,7 @@ const Level2 = ({
                             <Button
                                 type="button"
                                 onClick={handleBackClick}
-                                className="w-[54px] flex items-center justify-center gap-2 rounded-[15px] border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200"
+                                className="w-[54px] cursor-pointer flex items-center justify-center gap-2 rounded-[15px] border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200"
                             >
                                 <ArrowLeftIcon className="h-5 w-5" />
                             </Button>
@@ -377,7 +377,7 @@ const Level2 = ({
                                 <Button
                                     type="button"
                                     onClick={handleSaveAndExit}
-                                    className="rounded-[15px] py-3 text-base shadow-md bg-black text-white hover:bg-gray-800"
+                                    className="rounded-[15px] cursor-pointer py-3 text-base shadow-md bg-black text-white hover:bg-gray-800"
                                 >
                                     Save and Exit
                                 </Button>
@@ -385,7 +385,7 @@ const Level2 = ({
                             <Button
                                 type="button"
                                 onClick={handleProceed}
-                                className="flex-1 w-full rounded-[15px] py-3 text-base shadow-md"
+                                className="flex-1 w-full cursor-pointer rounded-[15px] py-3 text-base shadow-md"
                                 style={{ ...brandBgStyle, ...contrastTextStyle, ...brandHoverStyle }}
                             >
                                 {mode === 'register' ? 'Proceed To Level 3' : 'Proceed To Level 3'}
@@ -394,7 +394,7 @@ const Level2 = ({
                                 <Button
                                     type="button"
                                     onClick={() => navigate("/")}
-                                    className=" w-[100px] rounded-[15px] border border-gray-300 bg-black py-3 text-white text-xs shadow-sm hover:bg-gray-800"
+                                    className=" w-[100px] cursor-pointer rounded-[15px] border border-gray-300 bg-black py-3 text-white text-xs shadow-sm hover:bg-gray-800"
                                 >
                                     Home
                                 </Button>
@@ -403,7 +403,7 @@ const Level2 = ({
                         {mode === 'register' && onLoginClick && (
                             <Button
                                 onClick={onLoginClick}
-                                className="w-full rounded-[15px] border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200 mt-4"
+                                className="w-full rounded-[15px] cursor-pointer border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200 mt-4"
                             >
                                 Login
                             </Button>

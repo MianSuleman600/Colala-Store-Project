@@ -5,11 +5,13 @@ const userSlice = createSlice({
     name: 'user',
     initialState: {
         userName: 'Sasha Stores', // Default/mock logged-in user name for demo
-        isLoggedIn: true,         // Simulate logged-in state for demo
-        cartItemCount: 3,         // Mock cart count for demo
+        isLoggedIn: true, // Simulate logged-in state for demo
+        cartItemCount: 3, // Mock cart count for demo
         // --- ADDED userId HERE ---
         // IMPORTANT: This 'default_user_id' MUST match the key used in MOCK_STORE_PROFILES_DB in storeProfileApi.js
         userId: 'default_user_id', // Assign a mock user ID for the initial logged-in state
+        // --- NEW: Added a field to store the user's store profile ---
+        storeProfile: null,
     },
     reducers: {
         setUserName: (state, action) => {
@@ -31,9 +33,14 @@ const userSlice = createSlice({
             state.cartItemCount = 0;
             // --- CLEAR userId ON LOGOUT ---
             state.userId = null; // Clear userId on logout
+            state.storeProfile = null; // Also clear the store profile on logout
+        },
+        // --- NEW: Reducer to set the entire store profile object ---
+        setStoreProfile: (state, action) => {
+            state.storeProfile = action.payload;
         },
     },
 });
 
-export const { setUserName, setCartItemCount, login, logout } = userSlice.actions;
+export const { setUserName, setCartItemCount, login, logout, setStoreProfile } = userSlice.actions;
 export default userSlice.reducer;

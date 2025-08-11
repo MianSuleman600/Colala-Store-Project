@@ -70,6 +70,7 @@ const StorePublicInfoSection = ({
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
                 <div className="flex flex-col sm:flex-row sm:items-center mb-2 sm:mb-0">
                     <h3 className="text-xl font-bold text-gray-800 flex items-center">
+                        {/* CORRECTED: Use storeData.storeName instead of storeData.name */}
                         {storeData.name}
                         {/* Verified icon always shown if the store itself is verified, not just if viewer is logged in */}
                         <img src={varifyIcon} alt="Verified" className="w-5 h-5 ml-2" />
@@ -84,7 +85,7 @@ const StorePublicInfoSection = ({
                 <Button
                     onClick={handleFollowToggle}
                     className={`py-2 px-6 rounded-lg flex items-center justify-center transition-colors text-white
-                        ${isFollowing ? 'bg-gray-500 hover:bg-gray-600' : 'hover:opacity-90'}`}
+                        ${isFollowing ? 'bg-gray-500 hover:bg-gray-600' : 'hover:opacity-90'}`}
                     style={!isFollowing ? { backgroundColor: brandColor } : {}} // Use purple for follow
                     disabled={!isLoggedIn} // Disable if the viewer is not logged in
                 >

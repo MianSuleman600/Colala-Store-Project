@@ -1,3 +1,4 @@
+//D:\Project\frontend\src\components\store\StoreHeader.jsx
 import React from 'react';
 import ImagePlaceholder from '../ui/ImagePlaceholder';
 import shareIcon from '../../assets/icons/Shareee.png';
@@ -32,7 +33,7 @@ const StoreHeader = ({
                 <div className="absolute top-4 left-4">
                     <button
                         onClick={handleGoBack}
-                        className="p-2 rounded-full bg-black bg-opacity-70 text-white hover:bg-opacity-90 transition-colors shadow-md"
+                        className="p-2 rounded-full bg-gray-300 bg-opacity-70 text-black hover:bg-opacity-90 transition-colors shadow-md"
                     >
                         <img src={leftIcon} alt="Back" className="w-6 h-6" />
                     </button>
@@ -44,7 +45,7 @@ const StoreHeader = ({
                 <div className="absolute top-4 right-4">
                     <button
                         onClick={handleShare}
-                        className="p-2 rounded-full bg-black bg-opacity-60 text-white hover:bg-opacity-90 transition-colors shadow-md"
+                        className="p-2 rounded-full bg-gray-300 bg-opacity-60 text-white hover:bg-opacity-90 transition-colors shadow-md"
                     >
                         <img src={shareIcon} alt="Share" className="w-6 h-6" />
                     </button>

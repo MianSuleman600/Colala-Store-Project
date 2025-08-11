@@ -1,25 +1,25 @@
 // src/components/auth/register/Level3.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useDispatch } from 'react-redux';
-import { updateField } from '../../../../features/auth/registrationSlice'; // Adjust the import path for Redux
-// import { useUpdateStoreProfileMutation, useGetStoreProfileQuery } from '../../../../services/storeProfileApi'; // These RTK Query hooks are not used directly in this component's rendering logic, but are likely used by the parent (Register.jsx or UpgradeStorePage.jsx)
+import { updateField } from '../../../../features/auth/registrationSlice';
+import { useNavigate } from 'react-router-dom';
 
-// --- UI Components ---
+// --- UI Components (assuming these paths are correct) ---
 import Input from '../../../../components/ui/Input';
 import Button from '../../../../components/ui/Button';
-import LocationSelectModal from '../../../../components/ui/LocationSelectModal'; // Ensure this path is correct
-import DeliveryPricingScreen from '../../../../components/ui/DeliveryPricingScreen'; // Ensure this path is correct (for ADD/EDIT form)
-import DeliveryPriceCard from '../../../../components/ui/DeliveryPriceCard'; // Import DeliveryPriceCard here!
-import { useNavigate } from 'react-router-dom'; // Assuming navigate is available for 'Home' button
+import LocationSelectModal from '../../../../components/models/LocationSelectModal';
+import DeliveryPricingScreen from '../../../../components/ui/DeliveryPricingScreen';
+import DeliveryPriceCard from '../../../../components/ui/DeliveryPriceCard';
 import StepIndicator from '../../../../components/ui/StepIndicator';
+
 // --- Icons ---
 import {
     ArrowLeftIcon,
     ChevronRightIcon,
     CameraIcon,
     TrashIcon,
-    CheckCircleIcon // Added for consistency in plan features if needed elsewhere
+    CheckCircleIcon
 } from '@heroicons/react/24/outline';
 
 /**
@@ -50,8 +50,8 @@ const Level3 = ({
     onLoginClick,
     currentStep,
     mode = 'register',
-    brandColor = '#EF4444', // Default to hex color
-    contrastColor = '#FFFFFF', // Default to hex color
+    brandColor = '#EF4444',
+    contrastColor = '#FFFFFF',
 }) => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
@@ -59,34 +59,23 @@ const Level3 = ({
     // --- Local UI State ---
     const [validationErrors, setValidationErrors] = useState({});
     const [showStoreAddressForm, setShowStoreAddressForm] = useState(false);
-
-    // Controls visibility of the DeliveryPricingScreen modal (for ADDING/EDITING a single price)
     const [showDeliveryPricingModal, setShowDeliveryPricingModal] = useState(false);
-    // Stores the data of the item being edited, or null if adding a new one
     const [editingDeliveryPriceData, setEditingDeliveryPriceData] = useState(null);
-    // Stores the index of the item being edited
     const [editingDeliveryPriceIndex, setEditingDeliveryPriceIndex] = useState(null);
-
     const [showLocationSelectModal, setShowLocationSelectModal] = useState(false);
-    const [modalTargetField, setModalTargetField] = useState(null); // Used for location selection (state/LGA)
+    const [modalTargetField, setModalTargetField] = useState(null);
 
     // Dummy data for brand color selection and opening hours
     const dummyColors = ['#FF0000', '#0000FF', '#008000', '#FFA500', '#800080', '#FFC0CB', '#00CED1', '#FFD700', '#A52A2A'];
     const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-    // Define the global step numbers for Level 3's sub-steps (only relevant for 'register' mode)
-    // Assuming Level 2 ends at global step 5. Level 3 starts at global step 6.
+    // Define the global step numbers for Level 3's sub-steps
     const level3StartStepRegister = 6;
-    const level3StepsRegister = [level3StartStepRegister, level3StartStepRegister + 1]; // Global steps 6 and 7
-    // Determine the active display step *within* Level 3 (1 or 2) for conditional rendering in 'register' mode
+    const level3StepsRegister = [level3StartStepRegister, level3StartStepRegister + 1];
     const activeDisplayStepRegister = currentStep - level3StartStepRegister + 1;
-
-    // For upgrade mode, Level 3 is a single conceptual step, so its internal step is always 1.
     const activeDisplayStepUpgrade = 1;
 
     // --- IMPORTANT: Provide robust default values for formData and its nested objects ---
-    // This ensures that even if formData or its nested properties are undefined
-    // when Level3 first mounts, it won't crash.
     const currentFormData = {
         ...(formData || {}),
         hasPhysicalStore: formData?.hasPhysicalStore ?? false,
@@ -101,14 +90,13 @@ const Level3 = ({
         selectedColor: formData?.selectedColor ?? '#FF0000',
     };
 
-    // Destructure from currentFormData for cleaner access
     const { hasPhysicalStore, storeVideo, storeAddress, deliveryPricing, selectedColor } = currentFormData;
 
 
     // --- Handlers for Complex State Updates ---
 
     // Handles changes for individual store address fields (e.g., fullAddress)
-    const handleStoreAddressChange = (e) => {
+    const handleStoreAddressChange = useCallback((e) => {
         const { name, value } = e.target;
         const newStoreAddress = {
             ...storeAddress,
@@ -116,18 +104,18 @@ const Level3 = ({
         };
         dispatch(updateField({ name: 'storeAddress', value: newStoreAddress }));
         setValidationErrors(prev => ({ ...prev, [name]: '' }));
-    };
+    }, [dispatch, storeAddress]);
 
     // Handles changes for opening hours (from/to for each day)
-    const handleOpeningHoursChange = (dayIndex, field, value) => {
+    const handleOpeningHoursChange = useCallback((dayIndex, field, value) => {
         const updatedHours = [...storeAddress.openingHours];
         updatedHours[dayIndex] = { ...updatedHours[dayIndex], [field]: value };
         const newStoreAddress = { ...storeAddress, openingHours: updatedHours };
         dispatch(updateField({ name: 'storeAddress', value: newStoreAddress }));
-    };
+    }, [dispatch, storeAddress]);
 
     // This handler is called by DeliveryPricingScreen (our add/edit modal) when a price is saved.
-    const handleSaveDeliveryPrice = (priceData) => {
+    const handleSaveDeliveryPrice = useCallback((priceData) => {
         let updatedPricing;
         if (editingDeliveryPriceIndex !== null) {
             updatedPricing = deliveryPricing.map((item, idx) =>
@@ -141,39 +129,39 @@ const Level3 = ({
         setEditingDeliveryPriceData(null);
         setEditingDeliveryPriceIndex(null);
         setShowDeliveryPricingModal(false);
-    };
+    }, [dispatch, deliveryPricing, editingDeliveryPriceIndex]);
 
     // Handlers to open the DeliveryPricingScreen modal for adding or editing
-    const handleAddDeliveryPrice = () => {
+    const handleAddDeliveryPrice = useCallback(() => {
         setEditingDeliveryPriceData(null);
         setEditingDeliveryPriceIndex(null);
         setShowDeliveryPricingModal(true);
-    };
+    }, []);
 
-    const handleEditDeliveryPrice = (index) => {
+    const handleEditDeliveryPrice = useCallback((index) => {
         setEditingDeliveryPriceData(deliveryPricing[index]);
         setEditingDeliveryPriceIndex(index);
         setShowDeliveryPricingModal(true);
-    };
+    }, [deliveryPricing]);
 
     // Handler to delete a delivery zone directly from the Level3 display list
-    const handleDeleteDeliveryZone = (indexToDelete) => {
+    const handleDeleteDeliveryZone = useCallback((indexToDelete) => {
         const updatedPricing = deliveryPricing.filter((_, index) => index !== indexToDelete);
         dispatch(updateField({ name: 'deliveryPricing', value: updatedPricing }));
-    };
+    }, [dispatch, deliveryPricing]);
 
     // Handles selection of the brand color
-    const handleColorSelect = (color) => {
+    const handleColorSelect = useCallback((color) => {
         dispatch(updateField({ name: 'selectedColor', value: color }));
-    };
+    }, [dispatch]);
 
     // --- Location Modal Handlers (for store address state/LGA) ---
-    const handleOpenLocationSelect = (targetField) => {
+    const handleOpenLocationSelect = useCallback((targetField) => {
         setModalTargetField(targetField);
         setShowLocationSelectModal(true);
-    };
+    }, []);
 
-    const handleSelectLocation = (selectedLocation) => {
+    const handleSelectLocation = useCallback((selectedLocation) => {
         const keys = modalTargetField.split('.');
         const fieldToUpdate = keys[1];
 
@@ -188,19 +176,27 @@ const Level3 = ({
 
         setShowLocationSelectModal(false);
         setModalTargetField(null);
-    };
+    }, [dispatch, modalTargetField, storeAddress]);
 
     // --- Validation Logic for Sub-steps ---
-    const validateStep1 = () => {
+    const validateStep1 = useCallback(() => {
         const errors = {};
-        if (hasPhysicalStore && !storeVideo?.name) { // Check for file name existence
+        if (hasPhysicalStore && !storeVideo?.name) {
             errors.storeVideo = "A 1-minute video of your store is required if you have a physical store.";
         }
         setValidationErrors(errors);
         return !hasPhysicalStore || (hasPhysicalStore && storeVideo?.name);
-    };
+    }, [hasPhysicalStore, storeVideo]);
 
-    const validateStep2 = () => {
+    const validateStoreAddress = useCallback(() => {
+        const errors = {};
+        if (!storeAddress.state) errors.storeAddressState = 'State is required.';
+        if (!storeAddress.localGovernment) errors.storeAddressLGA = 'Local Government is required.';
+        if (!storeAddress.fullAddress.trim()) errors.storeAddressFull = 'Full Address is required.';
+        return errors;
+    }, [storeAddress]);
+
+    const validateStep2 = useCallback(() => {
         const errors = {};
         if (hasPhysicalStore) {
             if (showStoreAddressForm) {
@@ -216,8 +212,8 @@ const Level3 = ({
                 }
             }
         }
-
-        if (deliveryPricing.length === 0) {
+        // CORRECTED: Safely check for deliveryPricing array and its length
+        if (!deliveryPricing || deliveryPricing.length === 0) {
             errors.deliveryPricingStatus = "At least one delivery price zone must be added.";
         }
         if (!selectedColor) {
@@ -225,19 +221,10 @@ const Level3 = ({
         }
         setValidationErrors(errors);
         return Object.keys(errors).length === 0;
-    };
-
-    // Detailed validation for the store address sub-form
-    const validateStoreAddress = () => {
-        const errors = {};
-        if (!storeAddress.state) errors.storeAddressState = 'State is required.';
-        if (!storeAddress.localGovernment) errors.storeAddressLGA = 'Local Government is required.';
-        if (!storeAddress.fullAddress.trim()) errors.storeAddressFull = 'Full Address is required.';
-        return errors;
-    };
+    }, [hasPhysicalStore, showStoreAddressForm, storeAddress, deliveryPricing, selectedColor, validateStoreAddress]);
 
     // Handler to save the store address details
-    const handleSaveStoreAddress = () => {
+    const handleSaveStoreAddress = useCallback(() => {
         const errors = validateStoreAddress();
         if (Object.keys(errors).length > 0) {
             setValidationErrors(prev => ({ ...prev, ...errors }));
@@ -253,32 +240,30 @@ const Level3 = ({
         });
         setShowStoreAddressForm(false);
         return true;
-    };
+    }, [validateStoreAddress]);
 
     // --- Navigation Handlers ---
-    const handleProceed = () => {
+    const handleProceed = useCallback(() => {
         if (mode === 'register') {
             if (activeDisplayStepRegister === 1) {
                 if (validateStep1()) {
-                    onNext(); // Move to Level 3, Step 2 (global step 7)
+                    onNext();
                 }
             } else if (activeDisplayStepRegister === 2) {
                 if (validateStep2()) {
-                    onSubmit(); // Final submission for registration (calls parent's onSubmit)
+                    onSubmit();
                 }
             }
         } else if (mode === 'upgrade') {
-            // In upgrade mode, Level3 acts as a single conceptual step for confirmation
-            // or final edits. All fields are shown at once.
-            if (validateStep1() && validateStep2()) { // Validate all fields shown in Level3
-                onSubmit(); // Final submission for upgrade (calls parent's onSubmit)
+            if (validateStep1() && validateStep2()) {
+                onSubmit();
             }
         }
-    };
+    }, [mode, activeDisplayStepRegister, onNext, onSubmit, validateStep1, validateStep2]);
 
-    const handleBackClick = () => {
-        onBack(); // Calls onBack from parent (Register.jsx or UpgradeStorePage.jsx)
-    };
+    const handleBackClick = useCallback(() => {
+        onBack();
+    }, [onBack]);
 
     // Inline styles for brand colors
     const brandBgStyle = { backgroundColor: brandColor };
@@ -286,10 +271,10 @@ const Level3 = ({
     const brandBorderStyle = { borderColor: brandColor };
     const brandRingStyle = { '--tw-ring-color': brandColor };
     const contrastTextStyle = { color: contrastColor };
-    const brandHoverStyle = { filter: 'brightness(110%)' }; // Simple hover effect for hex colors
+    const brandHoverStyle = { filter: 'brightness(110%)' };
 
     // Determine which steps and currentStep to pass to StepIndicator based on mode
-    const stepsForIndicator = mode === 'register' ? level3StepsRegister : [1]; // For upgrade, it's just one conceptual step
+    const stepsForIndicator = mode === 'register' ? level3StepsRegister : [1];
     const currentStepForIndicator = mode === 'register' ? activeDisplayStepRegister : activeDisplayStepUpgrade;
 
     return (
@@ -298,7 +283,7 @@ const Level3 = ({
             <div className="w-full p-4 mt-6 border rounded-[15px] shadow-sm bg-white space-y-3 min-h-[60px] flex flex-col justify-center" style={brandBorderStyle}>
                 <div className="flex items-center justify-between">
                     <h4 className="text-[18px] font-semibold leading-none font-manrope" style={brandTextStyle}>
-                        {mode === 'register' ? 'Level 3' : 'Upgrade Store'} {/* Changed title for upgrade mode */}
+                        {mode === 'register' ? 'Level 3' : 'Upgrade Store'}
                     </h4>
                     {(mode === 'register' || mode === 'upgrade') && (
                         <button type="button" className="text-sm hover:underline whitespace-nowrap" style={brandTextStyle}>
@@ -316,7 +301,7 @@ const Level3 = ({
                 />
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); /* onSubmit is called by handleProceed */ }} className="space-y-4 w-full mx-auto mt-8 flex flex-col h-full">
+            <form onSubmit={(e) => { e.preventDefault(); }} className="space-y-4 w-full mx-auto mt-8 flex flex-col h-full">
                 {/* Level 3, Step 1 (Register Mode) or always visible (Upgrade Mode) */}
                 {(mode === 'register' && activeDisplayStepRegister === 1) || mode === 'upgrade' ? (
                     <>
@@ -379,7 +364,7 @@ const Level3 = ({
                 {(mode === 'register' && activeDisplayStepRegister === 2) || mode === 'upgrade' ? (
                     <>
                         {/* ADD STORE ADDRESS */}
-                        {hasPhysicalStore && ( // Only show if physical store is toggled on
+                        {hasPhysicalStore && (
                             <>
                                 <div
                                     className="flex items-center justify-between p-3 rounded-[10px] border border-gray-300 bg-white cursor-pointer h-[50px] shadow-sm"
@@ -445,8 +430,8 @@ const Level3 = ({
                                     ))}
                                 </div>
 
-                                <Button type="button" onClick={handleSaveStoreAddress} className="w-full rounded-[10px] py-2 text-sm mt-4" style={{ ...brandBgStyle, ...contrastTextStyle, ...brandHoverStyle }}>Save Address</Button>
-                                <Button type="button" onClick={() => setShowStoreAddressForm(false)} className="w-full rounded-[10px] border border-gray-300 bg-gray-100 py-2 text-gray-800 text-sm hover:bg-gray-200 mt-2">Cancel</Button>
+                                <Button type="button" onClick={handleSaveStoreAddress} className="w-full rounded-[10px] cursor-pointer py-2 text-sm mt-4" style={{ ...brandBgStyle, ...contrastTextStyle, ...brandHoverStyle }}>Save Address</Button>
+                                <Button type="button" onClick={() => setShowStoreAddressForm(false)} className="w-full rounded-[10px] cursor-pointer border border-gray-300 bg-gray-100 py-2 text-gray-800 text-sm hover:bg-gray-200 mt-2">Cancel</Button>
                             </div>
                         )}
 
@@ -461,7 +446,7 @@ const Level3 = ({
                         {validationErrors.deliveryPricingStatus && <p className="text-xs mt-1" style={brandTextStyle}>{validationErrors.deliveryPricingStatus}</p>}
 
                         {/* Display existing Delivery Zones */}
-                        {deliveryPricing.length > 0 && (
+                        {Array.isArray(deliveryPricing) && deliveryPricing.length > 0 && (
                             <div className="mt-4 p-4 rounded-md bg-white shadow-sm space-y-3">
                                 {deliveryPricing.map((zone, index) => (
                                     <DeliveryPriceCard
@@ -469,8 +454,8 @@ const Level3 = ({
                                         priceEntry={zone}
                                         onEdit={() => handleEditDeliveryPrice(index)}
                                         onDelete={() => handleDeleteDeliveryZone(index)}
-                                        brandColor={brandColor} // Pass brandColor to DeliveryPriceCard
-                                        contrastColor={contrastColor} // Pass contrastColor to DeliveryPriceCard
+                                        brandColor={brandColor}
+                                        contrastColor={contrastColor}
                                     />
                                 ))}
                             </div>
@@ -482,7 +467,7 @@ const Level3 = ({
                             {dummyColors.map((color) => (
                                 <div
                                     key={color}
-                                    className={`w-10 h-10 rounded-full cursor-pointer border-2 ${selectedColor === color ? 'border-gray-500' : 'border-transparent'}`} // Using a neutral border for selection
+                                    className={`w-10 h-10 rounded-full cursor-pointer border-2 ${selectedColor === color ? 'border-gray-500' : 'border-transparent'}`}
                                     style={{ backgroundColor: color }}
                                     onClick={() => handleColorSelect(color)}
                                     aria-label={`Select color ${color}`}
@@ -495,11 +480,11 @@ const Level3 = ({
 
 
                 {/* Action Buttons */}
-                <div className="flex gap-2 w-full mt-auto"> {/* Added mt-auto to push buttons to the bottom */}
+                <div className="flex gap-2 w-full mt-auto">
                     <Button
                         type="button"
                         onClick={handleBackClick}
-                        className="flex items-center justify-center rounded-[15px] border border-gray-300 bg-gray-100 p-3 text-gray-800 shadow-sm hover:bg-gray-200"
+                        className="flex items-center cursor-pointer justify-center rounded-[15px] border border-gray-300 bg-gray-100 p-3 text-gray-800 shadow-sm hover:bg-gray-200"
                         aria-label="Go back"
                     >
                         <ArrowLeftIcon className="h-5 w-5" />
@@ -507,17 +492,16 @@ const Level3 = ({
                     <Button
                         type="button"
                         onClick={handleProceed}
-                        className="flex-1 w-full rounded-[15px] py-3 text-base shadow-md"
+                        className="flex-1 w-full cursor-pointer rounded-[15px] py-3 text-base shadow-md"
                         style={{ ...brandBgStyle, ...contrastTextStyle, ...brandHoverStyle }}
                     >
                         {mode === 'register' && activeDisplayStepRegister === 1 ? 'Proceed' : (mode === 'register' ? 'Complete Registration' : 'Confirm Upgrade')}
                     </Button>
-                    {/* The "Home" button should ideally be outside the main form submission flow if it navigates away */}
-                    {(mode === 'register' && onLoginClick) || (mode === 'upgrade' && currentStep === 6) ? ( // Show Home button for register mode (if onLoginClick is provided) or for upgrade mode on its first (and only) step
+                    {(mode === 'register' && onLoginClick) || (mode === 'upgrade') ? (
                         <Button
                             type="button"
                             onClick={() => navigate("/")}
-                            className="w-[100px] rounded-[15px] border border-gray-300 bg-black py-3 text-white text-xs shadow-sm hover:bg-gray-800"
+                            className="w-[100px] rounded-[15px] cursor-pointer border border-gray-300 bg-black py-3 text-white text-xs shadow-sm hover:bg-gray-800"
                         >
                             Home
                         </Button>
@@ -526,7 +510,7 @@ const Level3 = ({
                 {mode === 'register' && onLoginClick && (
                     <Button
                         onClick={onLoginClick}
-                        className="w-full rounded-[15px] border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200 mt-4"
+                        className="w-full rounded-[15px] cursor-pointer border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200 mt-4"
                     >
                         Login
                     </Button>
@@ -553,8 +537,8 @@ const Level3 = ({
                         setEditingDeliveryPriceData(null);
                         setEditingDeliveryPriceIndex(null);
                     }}
-                    brandColor={brandColor} // Pass brandColor to DeliveryPricingScreen
-                    contrastColor={contrastColor} // Pass contrastColor to DeliveryPricingScreen
+                    brandColor={brandColor}
+                    contrastColor={contrastColor}
                 />
             )}
         </div>

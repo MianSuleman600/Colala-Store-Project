@@ -16,12 +16,13 @@ import FAQs from "../components/referrals/FAQs";
 import LeaderBoard from '../components/Dashboard/LeaderBoard';
 import AccessControl from '../components/Dashboard/AccessControl';
 import { useGetStoreProfileQuery } from '../services/storeProfileApi';
+import { useSelector } from 'react-redux';
 
 const SellerDashboardPage = () => {
     const [activeSidebarItem, setActiveSidebarItem] = useState('My Products');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    const userId = 'default_user_id';
+     const { isLoggedIn, userName, userId } = useSelector((state) => state.user);
     const { data: storeProfile, error, isLoading } = useGetStoreProfileQuery(userId);
 
     // Disable body scroll when sidebar is open

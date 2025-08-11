@@ -462,7 +462,7 @@ const Level1 = ({
                                 <Button
                                     type="button"
                                     onClick={handleBackClick}
-                                    className="w-[54px] flex items-center justify-center gap-2 rounded-[15px] border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200"
+                                    className="w-[54px] flex items-center justify-center gap-2 rounded-[15px] border border-gray-300 cursor-pointer bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200"
                                 >
                                     <ArrowLeftIcon className="h-5 w-5" />
                                 </Button>
@@ -472,7 +472,7 @@ const Level1 = ({
                                 <Button
                                     type="button"
                                     onClick={handleSaveAndExit}
-                                    className={`rounded-[15px] py-3 text-base shadow-md bg-black text-white hover:bg-gray-800 ${mode === 'upgrade' && currentStep === 1 ? 'flex-1' : ''}`}
+                                    className={`rounded-[15px] py-3 cursor-pointer text-base shadow-md bg-black text-white hover:bg-gray-800 ${mode === 'upgrade' && currentStep === 1 ? 'flex-1' : ''}`}
                                 >
                                     Save and Exit
                                 </Button>
@@ -480,7 +480,7 @@ const Level1 = ({
                             <Button
                                 type="button"
                                 onClick={handleProceed}
-                                className="flex-1 rounded-[15px] py-3 text-base shadow-md"
+                                className="flex-1 rounded-[15px] cursor-pointer py-3 text-base shadow-md"
                                 style={{ ...brandBgStyle, ...contrastTextStyle, ...brandHoverStyle }}
                             >
                                 {mode === 'register' ? 'Create Account' : 'Proceed'}
@@ -490,7 +490,7 @@ const Level1 = ({
                             <>
                                 <Button
                                     onClick={onLoginClick}
-                                    className="w-full rounded-[15px] border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200"
+                                    className="w-full cursor-pointer rounded-[15px] border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200"
                                 >
                                     Login
                                 </Button>
@@ -579,7 +579,7 @@ const Level1 = ({
                             <Button
                                 type="button"
                                 onClick={handleBackClick}
-                                className="w-[54px] flex items-center justify-center gap-2 rounded-[15px] border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200"
+                                className="w-[54px] flex cursor-pointer items-center justify-center gap-2 rounded-[15px] border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200"
                             >
                                 <ArrowLeftIcon className="h-5 w-5" />
                             </Button>
@@ -587,7 +587,7 @@ const Level1 = ({
                                 <Button
                                     type="button"
                                     onClick={handleSaveAndExit}
-                                    className={`rounded-[15px] py-3 text-base shadow-md bg-black text-white hover:bg-gray-800`}
+                                    className={`rounded-[15px] cursor-pointer py-3 text-base shadow-md bg-black text-white hover:bg-gray-800`}
                                 >
                                     Save and Exit
                                 </Button>
@@ -595,7 +595,7 @@ const Level1 = ({
                             <Button
                                 type="button"
                                 onClick={handleProceed}
-                                className="flex-1 rounded-[15px] py-3 text-base shadow-md"
+                                className="flex-1 rounded-[15px] cursor-pointer py-3 text-base shadow-md"
                                 style={{ ...brandBgStyle, ...contrastTextStyle, ...brandHoverStyle }}
                             >
                                 Proceed
@@ -604,7 +604,7 @@ const Level1 = ({
                         {mode === 'register' && onLoginClick && (
                             <Button
                                 onClick={onLoginClick}
-                                className="w-full rounded-[15px] border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200"
+                                className="w-full rounded-[15px] cursor-pointer border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200"
                             >
                                 Login
                             </Button>
@@ -702,7 +702,7 @@ const Level1 = ({
                             <Button
                                 type="button"
                                 onClick={handleBackClick}
-                                className="w-[54px] flex items-center justify-center gap-2 rounded-[15px] border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200"
+                                className="w-[54px] flex cursor-pointer items-center justify-center gap-2 rounded-[15px] border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200"
                             >
                                 <ArrowLeftIcon className="h-5 w-5" />
                             </Button>
@@ -710,7 +710,7 @@ const Level1 = ({
                                 <Button
                                     type="button"
                                     onClick={handleSaveAndExit}
-                                    className={`rounded-[15px] py-3 text-base shadow-md bg-black text-white hover:bg-gray-800`}
+                                    className={`rounded-[15px] cursor-pointer py-3 text-base shadow-md bg-black text-white hover:bg-gray-800`}
                                 >
                                     Save and Exit
                                 </Button>
@@ -718,7 +718,7 @@ const Level1 = ({
                             <Button
                                 type="button"
                                 onClick={handleProceed}
-                                className="flex-1 rounded-[15px] py-3 text-base shadow-md"
+                                className="flex-1 rounded-[15px] cursor-pointer py-3 text-base shadow-md"
                                 style={{ ...brandBgStyle, ...contrastTextStyle, ...brandHoverStyle }}
                             >
                                 Proceed
@@ -727,7 +727,7 @@ const Level1 = ({
                         {mode === 'register' && onLoginClick && (
                             <Button
                                 onClick={onLoginClick}
-                                className="w-full rounded-[15px] border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200 mt-4"
+                                className="w-full rounded-[15px] cursor-pointer border border-gray-300 bg-gray-100 py-3 text-gray-800 shadow-sm hover:bg-gray-200 mt-4"
                             >
                                 Login
                             </Button>
@@ -769,7 +769,7 @@ const Level1 = ({
                         <button
                             type="button"
                             onClick={() => setShowCategorySelectModal(false)}
-                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none"
+                            className="absolute top-4 right-4 cursor-pointer text-gray-400 hover:text-gray-600 focus:outline-none"
                             aria-label="Close"
                         >
                             <XMarkIcon className="h-6 w-6" />
@@ -801,7 +801,7 @@ const Level1 = ({
                         <Button
                             type="button"
                             onClick={() => setShowCategorySelectModal(false)}
-                            className="w-full rounded-[15px] py-3 text-base shadow-md mt-6"
+                            className="w-full rounded-[15px] cursor-pointer py-3 text-base shadow-md mt-6"
                             style={{ ...brandBgStyle, ...contrastTextStyle, ...brandHoverStyle }}
                         >
                             Done

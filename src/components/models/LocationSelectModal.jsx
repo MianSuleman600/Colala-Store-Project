@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import Input from './Input'; // Assuming Input component is in the same directory or accessible
-import Button from './Button'; // Assuming Button component is in the same directory or accessible
+import Input from '../ui/Input'; // Assuming Input component is in the same directory or accessible
+import Button from '../ui/Button'; // Assuming Button component is in the same directory or accessible
 import { XMarkIcon, MagnifyingGlassIcon, ChevronRightIcon } from '@heroicons/react/24/outline'; // Importing necessary icons
 
 /**

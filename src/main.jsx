@@ -1,5 +1,5 @@
 // src/main.jsx
-import React, { useEffect } from 'react';
+import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import "./index.css";
@@ -7,7 +7,6 @@ import { Provider } from 'react-redux';
 import { store } from './redux/store';
 import { BrowserRouter } from 'react-router-dom';
 import { registerSW } from 'virtual:pwa-register';
-import OneSignal from 'react-onesignal'; // ✅ Import OneSignal
 
 console.log("main.jsx script loaded.");
 
@@ -24,25 +23,6 @@ if ('serviceWorker' in navigator) {
 } else {
   console.log("Browser does NOT support Service Workers.");
 }
-
-// ✅ OneSignal Initialization
-const initOneSignal = async () => {
-  try {
-    await OneSignal.init({
-      appId: "5284088d-f14b-4730-998c-ffecaf55d130", // ← Replace with your App ID
-      allowLocalhostAsSecureOrigin: true, // For localhost testing
-      notifyButton: {
-        enable: true, // Show the bell widget
-      },
-    });
-
-    console.log("OneSignal initialized successfully.");
-  } catch (error) {
-    console.error("Error initializing OneSignal:", error);
-  }
-};
-
-initOneSignal();
 
 console.log("React app is about to render.");
 

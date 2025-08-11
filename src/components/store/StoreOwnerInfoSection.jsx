@@ -59,7 +59,8 @@ const StoreOwnerInfoSection = ({
     const navigate = useNavigate();
 
     const defaultStoreData = {
-        name: 'Sasha Stores',
+        // CORRECTED: Use storeName from props, falling back to a default
+        storeName: storeData?.name || 'Guest Store',
         email: 'sashastores@gmail.com',
         phoneNumber: '070123456789',
         location: 'Lagos, Nigeria',
@@ -104,7 +105,7 @@ const StoreOwnerInfoSection = ({
                             {/* Profile Picture Placeholder (replace with actual image if available) */}
 
                             <h3 className="text-xl font-bold text-gray-800 flex items-center">
-                                {currentStoreData.name}
+                                {currentStoreData.storeName}
                                 {/* CORRECTED: Use img tag for the local image */}
                                 <img src={VerifiedIcon} alt="Verified" className="h-5 w-5 ml-2" />
                             </h3>

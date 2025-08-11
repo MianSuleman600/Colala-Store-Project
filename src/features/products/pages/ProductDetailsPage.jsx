@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import {getContrastTextColor} from '../../../utils/colorUtils'
 // Assuming Button component is correctly imported from '../../../components/ui/Button'
 // Assuming getContrastTextColor is correctly imported from '../../../utils/colorUtils'
 import { HeartIcon, ShareIcon, EllipsisVerticalIcon, TrashIcon, PencilIcon, ChartBarIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
@@ -18,12 +19,7 @@ const Button = ({ onClick, className, children, style }) => (
     </button>
 );
 
-// Placeholder for getContrastTextColor if not available
-const getContrastTextColor = (hexcolor) => {
-    // If a specific brand color is used, this function would determine if black or white text is more readable on it.
-    // For simplicity, always return white for brand colors in this example.
-    return '#FFFFFF'; // Always white for demonstration
-};
+
 
 const dummyProductDetails = {
     'prod1': {

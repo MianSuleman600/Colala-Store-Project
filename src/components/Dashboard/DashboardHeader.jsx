@@ -47,7 +47,7 @@ const DashboardHeader = ({ brandColor, contrastTextColor, toggleSidebar, showHam
                 <img
                     src={storeProfile?.profilePictureUrl || 'https://googleusercontent.com/file_content/0'}
                     alt="Store Avatar"
-                    className="w-16 h-16 rounded-full"
+                    className="w-15 h-15 object-cover rounded-full"
                 />
                 <div className='flex flex-col'>
                     <h2 className="font-semibold text-xl">{storeName}</h2>

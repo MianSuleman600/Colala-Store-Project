@@ -56,7 +56,8 @@ const PromotionalBanner = ({
     });
 
     const currentStoreName =
-        propStoreName || storeProfile?.name || userName || 'Our Store';
+        // Corrected: Use storeProfile?.storeName instead of storeProfile?.name
+        propStoreName || storeProfile?.storeName || userName || 'Our Store';
 
     const brandColor = storeProfile?.brandColor || '#EF4444';
     const contrastTextColor = getContrastTextColor(brandColor);
@@ -157,7 +158,7 @@ const PromotionalBanner = ({
                 >
                     {buttonText}
                 </Button>
-            </div>
+                </div>
 
             {/* Image Section */}
             <div className="relative z-10 w-full md:w-1/2 lg:w-1/3 flex justify-center items-center mt-6 md:mt-0">
