@@ -1,156 +1,108 @@
-// D:\Project\frontend\src\features\auth\registrationSlice.js
-
+// src/features/auth/registrationSlice.js
 import { createSlice } from '@reduxjs/toolkit';
+import { saveToIndexedDB } from '../../utils/indexedDB';
+import { computeProgressBreakdown, REQUIRED_FIELDS } from '../../utils/progress';
 
-// --- CONSTANTS ---
-// Define the fields required for 100% profile completion
-const REQUIRED_PROFILE_FIELDS = [
-    'email',
-    'storeName',
-    'phoneNumber',
-    'storeLocation',
-    'password',
-    'businessName',
-    'businessType',
-    'ninNumber',
-    'cacNumber',
-    'ninSlip',
-    'cacCertificate',
-    'profilePicture',
-    'storeBanner',
-    'storeAddress', // This field will be checked for its sub-fields
-    'deliveryPricing',
-    'selectedColor',
-    'categories',
-];
-
-// Define required sub-fields for nested objects to make the logic scalable
-const NESTED_REQUIRED_FIELDS = {
-    storeAddress: ['state', 'localGovernment', 'fullAddress'],
-};
-
-// --- HELPER FUNCTION (could be moved to a utils file) ---
-// Helper function to calculate profile completion percentage
-const calculateCompletion = (formData, requiredFields) => {
-    let completedFieldsCount = 0;
-    const totalRequiredFields = requiredFields.length;
-
-    if (totalRequiredFields === 0) {
-        return 100;
-    }
-
-    requiredFields.forEach(field => {
-        const value = formData[field];
-        if (!value) {
-            return;
-        }
-
-        if (Array.isArray(value)) {
-            if (value.length > 0) {
-                completedFieldsCount++;
-            }
-        } else if (typeof value === 'object' && value !== null) {
-            // Check for file objects created by our handleChange function
-            if (value.file instanceof File) {
-                completedFieldsCount++;
-                return; // Exit this iteration early
-            }
-
-            const subFields = NESTED_REQUIRED_FIELDS[field];
-            if (subFields) {
-                const isNestedObjectComplete = subFields.every(subField =>
-                    value[subField] !== null && value[subField] !== undefined && value[subField] !== ''
-                );
-                if (isNestedObjectComplete) {
-                    completedFieldsCount++;
-                }
-            } else {
-                if (Object.keys(value).length > 0) {
-                    completedFieldsCount++;
-                }
-            }
-        } else {
-            completedFieldsCount++;
-        }
-    });
-
-    return Math.round((completedFieldsCount / totalRequiredFields) * 100);
-};
-
-// --- INITIAL STATE ---
+// --- Initial State (Levels/Steps) ---
 const getInitialFormState = () => ({
-    storeName: '',
-    email: '',
-    phoneNumber: '',
-    storeLocation: '',
-    password: '',
-    referralCode: '',
-    businessName: '',
-    businessType: '',
-    ninNumber: '',
-    cacNumber: '',
-    ninSlip: null,
-    cacCertificate: null,
-    profilePicture: null,
-    storeBanner: null,
-    storeVideo: null,
-    hasPhysicalStore: false,
-    storeAddress: {
+  level1: {
+    step1: {
+      storeName: '',
+      storeLocation: '',
+      email: '',
+      phoneNumber: '',
+      password: '',
+      referralCode: '',
+    },
+    step2: {
+      profilePicture: null,
+      storeBanner: null,
+    },
+    step3: {
+      location: '',
+      facebook: '',
+      instagram: '',
+      twitter: '',
+      whatsapp: '',
+    },
+  },
+  level2: {
+    step1: {
+      businessName: '',
+      businessType: '',
+      ninNumber: '',
+      cacNumber: '',
+    },
+    step2: {
+      ninSlip: null,
+      cacCertificate: null,
+    },
+  },
+  level3: {
+    step1: {
+      hasPhysicalStore: false,
+      storeVideo: null,
+    },
+    step2: {
+      deliveryPricing: [],
+      selectedColor: '#FF0000',
+      storeAddress: {
         state: '',
         localGovernment: '',
         fullAddress: '',
-        openingHours: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => ({ day, from: '', to: '' })),
+        openingHours: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => ({
+          day,
+          from: '',
+          to: '',
+        })),
+      },
     },
-    deliveryPricing: [],
-    selectedColor: '#FF0000',
-    selectedAddOnServices: [],
-    categories: [],
+  },
 });
 
-// --- SLICE ---
+// --- Compute Completion ---
+function calculateCompletion(formData) {
+  return computeProgressBreakdown(formData, REQUIRED_FIELDS).overallPercentage;
+}
+
+const initialFormData = getInitialFormState();
+
+// --- Slice ---
 const registrationSlice = createSlice({
-    name: 'registration',
-    initialState: {
-        formData: getInitialFormState(),
-        currentStep: 1,
-        // 🔴 Removed: status and error properties, as they're now handled by RTK Query
-        profileCompletion: 0,
-        requiredFields: REQUIRED_PROFILE_FIELDS,
+  name: 'registration',
+  initialState: {
+    formData: initialFormData,
+    currentLevel: 1,
+    currentStep: 1,
+    profileCompletion: calculateCompletion(initialFormData),
+  },
+  reducers: {
+    loadFormData: (state, action) => {
+      state.formData = action.payload || getInitialFormState();
+      state.profileCompletion = calculateCompletion(state.formData);
     },
-    reducers: {
-        updateField: (state, action) => {
-            const { name, value } = action.payload;
-            const path = name.split('.');
-            let current = state.formData;
-
-            for (let i = 0; i < path.length - 1; i++) {
-                if (!current[path[i]]) {
-                    current[path[i]] = {};
-                }
-                current = current[path[i]];
-            }
-            current[path[path.length - 1]] = value;
-
-            state.profileCompletion = calculateCompletion(state.formData, state.requiredFields);
-        },
-        setStep: (state, action) => {
-            state.currentStep = action.payload;
-        },
-        resetRegistration: (state) => {
-            state.formData = getInitialFormState();
-            state.currentStep = 1;
-            // 🔴 Removed: state.status and state.error resets
-            state.profileCompletion = 0;
-        },
-        // 🟢 New reducer to reset form data on successful submission, if needed
-        // This is optional and depends on your specific app flow
-        resetFormData: (state) => {
-             state.formData = getInitialFormState();
-        }
+    updateStepField: (state, action) => {
+      const { level, step, name, value } = action.payload;
+      if (!state.formData[level]?.[step]) return;
+      state.formData[level][step][name] = value;
+      state.profileCompletion = calculateCompletion(state.formData);
+      saveToIndexedDB(state.formData);
     },
-    // 🔴 Removed: extraReducers, as the registerUser thunk is no longer needed
+    setLevelStep: (state, action) => {
+      state.currentLevel = action.payload.level;
+      state.currentStep = action.payload.step;
+    },
+    resetRegistration: (state) => {
+      state.formData = getInitialFormState();
+      state.currentLevel = 1;
+      state.currentStep = 1;
+      state.profileCompletion = calculateCompletion(state.formData);
+      saveToIndexedDB(state.formData);
+    },
+  },
 });
 
-export const { updateField, setStep, resetRegistration, resetFormData } = registrationSlice.actions;
+export const { updateStepField, setLevelStep, resetRegistration, loadFormData } =
+  registrationSlice.actions;
 
 export default registrationSlice.reducer;

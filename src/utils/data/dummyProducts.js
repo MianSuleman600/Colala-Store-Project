@@ -1,0 +1,264 @@
+import serviceImage1 from '../../assets/images/productImages/2.jpeg';
+import serviceImage2 from '../../assets/images/productImages/2.jpeg';
+import userProfilePic from '../../assets/images/productImages/3.jpeg';
+
+// ownerId references MOCK_DB.storeProfiles keys (e.g., 'default_user_id', 'another_user_id')
+const dummyProducts = [
+  {
+    id: "prod1",
+    ownerId: "default_user_id",
+    name: "iPhone 12 Pro Max",
+    currentPrice: 2500000,
+    originalPrice: 2800000,
+    imageUrl: serviceImage1,
+    discountText: "10% Off in bulk",
+    profile: {
+      profilePic: "/src/assets/images/profileImage.png",
+      userName: "Sasha Stores"
+    },
+    rating: 4.5,
+    status: "Active",
+    isSponsored: true,
+    hasFreeDelivery: true,
+    hasBulkDiscount: true,
+    category: "Smartphones",
+    location: "Lagos, Nigeria",
+    metrics: {
+      productViews: 1450,
+      productClicks: 320,
+      messages: 89
+    },
+    chartData: [
+      { name: "Jan", value: 300 },
+      { name: "Feb", value: 400 },
+      { name: "Mar", value: 350 }
+    ],
+    boostSetup: {
+      isBoosted: true,
+      boostAmount: 50000,
+      duration: "7 days"
+    },
+    detailsPageInfo: {
+      mainImageUrl: serviceImage2,
+      thumbnailUrls: [
+        "/src/assets/images/productImages/2.jpeg",
+        "/src/assets/images/productImages/3.jpeg",
+        "/src/assets/images/productImages/4.jpeg",
+        "/src/assets/images/productImages/1.png"
+      ],
+      colors: [
+        { name: "Black", hex: "#000000" },
+        { name: "Red", hex: "#FF0000" },
+        { name: "Blue", hex: "#0000FF" },
+        { name: "Yellow", hex: "#FFFF00" },
+        { name: "Cyan", hex: "#00FFFF" }
+      ],
+      sizes: ["S", "M", "L", "XL", "XXL"],
+      shippingInfo: [
+        { label: "Fast Delivery", color: "#3b82f6" },
+        { label: "Free Returns", color: "#10b981" },
+        { label: "Warranty Included", color: "#f59e0b" }
+      ],
+      bulkPrices: [
+        { quantity: "12 Pieces", amount: "₦500,000", save: "₦20,000", percent: "10%" },
+        { quantity: "24 Pieces", amount: "₦900,000", save: "₦40,000", percent: "12%" },
+        { quantity: "36 Pieces", amount: "₦1,200,000", save: "₦60,000", percent: "15%" },
+        { quantity: "48 Pieces", amount: "₦1,500,000", save: "₦80,000", percent: "18%" }
+      ],
+      quantityLeft: 50,
+      description: "iPhone 12 Pro Max with 128GB storage, advanced triple-camera system, and premium build quality.",
+      reviews: [
+        { id: 1, author: "John Doe", rating: 5, comment: "Amazing phone with a superb camera!" },
+        { id: 2, author: "Jane Smith", rating: 4, comment: "Great performance but a bit expensive." }
+      ]
+    }
+  },
+  {
+    id: "prod2",
+    ownerId: "another_user_id",
+    name: "Samsung Galaxy S21",
+    currentPrice: 2200000,
+    originalPrice: 2500000,
+    imageUrl: userProfilePic,
+    discountText: "12% Off in bulk",
+    profile: {
+      profilePic: "/src/assets/images/profileImage.png",
+      userName: "Techie Hub"
+    },
+    rating: 4.3,
+    status: "Active",
+    isSponsored: false,
+    hasFreeDelivery: true,
+    hasBulkDiscount: true,
+    category: "Smartphones",
+    location: "Abuja, Nigeria",
+    metrics: {
+      productViews: 900,
+      productClicks: 210,
+      messages: 20
+    },
+    detailsPageInfo: {
+      mainImageUrl: "/src/assets/images/productImages/3.jpeg",
+      thumbnailUrls: [
+        "/src/assets/images/productImages/3.jpeg",
+        "/src/assets/images/productImages/4.jpeg",
+        "/src/assets/images/productImages/2.jpeg",
+        "/src/assets/images/productImages/1.png"
+      ],
+      colors: [
+        { name: "Black", hex: "#000000" },
+        { name: "White", hex: "#FFFFFF" },
+        { name: "Blue", hex: "#0000FF" }
+      ],
+      sizes: ["M", "L", "XL"],
+      shippingInfo: [
+        { label: "Free Shipping", color: "#3b82f6" },
+        { label: "Warranty Included", color: "#f59e0b" }
+      ],
+      bulkPrices: [
+        { quantity: "10 Pieces", amount: "₦400,000", save: "₦15,000", percent: "8%" },
+        { quantity: "20 Pieces", amount: "₦750,000", save: "₦30,000", percent: "10%" }
+      ],
+      quantityLeft: 30,
+      description: "Samsung Galaxy S21 with high-resolution camera and dynamic AMOLED display.",
+      reviews: [
+        { id: 1, author: "Michael Lee", rating: 4, comment: "Excellent phone with great display!" }
+      ]
+    }
+  },
+  {
+    id: "prod3",
+    ownerId: "another_user_id",
+    name: "MacBook Pro 14-inch",
+    currentPrice: 5500000,
+    originalPrice: 6000000,
+    imageUrl: "/src/assets/images/productImages/4.jpeg",
+    discountText: "15% Off in bulk",
+    profile: {
+      profilePic: "/src/assets/images/profileImage.png",
+      userName: "Techie Hub"
+    },
+    rating: 4.8,
+    status: "Active",
+    category: "Laptops",
+    location: "Abuja, Nigeria",
+    metrics: {
+      productViews: 1200,
+      productClicks: 340,
+      messages: 12
+    },
+    detailsPageInfo: {
+      mainImageUrl: "/src/assets/images/productImages/4.jpeg",
+      thumbnailUrls: [
+        "/src/assets/images/productImages/4.jpeg",
+        "/src/assets/images/productImages/3.jpeg",
+        "/src/assets/images/productImages/2.jpeg"
+      ],
+      colors: [
+        { name: "Space Gray", hex: "#4B4B4B" },
+        { name: "Silver", hex: "#C0C0C0" }
+      ],
+      sizes: ["13-inch", "14-inch", "16-inch"],
+      shippingInfo: [
+        { label: "Express Delivery", color: "#3b82f6" },
+        { label: "Free Returns", color: "#10b981" }
+      ],
+      bulkPrices: [
+        { quantity: "5 Pieces", amount: "₦25,000,000", save: "₦100,000", percent: "5%" }
+      ],
+      quantityLeft: 10,
+      description: "Apple MacBook Pro 14-inch with M1 Pro chip and Retina XDR display.",
+      reviews: []
+    }
+  },
+  {
+    id: "prod4",
+    ownerId: "default_user_id",
+    name: "Sony WH-1000XM4 Headphones",
+    currentPrice: 750000,
+    originalPrice: 850000,
+    imageUrl: "/src/assets/images/productImages/1.png",
+    discountText: "8% Off in bulk",
+    profile: {
+      profilePic: "/src/assets/images/profileImage.png",
+      userName: "Sasha Stores"
+    },
+    rating: 4.6,
+    status: "Active",
+    category: "Audio",
+    location: "Lagos, Nigeria",
+    metrics: {
+      productViews: 400,
+      productClicks: 80,
+      messages: 5
+    },
+    detailsPageInfo: {
+      mainImageUrl: "/src/assets/images/productImages/1.png",
+      thumbnailUrls: [
+        "/src/assets/images/productImages/1.png",
+        "/src/assets/images/productImages/2.jpeg"
+      ],
+      colors: [
+        { name: "Black", hex: "#000000" },
+        { name: "Silver", hex: "#C0C0C0" }
+      ],
+      sizes: ["Standard"],
+      shippingInfo: [
+        { label: "Fast Shipping", color: "#3b82f6" }
+      ],
+      bulkPrices: [
+        { quantity: "15 Pieces", amount: "₦10,000,000", save: "₦50,000", percent: "5%" }
+      ],
+      quantityLeft: 20,
+      description: "Sony WH-1000XM4 with noise cancellation and long battery life.",
+      reviews: []
+    }
+  },
+  {
+    id: "prod5",
+    ownerId: "default_user_id",
+    name: "Canon EOS R6 Camera",
+    currentPrice: 3200000,
+    originalPrice: 3500000,
+    imageUrl: "/src/assets/images/productImages/3.jpeg",
+    discountText: "10% Off in bulk",
+    profile: {
+      profilePic: "/src/assets/images/profileImage.png",
+      userName: "Sasha Stores"
+    },
+    rating: 4.7,
+    status: "Active",
+    category: "Cameras",
+    location: "Lagos, Nigeria",
+    metrics: {
+      productViews: 650,
+      productClicks: 140,
+      messages: 9
+    },
+    detailsPageInfo: {
+      mainImageUrl: "/src/assets/images/productImages/3.jpeg",
+      thumbnailUrls: [
+        "/src/assets/images/productImages/3.jpeg",
+        "/src/assets/images/productImages/2.jpeg"
+      ],
+      colors: [
+        { name: "Black", hex: "#000000" }
+      ],
+      sizes: ["Standard"],
+      shippingInfo: [
+        { label: "Free Shipping", color: "#3b82f6" },
+        { label: "Warranty Included", color: "#f59e0b" }
+      ],
+      bulkPrices: [
+        { quantity: "8 Pieces", amount: "₦20,000,000", save: "₦100,000", percent: "5%" }
+      ],
+      quantityLeft: 12,
+      description: "Canon EOS R6 with 20MP full-frame CMOS sensor and 4K video recording.",
+      reviews: [
+        { id: 1, author: "Alice Johnson", rating: 5, comment: "Perfect camera for professionals!" }
+      ]
+    }
+  }
+];
+
+export default dummyProducts;

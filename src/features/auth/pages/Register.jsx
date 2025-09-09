@@ -1,238 +1,252 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import {
-    updateField,
-    setStep,
-    resetRegistration,
-} from '../registrationSlice';
-import { useNavigate } from 'react-router-dom';
+import { updateStepField, setLevelStep } from '../registrationSlice';
 
-// Assuming you have these RTK Query hooks defined in your API slice
-// This is the key part of the solution to differentiate API calls
-import { useRegisterUserMutation, useUpdateStoreProfileMutation } from '../../../services/storeProfileApi';
+import { useRegisterUserMutation } from '../../../services/queries/authQueries';
+import { useUpdateStoreProfileMutation } from '../../../services/mutations/storeProfileMutation';
 
-// Your UI Components
 import Button from '../../../components/ui/Button';
-import Level1 from './register/Level1';
-import Level2 from './register/Level2';
-import Level3 from './register/Level3';
-import SuccessModal from '../../../components/models/SuccessModal';
 
-// Assets
+import Level1Form from '../pages/register/Level1';
+import Level2Form from '../pages/register/Level2';
+import Level3Form from '../pages/register/Level3';
+import SuccessModal from '../../../components/models/SuccessModal';
+import { useToast } from '../../../components/ui/ToastProvider';
+import { XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+
 import registerBannerImage from '../../../assets/images/login-banner.jpg';
 import registerOverlayImage from '../../../assets/images/login-overlay.jpg';
 
-// Icons
-import { XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+const Register = ({ onClose, onSwitchToLogin, mode = 'register' }) => {
+  const dispatch = useDispatch();
+  const { push } = useToast();
+  const { formData, currentLevel, currentStep } = useSelector((s) => s.registration);
 
-/**
- * Register Component
- * This component orchestrates the multi-step user registration process.
- * It manages the overall form data, current step, and handles submission.
- * It also displays add-on services on the left panel.
- *
- * @param {object} props
- * @param {function} props.onClose - Function to close the registration modal.
- * @param {function} props.onLoginClick - Function to switch to the login view/modal.
- * @param {string} [props.mode='register'] - 'register' for new user, 'upgrade' for existing store.
- */
-const Register = ({ onClose, onLoginClick, mode = 'register' }) => {
-    const dispatch = useDispatch();
-    const navigate = useNavigate();
-    const { formData, currentStep } = useSelector((state) => state.registration);
+  const {
+    mutate: registerUser,
+    isSuccess: regOK,
+    isError: regErr,
+    error: regError,
+  } = useRegisterUserMutation();
 
-    // RTK Query hooks for both registration and profile update
-    const [registerUser, {
-        isLoading: isRegistering,
-        isSuccess: isRegisterSuccess,
-        isError: isRegisterError,
-        error: registerError
-    }] = useRegisterUserMutation();
+  const {
+    mutate: updateStoreProfile,
+    isSuccess: updOK,
+    isError: updErr,
+    error: updError,
+  } = useUpdateStoreProfileMutation();
 
-    const [updateStoreProfile, {
-        isLoading: isUpdating,
-        isSuccess: isUpdateSuccess,
-        isError: isUpdateError,
-        error: updateError
-    }] = useUpdateStoreProfileMutation();
+  const [submitting, setSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [showSuccessModal, setShowSuccessModal] = useState(false);
+  useEffect(() => {
+    if (regOK || updOK) {
+      setShowSuccess(true);
+      push('Success! Your store was saved.', { type: 'success' });
+    }
+    if (regErr || updErr) {
+      const err = regError || updError;
+      console.error('❌ Mutation error:', err);
+      push('Submission failed. Please try again.', { type: 'error' });
+    }
+  }, [regOK, updOK, regErr, updErr, regError, updError, push]);
 
-    // This useEffect handles the navigation/modals after a successful submission
-    useEffect(() => {
-        if (isRegisterSuccess || isUpdateSuccess) {
-            setShowSuccessModal(true);
-            // Optionally reset the form data after success
-            // dispatch(resetRegistration());
-        }
-        if (isRegisterError || isUpdateError) {
-            // Handle error state, maybe show an error toast or modal
-            console.error("Submission error:", registerError || updateError);
-        }
-    }, [isRegisterSuccess, isUpdateSuccess, isRegisterError, isUpdateError, registerError, updateError, dispatch]);
+  const handleSubmit = async (allData) => {
+    setSubmitting(true);
+    try {
+      if (mode === 'register') {
+        registerUser(allData);
+      } else {
+        updateStoreProfile({ userId: allData.userId, payload: allData });
+      }
+    } catch (err) {
+      console.error('❌ handleSubmit error:', err);
+      push('Unexpected error during submit.', { type: 'error' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-
-    // --- Submission Handler with Conditional Logic ---
-    const handleSubmit = async () => {
-        setIsSubmitting(true);
-        try {
-            if (mode === 'register') {
-                // Logic for new user registration
-                const registrationResult = await registerUser(formData).unwrap();
-                console.log('Registration successful:', registrationResult);
-            } else if (mode === 'upgrade') {
-                // Logic for store upgrade, using the separate API endpoint
-                const upgradeResult = await updateStoreProfile(formData).unwrap();
-                console.log('Store upgrade successful:', upgradeResult);
-            }
-        } catch (err) {
-            // Handle API errors
-            console.error('Submission failed:', err);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    // A small helper to manage navigation
-    const handleNextStep = () => {
-        dispatch(setStep(currentStep + 1));
-    };
-    const handleBackStep = () => {
-        dispatch(setStep(currentStep - 1));
-    };
-
-    // A small helper to dispatch simple field updates
-    const handleChange = ({ target: { name, value } }) => {
-        dispatch(updateField({ name, value }));
-    };
-
-    const handleSuccessModalClose = () => {
-        setShowSuccessModal(false);
-        onClose();
-    };
-
-    const steps = [1, 2, 3];
-    const maxSteps = 3;
-    const isLastStep = currentStep === maxSteps;
-
-    // Determine the content for the left panel based on the current step
-    const leftPanelContent = () => {
-        switch (currentStep) {
-            case 1:
-                return (
-                    <>
-                        <h2 className="text-2xl font-bold font-manrope text-white mb-2">Get started with your Business on our platform</h2>
-                        <p className="text-sm font-light text-white font-manrope">
-                            Create a Store account for free. Get access to a wide range of products for your business.
-                        </p>
-                    </>
-                );
-            case 2:
-                return (
-                    <>
-                        <h2 className="text-2xl font-bold font-manrope text-white mb-2">Build your Store’s Profile</h2>
-                        <p className="text-sm font-light text-white font-manrope">
-                            Fill in your business details. Upload your CAC, CAC registration number, and other necessary documents.
-                        </p>
-                    </>
-                );
-            case 3:
-                return (
-                    <>
-                        <h2 className="text-2xl font-bold font-manrope text-white mb-2">Customize Your Store</h2>
-                        <p className="text-sm font-light text-white font-manrope">
-                            Give your store a personal touch. Upload a video, set your opening hours, and choose a brand color.
-                        </p>
-                    </>
-                );
-            default:
-                return null;
-        }
-    };
-
-    return (
-        <div className="flex w-full h-full max-w-[1240px] rounded-lg overflow-hidden mx-auto bg-white shadow-xl min-h-[600px]">
-            {/* Left Panel */}
-            <div
-                className="w-full sm:w-[450px] p-8 hidden sm:flex flex-col justify-end relative"
-                style={{
-                    backgroundImage: `url(${registerBannerImage})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                }}
-            >
-                <div
-                    className="absolute inset-0 bg-cover bg-center"
-                    style={{
-                        backgroundImage: `url(${registerOverlayImage})`,
-                    }}
-                ></div>
-                <div className="relative z-10 text-white flex flex-col space-y-4">
-                    <div className="flex items-center gap-2">
-                        {steps.map(step => (
-                            <div key={step} className={`w-8 h-1 rounded-full ${step <= currentStep ? 'bg-white' : 'bg-gray-400'}`}></div>
-                        ))}
-                    </div>
-                    {leftPanelContent()}
-                </div>
-            </div>
-
-            {/* Right Panel - Form */}
-            <div className="flex-1 overflow-y-auto relative p-8">
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 z-10"
-                    aria-label="Close registration"
-                >
-                    <XMarkIcon className="h-6 w-6" />
-                </button>
-
-                {currentStep === 1 && (
-                    <Level1
-                        formData={formData}
-                        handleChange={handleChange}
-                        onNext={handleNextStep}
-                        onBack={onClose}
-                    />
-                )}
-                {currentStep === 2 && (
-                    <Level2
-                        formData={formData}
-                        handleChange={handleChange}
-                        onNext={handleNextStep}
-                        onBack={handleBackStep}
-                    />
-                )}
-                {currentStep === 3 && (
-                    <Level3
-                        formData={formData}
-                        handleChange={handleChange}
-                        handleFileChange={handleChange}
-                        onNext={handleNextStep}
-                        onBack={handleBackStep}
-                        onSubmit={handleSubmit}
-                        onLoginClick={onLoginClick}
-                        currentStep={currentStep}
-                        mode={mode} // This is the crucial prop that drives the conditional logic
-                    />
-                )}
-            </div>
-
-            {/* Success Modal */}
-            {showSuccessModal && (
-                <SuccessModal
-                    onClose={handleSuccessModalClose}
-                    title={mode === 'register' ? "Registration Successful!" : "Upgrade Successful!"}
-                    message={
-                        mode === 'register'
-                            ? "Your store has been successfully created. You can now log in and start selling."
-                            : "Your store profile has been successfully updated. Your new features are now active."
-                    }
-                />
-            )}
-        </div>
+  const handleChange = (e, level, step) =>
+    dispatch(
+      updateStepField({
+        level,
+        step,
+        name: e.target.name,
+        value: e.target.type === 'checkbox' ? e.target.checked : e.target.value,
+      })
     );
+
+  const handleFileChange = (e, level, step) =>
+    dispatch(
+      updateStepField({
+        level,
+        step,
+        name: e.target.name,
+        value: e.target.files?.[0] ?? null,
+      })
+    );
+
+  const handleNext = (maybeFormData) => {
+    if (currentLevel === 1 && currentStep < 3) {
+      dispatch(setLevelStep({ level: 1, step: currentStep + 1 }));
+    } else if (currentLevel === 1 && currentStep === 3) {
+      dispatch(setLevelStep({ level: 2, step: 1 }));
+    } else if (currentLevel === 2 && currentStep === 1) {
+      dispatch(setLevelStep({ level: 2, step: 2 }));
+    } else if (currentLevel === 2 && currentStep === 2) {
+      dispatch(setLevelStep({ level: 3, step: 1 }));
+    } else if (currentLevel === 3 && currentStep === 1) {
+      dispatch(setLevelStep({ level: 3, step: 2 }));
+    } else if (currentLevel === 3 && currentStep === 2) {
+      handleSubmit(maybeFormData || formData);
+    }
+  };
+
+  const handleBack = () => {
+    if (currentLevel === 1 && currentStep > 1) {
+      dispatch(setLevelStep({ level: 1, step: currentStep - 1 }));
+    } else if (currentLevel === 2 && currentStep === 1) {
+      dispatch(setLevelStep({ level: 1, step: 3 }));
+    } else if (currentLevel === 2 && currentStep === 2) {
+      dispatch(setLevelStep({ level: 2, step: 1 }));
+    } else if (currentLevel === 3 && currentStep === 1) {
+      dispatch(setLevelStep({ level: 2, step: 2 }));
+    } else if (currentLevel === 3 && currentStep === 2) {
+      dispatch(setLevelStep({ level: 3, step: 1 }));
+    }
+  };
+
+  const handleCloseSuccess = () => {
+    setShowSuccess(false);
+    onClose?.();
+  };
+
+  let CurrentForm = null;
+
+  if (currentLevel === 1) {
+    CurrentForm = (
+      <Level1Form
+        mode={mode}
+        activeStep={currentStep}
+        formData={formData.level1[`step${currentStep}`]}
+        handleChange={(e) => handleChange(e, 'level1', `step${currentStep}`)}
+        handleFileChange={(e) => handleFileChange(e, 'level1', `step${currentStep}`)}
+        onNext={handleNext}
+        onBack={handleBack}
+        onLoginClick={onSwitchToLogin}
+      />
+    );
+  }
+
+  if (currentLevel === 2) {
+    CurrentForm = (
+      <Level2Form
+        mode={mode}
+        activeStep={currentStep}
+        formData={formData.level2[`step${currentStep}`]}
+        handleChange={(e) => handleChange(e, 'level2', `step${currentStep}`)}
+        handleFileChange={(e) => handleFileChange(e, 'level2', `step${currentStep}`)}
+        onNext={handleNext}
+        onBack={handleBack}
+        onLoginClick={onSwitchToLogin}
+      />
+    );
+  }
+
+  if (currentLevel === 3) {
+    CurrentForm = (
+      <Level3Form
+        mode={mode}
+        activeStep={currentStep}
+        formData={formData.level3[`step${currentStep}`]}
+        handleChange={(e) => handleChange(e, 'level3', `step${currentStep}`)}
+        handleFileChange={(e) => handleFileChange(e, 'level3', `step${currentStep}`)}
+        onNext={(fd) => handleNext(fd)}
+        onBack={handleBack}
+        onLoginClick={onSwitchToLogin}
+      />
+    );
+  }
+
+  return (
+    <>
+      <div
+        className="relative flex w-full max-w-4xl rounded-2xl overflow-hidden bg-white shadow-xl max-h-[90vh]"
+        aria-busy={submitting ? 'true' : 'false'}
+      >
+        {/* Close */}
+        <button onClick={onClose} className="absolute top-4 right-4 z-20 text-gray-500 hover:text-gray-700" aria-label="Close register modal" >
+          <XMarkIcon className="h-6 w-6" />
+        </button>
+
+        {/* Left Panel */}
+        <div
+          className="hidden lg:flex w-1/2 relative justify-center items-center text-white"
+          style={{
+            backgroundImage: `url(${registerOverlayImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        >
+          <div className="absolute bottom-0 mb-5 p-8 bg-red-shade overflow-hidden bg-opacity-80 rounded-2xl w-3/4 h-[270px] backdrop-blur-sm">
+            <img
+              src={registerBannerImage}
+              alt="banner"
+              className="absolute w-[200px] h-[200px] -bottom-5 left-[141px] object-contain"
+            />
+            <h4 className="text-[14px]">
+              Request add-on services on <br />
+              <span className="font-bold text-[20px]" style={{ fontFamily: "'Oleo Script', cursive" }}>
+                Colala
+              </span>
+            </h4>
+            <ul className="space-y-2 text-sm mt-3">
+              <li className="flex items-center">
+                <CheckCircleIcon className="h-4 w-4 mr-2" /> Extra delivery zones
+              </li>
+              <li className="flex items-center">
+                <CheckCircleIcon className="h-4 w-4 mr-2" /> Store themes
+              </li>
+              <li className="flex items-center">
+                <CheckCircleIcon className="h-4 w-4 mr-2" /> Marketing boosts
+              </li>
+            </ul>
+            <Button className="mt-3 bg-white text-red-600 rounded-md py-1 px-4">Request Service</Button>
+          </div>
+        </div>
+
+        {/* Right Panel - Form */}
+        <div className="flex-1 overflow-y-auto relative p-8">
+          <h2 id="auth-modal-title" className="text-[24px] text-center font-semibold text-redd">
+            {mode === 'register' ? 'Register' : 'Upgrade Store'}
+          </h2>
+          <p className="mt-2 text-gray-600 text-center text-sm">
+            {mode === 'register' ? 'Create a free account today' : 'Update your store details'}
+          </p>
+
+          {mode === 'register' && (
+            <p className="text-center text-gray-500 my-4">
+              Already have an account?{' '}
+              <button type="button" onClick={onSwitchToLogin} className="font-semibold text-red-600 hover:underline">
+                Log In
+              </button>
+            </p>
+          )}
+
+          {CurrentForm}
+        </div>
+      </div>
+
+      {showSuccess && (
+        <SuccessModal
+          onClose={handleCloseSuccess}
+          title={mode === 'register' ? "Registration Successful!" : "Profile Updated!"}
+          message={mode === 'register' ? "Your store has been registered." : "Your store profile has been updated."}
+        />
+      )}
+    </>
+  );
 };
 
 export default Register;

@@ -1,302 +1,353 @@
-// src/components/Feed/FeedPage.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import Button from '../../../components/ui/Button';
 import PostCard from '../../../components/Feed/PostCard';
 import CommentsModal from '../../../components/Feed/CommentsModal';
 import CreatePostModal from '../../../components/Feed/CreatePostModal';
-import EditPostModal from '../../../components/Feed/EditPostModal'; // Import the new EditPostModal component
-import { useGetStoreProfileQuery } from '../../../services/storeProfileApi';
-// Dummy images for demonstration
-import userProfilePic from '../../../assets/images/profileImage.png';
-import postImage1 from '../../../assets/images/productImages/2.jpeg';
-import postImage2 from '../../../assets/images/productImages/3.jpeg';
-import postImage3 from '../../../assets/images/feed/2.png';
-import userProfilePic2 from '../../../assets/images/feed/2.png';
-import userProfilePic3 from '../../../assets/images/feed/3.png';
+import EditPostModal from '../../../components/Feed/EditPostModal';
+import { useStoreProfile } from '../../../services/queries/storeProfileQuery';
+import { useGetPostsQuery } from '../../../services/queries/useFeedQuery';
+import {
+  useCreatePostMutation,
+  useUpdatePostMutation,
+  useDeletePostMutation,
+  useCreateCommentMutation,
+} from '../../../services/mutations/useFeedMutation';
+import { useToast } from '../../../components/ui/ToastProvider';
+import { getContrastTextColor } from '../../../utils/colorUtils';
+import { hydrateImage } from '../../../utils/dataNormalizer';
 
-/**
- * FeedPage Component
- * The main page for displaying a social media feed.
- * Manages posts, and the visibility of Comments, Create Post, and Edit Post modals.
- */
 const FeedPage = () => {
-  // All hooks must be called unconditionally at the top level of the component
-  const userId = 'default_user_id';
-  const { data: storeProfile, error, isLoading } = useGetStoreProfileQuery(userId);
+  const { push } = useToast();
+  const { isLoggedIn, userName, userId } = useSelector((s) => s.user);
 
-  // State for managing posts
-  const [posts, setPosts] = useState([
-    {
-      id: 'post-1',
-      userName: 'Sasha Stores',
-      userProfilePic: userProfilePic,
-      timeAgo: '20 min ago',
-      location: 'Lagos, Nigeria',
-      imageUrl: postImage1,
-      text: 'Get this phone at a cheap price for a limited period',
-      likes: 500,
-      comments: 26,
-      shares: 25,
-      commentsList: [
-        { id: 'c1', userName: 'Adam Chris', userProfilePic: userProfilePic, timeAgo: '1 min', text: 'This product looks really nice, do you deliver nationwide?', likes: 30 },
-        { id: 'c2', userName: 'Adam Chris', userProfilePic: userProfilePic, timeAgo: '1 min', text: 'This product looks really nice, do you deliver nationwide?', likes: 30 },
-        { id: 'c3', userName: 'Adam Chris', userProfilePic: userProfilePic, timeAgo: '1 min', text: 'This product looks really nice, do you deliver nationwide?', likes: 30 },
-        { id: 'c4', userName: 'Sasha Stores', userProfilePic: userProfilePic, timeAgo: '1 min', text: '@Adam Chris We do deliver nationwide.', likes: 0 },
-      ],
-    },
-    {
-      id: 'post-2',
-      userName: 'Dee Stores',
-      userProfilePic: userProfilePic2,
-      timeAgo: '1 hr ago',
-      location: 'Abuja, Nigeria',
-      imageUrl: postImage2,
-      text: 'New arrivals just dropped! Check out our latest collection.',
-      likes: 120,
-      comments: 10,
-      shares: 5,
-      commentsList: [
-        { id: 'c5', userName: 'Jane Doe', userProfilePic: userProfilePic, timeAgo: '5 min', text: 'Love these!', likes: 5 },
-      ],
-    },
-    {
-      id: 'post-3',
-      userName: 'Sam Stores',
-      userProfilePic: userProfilePic3,
-      timeAgo: '1 hr ago',
-      location: 'Abuja, Nigeria',
-      imageUrl: postImage3,
-      text: 'New arrivals just dropped! Check out our latest collection.',
-      likes: 120,
-      comments: 10,
-      shares: 5,
-      commentsList: [
-        { id: 'c5', userName: 'Jane Doe', userProfilePic: userProfilePic, timeAgo: '5 min', text: 'Love these!', likes: 5 },
-      ],
-    },
-  ]);
+  // Queries
+  const { data: postsData, isLoading: postsLoading, error: postsError } = useGetPostsQuery();
+  const { data: storeProfileData, isLoading: profileLoading, error: profileError } = useStoreProfile(userId, {
+    enabled: Boolean(userId),
+  });
 
-  // State for active tab: 'myPosts' or 'allPosts'
-  const [activeTab, setActiveTab] = useState('myPosts');
+  // Extract user/store info and hydrate profile image
+  const storeProfile = storeProfileData || null;
+  const userProfilePic = hydrateImage(storeProfile?.profilePictureUrl) || '/default-profile.png';
+  const defaultUserName = storeProfile?.storeName || userName || 'You';
 
-  // State for Comments Modal
+  // Brand colors (always computed before any return)
+  const brandColor = useMemo(() => storeProfile?.brandColor || '#EF4444', [storeProfile]);
+  const contrastColor = useMemo(() => getContrastTextColor(brandColor), [brandColor]);
+
+  // Mutations
+  const createPostMutation = useCreatePostMutation();
+  const updatePostMutation = useUpdatePostMutation();
+  const deletePostMutation = useDeletePostMutation();
+  const createCommentMutation = useCreateCommentMutation();
+
+  // Local state
+  const [localPosts, setLocalPosts] = useState([]);
+  const [activeTab, setActiveTab] = useState('allPosts');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [postToEdit, setPostToEdit] = useState(null);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [selectedPostForComments, setSelectedPostForComments] = useState(null);
 
-  // State for Create Post Modal
-  const [showCreatePostModal, setShowCreatePostModal] = useState(false);
+  // Sync posts with server and ensure comments are arrays
+  useEffect(() => {
+    if (!postsData) return;
+    const incoming = Array.isArray(postsData) ? postsData : postsData.posts || [];
+    const hydrated = incoming.map((p) => ({
+      ...p,
+      comments: Array.isArray(p.comments) ? p.comments : [],
+      userProfilePic: hydrateImage(p.userProfilePic) || '/default-profile.png',
+      imageUrl: hydrateImage(p.imageUrl),
+    }));
+    setLocalPosts(hydrated);
+  }, [postsData]);
 
-  // State for Edit Post Modal
-  const [showEditPostModal, setShowEditPostModal] = useState(false);
-  const [postToEdit, setPostToEdit] = useState(null);
+  // Sync user profile data with posts once it's loaded
+  useEffect(() => {
+    if (!storeProfileData) return;
+    setLocalPosts((prev) =>
+      prev.map((post) =>
+        post.userId === userId &&
+        (post.userName !== defaultUserName || post.userProfilePic !== userProfilePic)
+          ? { ...post, userName: defaultUserName, userProfilePic }
+          : post
+      )
+    );
+  }, [storeProfileData, userId, defaultUserName, userProfilePic]);
 
-  // State for showing a temporary message (e.g., "Post Shared!")
-  const [toastMessage, setToastMessage] = useState(null);
+  // IMPORTANT: compute hooks BEFORE any conditional returns
+  const filteredPosts = useMemo(
+    () => (activeTab === 'myPosts' ? localPosts.filter((p) => p.userId === userId) : localPosts),
+    [activeTab, localPosts, userId]
+  );
 
-  // Use fetched colors or fallbacks
-  const brandColor = useMemo(() => storeProfile?.brandColor || '#EF4444', [storeProfile]);
-  const contrastColor = useMemo(() => storeProfile?.contrastColor || '#FFFFFF', [storeProfile]);
+  // ---- CREATE POST ----
+  const handleCreatePost = async (payload) => {
+    const tempId = `temp-${Date.now()}`;
+    const postText = payload?.get ? payload.get('text') : payload?.text || '';
+    const postImage =
+      payload?.get && payload.get('image')
+        ? URL.createObjectURL(payload.get('image'))
+        : hydrateImage(payload?.imageUrl);
 
+    const optimisticPost = {
+      id: tempId,
+      text: postText,
+      imageUrl: postImage,
+      userName: defaultUserName,
+      userProfilePic,
+      userId,
+      comments: [],
+      createdAt: new Date().toISOString(),
+      isOptimistic: true,
+    };
+
+    setLocalPosts((prev) => [optimisticPost, ...prev]);
+
+    try {
+      const serverResponse = await createPostMutation.mutateAsync(payload);
+      const finalPayload = serverResponse?.data || serverResponse;
+      const finalPost = {
+        ...optimisticPost,
+        ...finalPayload,
+        userName: defaultUserName,
+        userProfilePic,
+        comments: Array.isArray(finalPayload?.comments) ? finalPayload.comments : [],
+        isOptimistic: false,
+      };
+      setLocalPosts((prev) => prev.map((p) => (p.id === tempId ? finalPost : p)));
+      push('Post created successfully!', { type: 'success' });
+    } catch {
+      setLocalPosts((prev) => prev.filter((x) => x.id !== tempId));
+      push('Failed to create post', { type: 'error' });
+    }
+  };
+
+  // ---- EDIT POST ----
+  const handleEditPost = async (postId, payload) => {
+    const oldPost = localPosts.find((p) => p.id === postId);
+    if (!oldPost) return;
+
+    const optimisticPost = {
+      ...oldPost,
+      text: payload?.get ? payload.get('text') : payload?.text || oldPost.text,
+      imageUrl: payload?.get && payload.get('image') ? URL.createObjectURL(payload.get('image')) : oldPost.imageUrl,
+    };
+
+    setLocalPosts((prev) => prev.map((p) => (p.id === postId ? optimisticPost : p)));
+
+    try {
+      const serverResponse = await updatePostMutation.mutateAsync({ postId, payload });
+      const srv = serverResponse?.data || serverResponse;
+      const finalPost = {
+        ...optimisticPost,
+        ...srv,
+        comments: Array.isArray(srv?.comments) ? srv.comments : optimisticPost.comments,
+      };
+      setLocalPosts((prev) => prev.map((p) => (p.id === postId ? finalPost : p)));
+      push('Post updated successfully!', { type: 'success' });
+    } catch {
+      setLocalPosts((prev) => prev.map((p) => (p.id === postId ? oldPost : p)));
+      push('Failed to update post', { type: 'error' });
+    }
+  };
+
+  // ---- DELETE POST ----
+  const handleDeletePost = async (postId) => {
+    const oldPosts = [...localPosts];
+    setLocalPosts((prev) => prev.filter((p) => p.id !== postId));
+
+    try {
+      await deletePostMutation.mutateAsync(postId);
+      push('Post deleted', { type: 'success' });
+    } catch {
+      setLocalPosts(oldPosts);
+      push('Failed to delete post', { type: 'error' });
+    }
+  };
+
+  // ---- COMMENTS ----
   const handleCommentClick = (postId) => {
-    const post = posts.find(p => p.id === postId);
+    const post = localPosts.find((p) => p.id === postId);
     if (post) {
       setSelectedPostForComments(post);
       setShowCommentsModal(true);
     }
   };
 
-  const handleAddComment = (postId, newComment) => {
-    setPosts(prevPosts =>
-      prevPosts.map(post =>
-        post.id === postId
-          ? { ...post, commentsList: [...post.commentsList, newComment], comments: post.comments + 1 }
-          : post
+  const handleAddComment = async (postId, commentText) => {
+    const tempComment = {
+      id: `temp-${Date.now()}`,
+      text: commentText,
+      userName: defaultUserName,
+      userProfilePic,
+      createdAt: new Date().toISOString(),
+      isOptimistic: true,
+    };
+
+    setLocalPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? { ...p, comments: Array.isArray(p.comments) ? [...p.comments, tempComment] : [tempComment] }
+          : p
       )
     );
-    setSelectedPostForComments(prev =>
-      prev && prev.id === postId
-        ? { ...prev, commentsList: [...prev.commentsList, newComment], comments: prev.comments + 1 }
-        : prev
-    );
-  };
 
-  const handleCreatePost = (newPost) => {
-    setPosts(prevPosts => [newPost, ...prevPosts]);
-    setShowCreatePostModal(false);
-  };
-
-  // New handler to open the Edit Post Modal
-  const handleEditPost = (postId) => {
-    const post = posts.find(p => p.id === postId);
-    if (post) {
-      setPostToEdit(post);
-      setShowEditPostModal(true);
+    try {
+      const serverComment = await createCommentMutation.mutateAsync({ postId, comment: commentText });
+      setLocalPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                comments: (p.comments || []).map((c) =>
+                  c.id.startsWith('temp-') ? serverComment.data || serverComment : c
+                ),
+              }
+            : p
+        )
+      );
+    } catch {
+      push('Failed to add comment', { type: 'error' });
     }
   };
 
-  // New handler to update the post after editing
-  const handleUpdatePost = (updatedPost) => {
-    setPosts(prevPosts => prevPosts.map(p => (p.id === updatedPost.id ? updatedPost : p)));
-    setShowEditPostModal(false);
-    setPostToEdit(null);
-  };
-
-  const handleDeletePost = (postId) => {
-    setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
-  };
-  
-  // New handler for sharing a post, now with actual clipboard functionality
-  const handleSharePost = async (postId) => {
-      // Create a dummy shareable URL
-      const postUrl = `${window.location.origin}/post/${postId}`;
-      try {
-          await navigator.clipboard.writeText(postUrl);
-          setToastMessage('Link copied to clipboard!');
-      } catch (err) {
-          // Fallback for browsers that don't support the Clipboard API
-          console.error('Failed to copy text using Clipboard API, falling back to execCommand.', err);
-          const textarea = document.createElement('textarea');
-          textarea.value = postUrl;
-          document.body.appendChild(textarea);
-          textarea.select();
-          try {
-              document.execCommand('copy');
-              setToastMessage('Link copied to clipboard!');
-          } catch (execErr) {
-              console.error('Failed to copy text using execCommand.', execErr);
-              setToastMessage('Failed to copy link.');
-          } finally {
-              document.body.removeChild(textarea);
-          }
-      }
-      setTimeout(() => setToastMessage(null), 3000); // Hide message after 3 seconds
-  };
-
-  // Filter posts based on the active tab
-  const filteredPosts = useMemo(() => {
-    if (activeTab === 'myPosts') {
-      return posts.filter(post => post.userName === 'Sasha Stores');
-    }
-    return posts;
-  }, [posts, activeTab]);
-
-  // Conditional Rendering for Loading and Error states
-  if (isLoading) {
+  // Guards AFTER all hooks are declared
+  if (postsLoading || (isLoggedIn && profileLoading)) {
     return <div className="p-8 text-center text-gray-600">Loading...</div>;
   }
-
-  if (error) {
-    return <div className="p-8 text-center text-red-600">Error: {error.message}</div>;
+  if (postsError || (isLoggedIn && profileError)) {
+    return (
+      <div className="p-8 text-center text-red-600">
+        {postsError?.message || profileError?.message}
+      </div>
+    );
   }
 
   return (
-    <div className="relative min-h-screen ">
-      {/* Main content area */}
+    <div className="relative min-h-screen">
       <div className="container mx-auto flex flex-col justify-center p-4 md:p-8">
         <div className="lg:w-1/2 sm:w-full mx-auto flex flex-col justify-center">
-          {/* My Posts / All Posts Tabs */}
+          {/* Tabs */}
           <div className="flex w-full mb-6 rounded-lg overflow-hidden shadow-sm">
             <button
+              type="button"
               onClick={() => setActiveTab('myPosts')}
-              className={`flex-1 py-3 text-center font-semibold transition-colors duration-200
-              ${activeTab === 'myPosts'
-                  ? 'text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
-                }`}
-              style={activeTab === 'myPosts' ? { backgroundColor: brandColor } : {}}
+              className={`flex-1 py-3 text-center font-semibold ${
+                activeTab === 'myPosts' ? '' : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+              style={activeTab === 'myPosts' ? { backgroundColor: brandColor, color: contrastColor } : {}}
+              aria-pressed={activeTab === 'myPosts'}
             >
               My Posts
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('allPosts')}
-              className={`flex-1 py-3 text-center font-semibold transition-colors duration-200
-              ${activeTab === 'allPosts'
-                  ? 'text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
-                }`}
-              style={activeTab === 'allPosts' ? { backgroundColor: brandColor } : {}}
+              className={`flex-1 py-3 text-center font-semibold ${
+                activeTab === 'allPosts' ? '' : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+              style={activeTab === 'allPosts' ? { backgroundColor: brandColor, color: contrastColor } : {}}
+              aria-pressed={activeTab === 'allPosts'}
             >
               All Posts
             </button>
           </div>
-          <div className="flex space-x-2 ">
-            {/* Button to open CreatePostModal */}
-            <Button
-              className="px-4 py-2 rounded-lg w-full shadow-sm hover:shadow-md transition-shadow"
-              style={{ backgroundColor: brandColor, color: 'white' }}
-              onClick={() => setShowCreatePostModal(true)}
-            >
-              + Add New Posts
-            </Button>
-          </div>
 
-          {/* Main Feed Content - Grid of PostCards */}
-          <div className="grid grid-cols-1 mt-3 gap-6">
+          {/* Create Post Button */}
+          <Button
+            type="button"
+            className={`px-4 py-2 rounded-lg w-full shadow-sm hover:shadow-md transition-shadow mb-3 ${
+              !isLoggedIn ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+            style={{ backgroundColor: brandColor, color: contrastColor }}
+            onClick={() => isLoggedIn && setShowCreateModal(true)}
+            disabled={!isLoggedIn}
+            aria-disabled={!isLoggedIn}
+          >
+            {isLoggedIn ? '+ Add New Post' : 'Sign in to post'}
+          </Button>
+
+          {/* Post List */}
+          <div className="grid grid-cols-1 gap-6">
             {filteredPosts.length > 0 ? (
-              filteredPosts.map(post => (
+              filteredPosts.map((post) => (
                 <PostCard
                   key={post.id}
-                  post={post}
+                  post={{
+                    ...post,
+                    comments: Array.isArray(post.comments) ? post.comments : [],
+                  }}
                   onCommentClick={handleCommentClick}
-                  onEditPost={handleEditPost} // This handler now opens the modal
-                  onDeletePost={handleDeletePost}
-                  onSharePost={handleSharePost} // New handler for sharing
+                  onEditPost={(p) => {
+                    setPostToEdit(p);
+                    setShowEditModal(true);
+                  }}
+                  onDelete={(id) => handleDeletePost(id)}
                   brandColor={brandColor}
                   contrastColor={contrastColor}
+                  notify={push}
+                  isLoggedIn={isLoggedIn}
+                  currentUserId={userId}
                 />
               ))
             ) : (
               <p className="text-gray-600 col-span-full text-center">
-                {activeTab === 'myPosts' ? 'You have no posts yet. Click "Add New Posts" to create one!' : 'No posts to display.'}
+                {activeTab === 'myPosts' ? 'You have no posts yet.' : 'No posts to display.'}
               </p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Toast message for actions like sharing */}
-      {toastMessage && (
-        <div className="fixed bottom-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-lg animate-fadeInOut transition-opacity duration-300 z-50">
-          {toastMessage}
-        </div>
+      {/* Modals */}
+      {showCreateModal && (
+        <CreatePostModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onCreatePost={handleCreatePost}
+          brandColor={brandColor}
+          contrastColor={contrastColor}
+          userProfilePic={userProfilePic}
+          defaultUserName={defaultUserName}
+        />
       )}
 
-      {/* Comments Modal - Rendered as an overlay/side-panel */}
+      {showEditModal && postToEdit && (
+        <EditPostModal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setPostToEdit(null);
+          }}
+          onEditPost={handleEditPost}
+          post={postToEdit}
+          brandColor={brandColor}
+          contrastColor={contrastColor}
+          userProfilePic={userProfilePic}
+        />
+      )}
+
       {showCommentsModal && selectedPostForComments && (
         <CommentsModal
           isOpen={showCommentsModal}
           onClose={() => setShowCommentsModal(false)}
-          post={selectedPostForComments}
+          post={{
+            ...selectedPostForComments,
+            comments: Array.isArray(selectedPostForComments.comments)
+              ? selectedPostForComments.comments
+              : [],
+          }}
           onAddComment={handleAddComment}
           brandColor={brandColor}
           contrastColor={contrastColor}
+          currentUserProfilePic={userProfilePic}
+          currentUserName={defaultUserName}
+          isLoggedIn={isLoggedIn}
         />
       )}
-
-      {/* Create Post Modal - Conditionally rendered based on showCreatePostModal state */}
-      {showCreatePostModal && (
-        <CreatePostModal
-          isOpen={showCreatePostModal}
-          onClose={() => setShowCreatePostModal(false)}
-          onCreatePost={handleCreatePost}
-          brandColor={brandColor}
-          contrastColor={contrastColor}
-        />
-      )}
-      
-      {/* Edit Post Modal - Conditionally rendered based on showEditPostModal state */}
-      {showEditPostModal && postToEdit && (
-        <EditPostModal
-          isOpen={showEditPostModal}
-          onClose={() => setShowEditPostModal(false)}
-          onEditPost={handleUpdatePost} // This handler now updates the posts array
-          post={postToEdit}
-          brandColor={brandColor}
-          contrastColor={contrastColor}
-        />
-      )}
-
     </div>
   );
 };

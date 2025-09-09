@@ -1,0 +1,8 @@
+
+{
+  "categories": ["Electronics", "Apparel", "Books", "Home & Kitchen", "Sports", "Beauty"],
+  "brands": ["Brand A", "Brand B", "Brand C", "Generic"],
+  "locations": ["Lagos", "Abuja", "Port Harcourt", "Ibadan"],
+  "mobileTypes": ["Smartphones", "Feature Phones", "Tablets"],
+  "mobileBrands": ["Apple", "Samsung", "Google", "Xiaomi", "Oppo"]
+}

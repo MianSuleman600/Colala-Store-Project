@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useGetStoreProfileQuery } from '../../../services/storeProfileApi';
 import {getContrastTextColor} from '../../../utils/colorUtils'
+
+import ProductMediaUpload from '../../../components/products/ProductMediaUpload.jsx';
+
+
 import {
     XMarkIcon,
     CameraIcon,

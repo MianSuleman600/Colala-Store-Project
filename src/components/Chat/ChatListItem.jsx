@@ -1,43 +1,61 @@
 // src/components/Chat/ChatListItem.jsx
 import React from 'react';
-import { getContrastTextColor } from '../../utils/colorUtils'; // Import utility for contrast color
+import { getContrastTextColor } from '../../utils/colorUtils';
 
-const ChatListItem = ({ chat, isActive, onClick, brandColor }) => { // <--- Added brandColor prop
-    // Calculate contrast text color for the brandColor, if not already passed
-    const activeBgContrastTextColor = getContrastTextColor(brandColor);
+const hexToRgba = (hex, alpha = 0.1) => {
+  const m = hex.replace('#', '');
+  const bigint = parseInt(m.length === 3 ? m.split('').map((c) => c + c).join('') : m, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 
-    return (
-        <div
-            className={`flex items-center p-4 rounded-2xl mb-2 cursor-pointer bg-white hover:bg-gray-100 transition-colors ${
-                isActive ? `border-2` : '' // Removed bg-red-50 here, will apply via style
-            }`}
-            style={isActive ? { borderColor: brandColor, backgroundColor: `${brandColor}1A` } : {}} // Apply brandColor to border and a light transparent version for background
-            onClick={onClick}
-        >
-            <img
-                src={chat.userProfilePic}
-                alt={chat.userName}
-                className="w-8 h-8 rounded-full object-cover mr-4"
-            />
-            <div className="flex-1">
-                <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-[14px] text-gray-800">{chat.userName}</h3>
-                    <span className="text-[8px] text-gray-500">{chat.time}</span>
-                </div>
-                <div className="flex justify-between items-center mt-1">
-                    <p className="text-gray-600 text-[12px] truncate mr-2">{chat.lastMessage}</p>
-                    {chat.unreadCount > 0 && (
-                        <span
-                            className="text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center"
-                            style={{ backgroundColor: brandColor, color: activeBgContrastTextColor }} // <--- Use brandColor for badge background and its contrast text
-                        >
-                            {chat.unreadCount}
-                        </span>
-                    )}
-                </div>
-            </div>
+const ChatListItem = ({ chat, isActive, onClick, brandColor = '#EF4444' }) => {
+  const badgeText = getContrastTextColor(brandColor);
+  const activeBgColor = hexToRgba(brandColor, 0.1);
+
+  return (
+    <div
+      onClick={onClick}
+      className="flex items-center p-4 rounded-2xl mb-2 cursor-pointer transition-colors hover:bg-gray-100"
+      style={isActive ? { border: `2px solid ${brandColor}`, backgroundColor: activeBgColor } : {}}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ' ? onClick?.() : null)}
+      aria-pressed={isActive}
+    >
+      {/* Profile Image */}
+      <img
+        src={chat.userProfilePic || '/'}
+        alt={chat.userName || 'User'}
+        className="w-10 h-10 rounded-full object-cover mr-4"
+        onError={(e) => (e.currentTarget.src = '/default-profile.png')}
+      />
+
+      {/* Chat Info */}
+      <div className="flex-1 flex flex-col justify-center">
+        <div className="flex justify-between items-center">
+          <h3 className="font-semibold text-sm text-gray-800 truncate">{chat.userName}</h3>
+          <span className="text-[10px] text-gray-500">
+            {typeof chat.time === 'string' ? chat.time : ''}
+          </span>
         </div>
-    );
+
+        <div className="flex justify-between items-center mt-1">
+          <p className="text-gray-600 text-xs truncate mr-2">{chat.lastMessage || 'No messages yet'}</p>
+          {chat.unreadCount > 0 && (
+            <span
+              className="flex items-center justify-center h-5 w-5 rounded-full text-xs font-bold"
+              style={{ backgroundColor: brandColor, color: badgeText }}
+            >
+              {chat.unreadCount}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default ChatListItem;

@@ -57,7 +57,7 @@ const SetNewPasswordModal = ({ isOpen, onClose, onSetPassword, brandColor = '#EF
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-[20px] shadow-lg w-full max-w-sm p-6 relative flex flex-col items-center">
                 <button
                     type="button"

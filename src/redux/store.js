@@ -1,15 +1,11 @@
-import { configureStore } from "@reduxjs/toolkit"
-import authReducer from "../features/auth/authSlice"
-import registrationReducer from "../features/auth/registrationSlice"
-import userReducer from "../features/auth/userSlice"
-import { setupListeners } from '@reduxjs/toolkit/query';
-import { storeProfileApi } from '../services/storeProfileApi'; // Adjust path if necessary
-import { productsApi } from '../services/productsApi'; // <-- NEW: Import products API
-import cartReducer from '../features/cart/cartSlice';
-
-
-
-// add more as needed
+// src/app/store.js
+import { configureStore } from "@reduxjs/toolkit";
+import authReducer from "../features/auth/authSlice";
+import registrationReducer from "../features/auth/registrationSlice";
+import userReducer from "../features/auth/userSlice";
+import cartReducer from "../features/cart/cartSlice";
+import likesReducer from "../features/feed/pages/likesSlice"; // ✅ Likes slice
+import modalReducer from './modalSlice';
 
 export const store = configureStore({
   reducer: {
@@ -17,15 +13,15 @@ export const store = configureStore({
     registration: registrationReducer,
     user: userReducer,
     cart: cartReducer,
-    [storeProfileApi.reducerPath]: storeProfileApi.reducer, // Add the new API reducer
-    [productsApi.reducerPath]: productsApi.reducer, // <-- NEW: Add products API reducer
+    likes: likesReducer, // ✅ Add likes reducer
+    modal: modalReducer,
   },
-  // Add the API middleware to enable caching, invalidation, polling, etc.
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(storeProfileApi.middleware,productsApi.middleware ),
-
-  
+    getDefaultMiddleware({
+      // Optional: ignore non-serializable warnings for file uploads in registration form
+      serializableCheck: {
+        ignoredPaths: ["registration.formData"],
+        ignoredActions: ["registration/updateField"],
+      },
+    }),
 });
-
-// Optional: Required for refetchOnFocus/refetchOnReconnect behaviors
-setupListeners(store.dispatch);

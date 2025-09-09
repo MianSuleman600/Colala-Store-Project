@@ -12,7 +12,7 @@ const StoreHeader = ({
     handleShare,
 }) => {
     return (
-        <div className={`w-full h-[200px] bg-gray-200 mb-6 relative rounded-2xl`}>
+        <div className={`w-full h-[150px] bg-gray-200 mb-6 relative rounded-2xl`}>
             {/* Optimized Banner Image */}
             {/* Added width, height, and loading attributes to prevent CLS and improve LCP.
                 The width is an estimated value to maintain aspect ratio on different screens,
@@ -21,10 +21,10 @@ const StoreHeader = ({
             <ImagePlaceholder
                 src={bannerImageUrl}
                 alt="Store Banner"
-                className="w-full h-full rounded-2xl object-cover"
+                className="w-full h-[150px] rounded-2xl object-cover"
                 placeholderText="Store Banner"
                 width={1200} // Estimated width for a desktop view
-                height={200} // Fixed height from your Tailwind class: h-[200px]
+                height={150} // Fixed height from your Tailwind class: h-[200px]
                 loading="eager" // Load this critical image immediately
             />
 

@@ -4,33 +4,16 @@ import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import serviceImage from '../../assets/images/productImages/1.png';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useToast } from '../ui/ToastProvider';
 
-const ServiceStatModal = ({
-  isOpen,
-  onClose,
-  serviceStats,
-  brandColor, // Accept brandColor prop
-  contrastTextColor, // Accept contrastTextColor prop
-}) => {
+const ServiceStatModal = ({ isOpen, onClose, serviceStats, brandColor, contrastTextColor }) => {
   const navigate = useNavigate();
+  const { push } = useToast();
 
   if (!isOpen || !serviceStats) return null;
 
   const chartData = serviceStats.chartData || [];
-  
-  // This is the debugging line to check the chart data.
-  // It will log the array to your browser's console.
-  console.log("Chart Data received:", chartData);
 
   const handleEditService = () => {
     navigate('/add-service');
@@ -43,56 +26,48 @@ const ServiceStatModal = ({
   };
 
   const handleMarkAsUnavailable = () => {
-    if (window.confirm(`Are you sure you want to mark "${serviceStats.serviceName}" as Unavailable?`)) {
-      alert('Service marked as Unavailable!');
+    if (window.confirm(`Mark "${serviceStats.name || serviceStats.serviceName}" as Unavailable?`)) {
+      push('Service marked as Unavailable.', { type: 'success' });
       onClose();
     }
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Service details"
-      className="max-w-lg max-h-[90vh] rounded-2xl"
-    >
-      <div className="p-3 flex flex-col  overflow-y-auto max-h-[calc(90vh-60px)]">
-
-        {/* Service Info - Visual Match */}
+    <Modal isOpen={isOpen} onClose={onClose} title="Service details" className="max-w-lg max-h-[90vh] rounded-2xl">
+      <div className="p-3 flex flex-col overflow-y-auto max-h-[calc(90vh-60px)]">
         <div className="flex items-center space-x-3 bg-white p-3 rounded-lg">
           <img
             src={serviceStats.imageUrl || serviceImage}
-            alt={serviceStats.serviceName}
+            alt={serviceStats.name || serviceStats.serviceName}
             className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = 'https://placehold.co/64x64/e0e0e0/000000?text=No+Image';
+            }}
           />
           <div className="flex flex-col">
-            <h3 className="text-base font-semibold text-gray-900">{serviceStats.serviceName}</h3>
-            <span className="text-sm font-bold text-red-500">
-              ₦{serviceStats.minPrice.toLocaleString()} - ₦{serviceStats.maxPrice.toLocaleString()}
+            <h3 className="text-base font-semibold text-gray-900">{serviceStats.name || serviceStats.serviceName}</h3>
+            <span className="text-sm font-bold" style={{ color: brandColor }}>
+              ₦{(serviceStats.minPrice || 0).toLocaleString()} - ₦{(serviceStats.maxPrice || 0).toLocaleString()}
             </span>
             <span className="text-xs text-gray-500 mt-1">{serviceStats.dateCreated}</span>
           </div>
         </div>
 
-        {/* Action Buttons - Visual Match */}
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 mt-3">
           <Button
             onClick={handleEditService}
-            className="flex-1 py-2 text-sm rounded-xl bg-red-500 text-white font-semibold flex items-center justify-center"
-            style={{ backgroundColor: brandColor }} // Apply brandColor
+            className="flex-1 py-2 text-sm rounded-xl text-white font-semibold flex items-center justify-center"
+            style={{ backgroundColor: brandColor }}
           >
             <PencilSquareIcon className="h-4 w-4 mr-1" /> Edit Service
           </Button>
-          <Button
-            onClick={handleViewService}
-            className="flex-1 py-2 text-sm rounded-xl bg-black text-white font-semibold"
-          >
+          <Button onClick={handleViewService} className="flex-1 py-2 text-sm rounded-xl bg-black text-white font-semibold">
             View Service
           </Button>
         </div>
 
-        {/* Chart - Optimized for Visibility */}
-        <div className="bg-white rounded-xl p-1 border border-gray-200 w-full h-[220px]">
+        <div className="bg-white rounded-xl p-1 border border-gray-200 w-full h-[220px] mt-3">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -107,11 +82,10 @@ const ServiceStatModal = ({
           </ResponsiveContainer>
         </div>
 
-        {/* Stats Table - Visual Match */}
-        <div className="rounded-lg border border-gray-200">
+        <div className="rounded-lg border border-gray-200 mt-3">
           <div
             className="text-white text-center py-2 font-semibold text-base rounded-t-lg"
-            style={{ backgroundColor: brandColor, color: contrastTextColor }} // Apply brandColor and contrastTextColor
+            style={{ backgroundColor: brandColor, color: contrastTextColor }}
           >
             Service Statistics
           </div>
@@ -139,10 +113,9 @@ const ServiceStatModal = ({
           </div>
         </div>
 
-        {/* Mark Unavailable Button - Visual Match */}
         <Button
           onClick={handleMarkAsUnavailable}
-          className="w-full py-2 text-sm rounded-xl font-semibold border border-black text-black bg-white"
+          className="w-full py-2 text-sm rounded-xl font-semibold border border-black text-black bg-white mt-3"
         >
           Mark as Unavailable
         </Button>

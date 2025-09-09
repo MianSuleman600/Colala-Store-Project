@@ -1,223 +1,289 @@
-// src/pages/ChatPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
+import { useQueryClient } from '@tanstack/react-query';
+import { useChatsQuery } from '../../services/queries/useChatsQuery';
+import { useStoreProfile } from '../../services/queries/storeProfileQuery';
+import {
+  useSendMessageMutation,
+  useEditMessageMutation,
+  useDeleteMessageMutation,
+} from '../../services/mutations/useChatMutations';
 import ChatListItem from '../../components/Chat/ChatListItem';
 import ChatConversation from '../../components/Chat/ChatConversation';
-import { useGetStoreProfileQuery } from '../../services/storeProfileApi';
+import { getContrastTextColor } from '../../utils/colorUtils';
+import { useToast } from '../../components/ui/ToastProvider';
 
-// Dummy Data (make sure these imports are correct based on your project structure)
-import userProfilePicSasha from '../../assets/images/profileImage.png';
-import userProfilePicVee from '../../assets/images/feed/2.png';
-import userProfilePicAdam from '../../assets/images/feed/3.png';
-import userProfilePicScent from '../../assets/images/productImages/1.png';
-import userProfilePicPower from '../../assets/images/productImages/2.jpeg';
-import userProfilePicCreamila from '../../assets/images/productImages/3.jpeg';
-import userProfilePicDannova from '../../assets/images/productImages/4.jpeg';
-import iphone16proMax from '../../assets/images/feed/2.png';
-
-const dummyChats = [
-    {
-        id: 'chat-1',
-        userName: 'Sasha Stores',
-        userProfilePic: userProfilePicSasha,
-        lastMessage: 'How will I get my goods delivered?',
-        time: 'Today / 07:22 AM',
-        unreadCount: 1,
-        messages: [
-            {
-                id: 'msg-1-1', type: 'product', items: [
-                    { name: 'Iphone 16 pro max - Black', price: 'N5,000,000', qty: 1, image: iphone16proMax },
-                    { name: 'Iphone 16 pro max - Black', price: 'N2,500,000', qty: 1, image: iphone16proMax },
-                ], time: '07:22 AM'
-            },
-            { id: 'msg-1-2', type: 'sent', text: 'How will I get the product delivered', time: '07:22 AM' },
-            { id: 'msg-1-3', type: 'received', text: 'Thank you for purchasing from us', time: '07:22 AM' },
-            { id: 'msg-1-4', type: 'received', text: 'I will arrange a dispatch rider soon and I will contact you', time: '07:22 AM' },
-            { id: 'msg-1-5', type: 'sent', text: 'Okay i will be expecting.', time: '07:22 AM' },
-        ]
-    },
-    {
-        id: 'chat-2',
-        userName: 'Vee Stores',
-        userProfilePic: userProfilePicVee,
-        lastMessage: 'How will my goods delivered?',
-        time: 'Today / 07:22 AM',
-        unreadCount: 1,
-        messages: [
-            { id: 'msg-2-1', type: 'received', text: 'Hello Vee!', time: '07:20 AM' },
-            { id: 'msg-2-2', type: 'sent', text: 'Hi there!', time: '07:21 AM' },
-        ]
-    },
-    {
-        id: 'chat-3',
-        userName: 'Adam Stores',
-        userProfilePic: userProfilePicAdam,
-        lastMessage: 'How will my goods delivered?',
-        time: 'Today / 07:22 AM',
-        unreadCount: 0,
-        messages: [
-            { id: 'msg-3-1', type: 'received', text: 'Good day Adam!', time: '07:25 AM' },
-        ]
-    },
-    {
-        id: 'chat-4',
-        userName: 'Scent Villa Stores',
-        userProfilePic: userProfilePicScent,
-        lastMessage: 'How will my goods delivered?',
-        time: 'Today / 07:22 AM',
-        unreadCount: 0,
-        messages: [
-            { id: 'msg-4-1', type: 'received', text: 'Hi Scent Villa!', time: '07:30 AM' },
-        ]
-    },
-    {
-        id: 'chat-5',
-        userName: 'Power Stores',
-        userProfilePic: userProfilePicPower,
-        lastMessage: 'How will my goods delivered?',
-        time: 'Today / 07:22 AM',
-        unreadCount: 0,
-        messages: [
-            { id: 'msg-5-1', type: 'received', text: 'Greetings Power!', time: '07:35 AM' },
-        ]
-    },
-    {
-        id: 'chat-6',
-        userName: 'Creamila Stores',
-        userProfilePic: userProfilePicCreamila,
-        lastMessage: 'How will my goods delivered?',
-        time: 'Today / 07:22 AM',
-        unreadCount: 0,
-        messages: [
-            { id: 'msg-6-1', type: 'received', text: 'Hello Creamila!', time: '07:40 AM' },
-        ]
-    },
-    {
-        id: 'chat-7',
-        userName: 'Dannova Stores',
-        userProfilePic: userProfilePicDannova,
-        lastMessage: 'How will my goods delivered?',
-        time: 'Today / 07:22 AM',
-        unreadCount: 0,
-        messages: [
-            { id: 'msg-7-1', type: 'received', text: 'Hi Dannova!', time: '07:45 AM' },
-        ]
-    },
-];
+const genTempId = (prefix = 'temp') =>
+  (globalThis.crypto?.randomUUID?.() || `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
 
 const ChatPage = () => {
-    // 1. ALL HOOKS MUST BE AT THE TOP LEVEL
-    const userId = 'default_user_id';
-    const { data: storeProfile, error, isLoading } = useGetStoreProfileQuery(userId);
+  const { push } = useToast();
+  const queryClient = useQueryClient();
 
-    const [activeChatId, setActiveChatId] = useState(null);
-    const [chats, setChats] = useState(dummyChats);
+  // Unify user selectors (match rest of app)
+  const userSlice = useSelector((s) => s.user || {});
+  const authUser = useSelector((s) => s.auth?.user || {});
+  const userId = userSlice.userId || authUser.id;
+  const token = authUser.token || userSlice.token;
 
-    useEffect(() => {
-        const isLargeScreen = window.innerWidth >= 768;
-        if (isLargeScreen && chats.length > 0) {
-            setActiveChatId(chats[0].id);
-        }
-    }, [chats]);
+  // Fetch chats and profile with the same userId key used elsewhere
+  const { data: chatsData, isLoading: chatsLoading, error: chatsError } = useChatsQuery(userId);
+  const { data: storeProfile, isLoading: profileLoading, error: profileError } = useStoreProfile(userId, {
+    enabled: !!userId,
+  });
 
-    // 2. NOW, CONDITIONAL RENDERS FOR LOADING/ERROR
-    if (isLoading) {
-        return <div className="p-8 text-center text-gray-600">Loading...</div>;
+  const sendMessageMutation = useSendMessageMutation();
+  const editMessageMutation = useEditMessageMutation();
+  const deleteMessageMutation = useDeleteMessageMutation();
+
+  // Normalize chats to array
+  const rawChatsArr = useMemo(() => {
+    const raw = chatsData?.chats ?? chatsData;
+    return Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? Object.values(raw) : [];
+  }, [chatsData]);
+
+  const chats = useMemo(
+    () =>
+      rawChatsArr.map((chat) => ({
+        ...chat,
+        messages: Array.isArray(chat.messages) ? chat.messages : [],
+      })),
+    [rawChatsArr]
+  );
+
+  // Unique keys without mutating ids
+  const chatsWithKeys = useMemo(() => {
+    const seen = new Map();
+    return chats.map((c, idx) => {
+      const base =
+        c.id ||
+        c._id ||
+        c.conversationId ||
+        (Array.isArray(c.participants) && c.participants.length
+          ? c.participants.slice().sort().join('|')
+          : `chat-${idx}`);
+      let key = String(base);
+      let n = seen.get(key) || 0;
+      if (n > 0) key = `${key}#${n}`;
+      seen.set(base, n + 1);
+      return { ...c, __key: key };
+    });
+  }, [chats]);
+
+  // Brand color from profile (fallback to any cached user slice preference, else default)
+  const brandColor = useMemo(
+    () => storeProfile?.brandColor || userSlice.brandColor || '#EF4444',
+    [storeProfile?.brandColor, userSlice.brandColor]
+  );
+  const contrastTextColor = useMemo(() => getContrastTextColor(brandColor), [brandColor]);
+
+  const [activeChatId, setActiveChatId] = useState(null);
+
+  // Set initial active chat (desktop)
+  useEffect(() => {
+    if (window.innerWidth >= 768 && chatsWithKeys.length > 0 && !activeChatId) {
+      setActiveChatId(chatsWithKeys[0]?.id || chatsWithKeys[0]?._id || chatsWithKeys[0]?.conversationId || null);
     }
+  }, [chatsWithKeys, activeChatId]);
 
-    if (error) {
-        return <div className="p-8 text-center text-red-600">Error: {error.message}</div>;
-    }
+  // Active chat
+  const activeChat = useMemo(
+    () => chatsWithKeys.find((c) => c.id === activeChatId || c._id === activeChatId || c.conversationId === activeChatId) || null,
+    [chatsWithKeys, activeChatId]
+  );
 
-    const brandColor = storeProfile?.brandColor || '#EF4444';
-    const contrastColor = storeProfile?.contrastColor || '#FFFFFF';
+  // Cache updates
+  const updateChatsCache = (updater) => {
+    queryClient.setQueryData(['chats', userId], (oldData) => {
+      if (!oldData) return oldData;
+      const raw = oldData?.chats ?? oldData;
+      const arr = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? Object.values(raw) : [];
+      const nextArr = updater(arr);
+      if (Array.isArray(oldData)) return nextArr;
+      if (Array.isArray(oldData?.chats)) return { ...oldData, chats: nextArr };
+      const obj = {};
+      nextArr.forEach((c) => {
+        const id = c?.id || c?._id || c?.conversationId;
+        if (id) obj[id] = c;
+      });
+      return { ...oldData, chats: obj };
+    });
+  };
 
-    const activeChat = chats.find(chat => chat.id === activeChatId);
-
-    const handleSendMessage = (messagePayload) => {
-        const { text, file } = messagePayload;
-
-        if ((!text.trim() && !file) || !activeChat) return;
-
-        const newMessage = {
-            id: `msg-${Date.now()}`,
-            type: 'sent',
-            text: text.trim(),
-            file: file,
-            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-            likes: 0
-        };
-
-        const chatIndex = chats.findIndex(chat => chat.id === activeChatId);
-        if (chatIndex !== -1) {
-            const newChats = [...chats];
-            newChats[chatIndex].messages.push(newMessage);
-            newChats[chatIndex].lastMessage = text.trim();
-            newChats[chatIndex].time = newMessage.time;
-            setChats(newChats);
-        }
-    };
-
-    // New function to handle editing a message
-    const handleEditMessage = (messageId, newText) => {
-        const chatIndex = chats.findIndex(chat => chat.id === activeChatId);
-        if (chatIndex !== -1) {
-            const newChats = [...chats];
-            const messageIndex = newChats[chatIndex].messages.findIndex(msg => msg.id === messageId);
-            if (messageIndex !== -1) {
-                newChats[chatIndex].messages[messageIndex].text = newText;
-                setChats(newChats);
-            }
-        }
-    };
-
-    // New function to handle deleting a message
-    const handleDeleteMessage = (messageId) => {
-        const chatIndex = chats.findIndex(chat => chat.id === activeChatId);
-        if (chatIndex !== -1) {
-            const newChats = [...chats];
-            const filteredMessages = newChats[chatIndex].messages.filter(msg => msg.id !== messageId);
-            newChats[chatIndex].messages = filteredMessages;
-            setChats(newChats);
-        }
-    };
-
+  if (!userId) {
+    return <div className="p-8 text-center text-gray-600">No user session.</div>;
+  }
+  if (chatsLoading || profileLoading) return <div className="p-8 text-center text-gray-600">Loading chats...</div>;
+  if (chatsError || profileError)
     return (
-        <div className="flex flex-col md:flex-row h-[calc(100vh-80px)] outline-none overflow-hidden">
-            {/* Left Panel: Chat List */}
-            <div className={`w-full md:w-1/4 md:min-w-[280px] rounded-2xl overflow-y-auto scrollbar-custom mt-4
-                ${activeChatId ? 'hidden md:block' : 'block'}`}>
-                {chats.map(chat => (
-                    <ChatListItem
-                        key={chat.id}
-                        chat={chat}
-                        isActive={chat.id === activeChatId}
-                        onClick={() => setActiveChatId(chat.id)}
-                        brandColor={brandColor}
-                    />
-                ))}
-            </div>
-
-            {/* Right Panel: Chat Conversation */}
-            <div className={`flex-1 flex flex-col rounded-2xl bg-gray-100 m-0 md:m-4 shadow-2xl
-                ${activeChatId ? 'block' : 'hidden md:block'}`}>
-                {activeChat ? (
-                    <ChatConversation
-                        chat={activeChat}
-                        onSendMessage={handleSendMessage}
-                        onEditMessage={handleEditMessage} // Pass the edit handler
-                        onDeleteMessage={handleDeleteMessage} // Pass the delete handler
-                        brandColor={brandColor}
-                        onBack={() => setActiveChatId(null)}
-                    />
-                ) : (
-                    <div className="flex flex-1 items-center justify-center text-gray-500">
-                        Select a chat to start conversation
-                    </div>
-                )}
-            </div>
-        </div>
+      <div className="p-8 text-center text-red-600">
+        {chatsError?.message || profileError?.message || 'Error loading data.'}
+      </div>
     );
+
+  /** ----------------- Handlers ----------------- **/
+  const handleSendMessage = ({ text = '', file = null, cartItems = null, editingMessageId = null }) => {
+    if (!activeChat || !token) return;
+
+    const tempId = genTempId('msg');
+    const tempMessage = {
+      id: tempId,
+      type: cartItems ? 'cart' : file ? (file.type?.startsWith('image') ? 'image' : 'file') : 'text',
+      text,
+      payload: cartItems
+        ? {
+            items: cartItems,
+            totalPrice: cartItems.reduce((sum, item) => sum + (item.price || 0) * (item.qty || 1), 0),
+            url: null,
+          }
+        : file
+        ? { url: URL.createObjectURL(file), name: file.name, type: file.type, items: [] }
+        : null,
+      senderId: userId,
+      createdAt: new Date().toISOString(),
+      isMine: true,
+    };
+
+    updateChatsCache((arr) =>
+      arr.map((chatItem) =>
+        (chatItem.id || chatItem._id || chatItem.conversationId) === activeChat.id
+          ? { ...chatItem, messages: [...(chatItem.messages || []), tempMessage] }
+          : chatItem
+      )
+    );
+
+    sendMessageMutation.mutate(
+      { chatId: activeChat.id, payload: { text, file, cartItems, senderId: userId }, token, editingMessageId },
+      {
+        onSuccess: (serverMessage) => {
+          updateChatsCache((arr) =>
+            arr.map((chatItem) =>
+              (chatItem.id || chatItem._id || chatItem.conversationId) === activeChat.id
+                ? {
+                    ...chatItem,
+                    messages: (chatItem.messages || []).map((msg) =>
+                      msg.id === tempId ? serverMessage.payload || msg : msg
+                    ),
+                  }
+                : chatItem
+            )
+          );
+        },
+        onError: (err) => {
+          push(err?.message || 'Failed to send message.', { type: 'error' });
+          queryClient.invalidateQueries({ queryKey: ['chats', userId] });
+        },
+      }
+    );
+  };
+
+  const handleEditMessage = (messageId, newText) => {
+    if (!activeChat || !token) return;
+
+    updateChatsCache((arr) =>
+      arr.map((chatItem) =>
+        (chatItem.id || chatItem._id || chatItem.conversationId) === activeChat.id
+          ? {
+              ...chatItem,
+              messages: (chatItem.messages || []).map((m) => (m.id === messageId ? { ...m, text: newText } : m)),
+            }
+          : chatItem
+      )
+    );
+
+    editMessageMutation.mutate(
+      { chatId: activeChat.id, messageId, payload: { text: newText }, token },
+      {
+        onError: (err) => {
+          push(err?.message || 'Failed to edit message.', { type: 'error' });
+          queryClient.invalidateQueries({ queryKey: ['chats', userId] });
+        },
+      }
+    );
+  };
+
+  const handleDeleteMessage = (messageId) => {
+    if (!activeChat || !token) return;
+
+    let prevMessages = activeChat.messages;
+
+    updateChatsCache((arr) =>
+      arr.map((chatItem) =>
+        (chatItem.id || chatItem._id || chatItem.conversationId) === activeChat.id
+          ? {
+              ...chatItem,
+              messages: (chatItem.messages || []).filter((m) => m.id !== messageId),
+            }
+          : chatItem
+      )
+    );
+
+    deleteMessageMutation.mutate(
+      { chatId: activeChat.id, messageId, token },
+      {
+        onError: (err) => {
+          push(err?.message || 'Failed to delete message.', { type: 'error' });
+          updateChatsCache((arr) =>
+            arr.map((chatItem) =>
+              (chatItem.id || chatItem._id || chatItem.conversationId) === activeChat.id
+                ? { ...chatItem, messages: prevMessages }
+                : chatItem
+            )
+          );
+        },
+      }
+    );
+  };
+
+  /** ----------------- Render ----------------- **/
+  return (
+    <div className="flex flex-col md:flex-row h-[calc(100vh-80px)] overflow-hidden">
+      {/* Chat List */}
+      <div
+        className={`w-full md:w-1/4 md:min-w-[280px] overflow-y-auto scrollbar-custom mt-4 ${
+          activeChatId ? 'hidden md:block' : 'block'
+        }`}
+      >
+        {chatsWithKeys.length ? (
+          chatsWithKeys.map((chat) => (
+            <ChatListItem
+              key={chat.__key}
+              chat={chat}
+              isActive={(chat.id || chat._id || chat.conversationId) === activeChatId}
+              onClick={() => setActiveChatId(chat.id || chat._id || chat.conversationId)}
+              brandColor={brandColor}
+              contrastTextColor={contrastTextColor}
+            />
+          ))
+        ) : (
+          <div className="text-center text-gray-500 py-8">No chats available</div>
+        )}
+      </div>
+
+      {/* Chat Conversation */}
+      <div
+        className={`flex-1 flex flex-col rounded-2xl bg-gray-100 m-0 md:m-4 shadow-2xl ${
+          activeChatId ? 'block' : 'hidden md:block'
+        }`}
+      >
+        {activeChat ? (
+          <ChatConversation
+            chat={activeChat}
+            userId={userId}
+            brandColor={brandColor}
+            contrastTextColor={contrastTextColor}
+            onSendMessage={handleSendMessage}
+            onDelete={handleDeleteMessage}
+            onBack={() => setActiveChatId(null)}
+          />
+        ) : (
+          <div className="flex flex-1 items-center justify-center text-gray-500">
+            Select a chat to start a conversation.
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default ChatPage;

@@ -5,7 +5,7 @@
 /**
  * Helper function to determine a contrasting text color (black or white)
  * based on the background color's luminance.
- * * @param {string} hexcolor - The background color in hex format (e.g., '#RRGGBB').
+ * @param {string} hexcolor - The background color in hex format (e.g., '#RRGGBB').
  * @returns {string} The contrast text color ('#000000' for dark background, '#FFFFFF' for light background).
  */
 export const getContrastTextColor = (hexcolor) => {
@@ -28,7 +28,7 @@ export const getContrastTextColor = (hexcolor) => {
 
 /**
  * Helper function to lighten or darken a hex color.
- * * @param {string} hex - The hex color string (e.g., '#RRGGBB').
+ * @param {string} hex - The hex color string (e.g., '#RRGGBB').
  * @param {number} amount - The amount to lighten (positive) or darken (negative) each RGB component (0-255).
  * @returns {string} The adjusted hex color.
  */
@@ -41,12 +41,24 @@ export const adjustBrightness = (hex, amount) => {
     const num = parseInt(cleanHex, 16);
 
     let r = (num >> 16) + amount;
-    let b = ((num >> 8) & 0x00FF) + amount;
-    let g = (num & 0x0000FF) + amount;
+    let g = ((num >> 8) & 0x00FF) + amount;
+    let b = (num & 0x0000FF) + amount;
 
     r = Math.min(255, Math.max(0, r));
-    b = Math.min(255, Math.max(0, b));
     g = Math.min(255, Math.max(0, g));
+    b = Math.min(255, Math.max(0, b));
 
-    return '#' + (g | (b << 8) | (r << 16)).toString(16).padStart(6, '0');
+    return '#' + (r << 16 | g << 8 | b).toString(16).padStart(6, '0');
+};
+
+/**
+ * Helper function to generate a lighter brand color.
+ * @param {string} hex - The base color (e.g., brand color).
+ * @param {number} percent - Percentage to lighten (default: 30%).
+ * @returns {string} The lighter color hex.
+ */
+export const getLightBrandColor = (hex, percent = 30) => {
+    // Convert percentage to a brightness adjustment (approx.)
+    const adjustment = Math.round(2.55 * percent); // 30% → ~76
+    return adjustBrightness(hex, adjustment);
 };

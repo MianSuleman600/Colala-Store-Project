@@ -1,13 +1,14 @@
-import React, { useState, Suspense, lazy } from 'react';
+// src/routes/AppRouter.jsx
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Outlet, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import ScrollToTop from '../components/ui/ScrollToTop.jsx';
+import { useSelector, useDispatch } from 'react-redux';
+import ScrollToTop from '../components/ui/ScrollToTop';
 import NavBar from '../components/common/NavBar';
 import ProtectedRoute from './ProtectedRoute';
+import AuthModal from '../components/models/AuthModal.jsx';
+import { openModal, closeModal, switchMode } from '../redux/modalSlice.js';
 
-// Code-Splitting: Lazy-loading components
-const LoginPage = lazy(() => import('../features/auth/pages/Login'));
-const RegisterPage = lazy(() => import('../features/auth/pages/Register'));
+// Lazy-loaded pages
 const HomePage = lazy(() => import('../pages/Home'));
 const AddProductPage = lazy(() => import('../features/products/pages/AddProductPage.jsx'));
 const AddServicePage = lazy(() => import('../features/services/pages/AddServices.jsx'));
@@ -27,89 +28,88 @@ const WalletDashboard = lazy(() => import('../components/Dashboard/WalletDashboa
 const CheckoutPage = lazy(() => import('../features/cart/CheckoutPage'));
 const UpgradeStorePage = lazy(() => import('../features/Upgradestore/Upgradestore.jsx'));
 
-// Main layout with NavBar
 const MainLayout = () => {
-    // This hook call is valid as it's inside a functional component.
-    const { isLoggedIn } = useSelector((state) => state.user);
-    const [showRegisterModal, setShowRegisterModal] = useState(false);
-    const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { isLoggedIn } = useSelector((state) => state.user);
+  const { open, mode } = useSelector((state) => state.modal);
 
-    const handleSearchChange = (term) => console.log('Search term changed:', term);
-    const handleSearchSubmit = (term) => console.log('Search submitted:', term);
+  const handleAccountClick = () => {
+    if (!isLoggedIn) {
+      dispatch(openModal('register'));
+    } else {
+      navigate('/store-upgrade');
+    }
+  };
 
-    const handleAccountClick = () => {
-        if (!isLoggedIn) {
-            setShowRegisterModal(true);
-        } else {
-            navigate('/store-upgrade');
-        }
-    };
+  return (
+    <div className="min-h-screen bg-gray-100 flex flex-col">
+      <NavBar
+        onSearchChange={(term) => console.log('Search term changed:', term)}
+        onSearchSubmit={(term) => console.log('Search submitted:', term)}
+        onAccountClick={handleAccountClick}
+        onCameraClick={() => console.log('Camera clicked!')}
+        onLoginClick={() => dispatch(openModal('login'))}
+        onRegisterClick={() => dispatch(openModal('register'))}
+      />
 
-    const handleCameraClick = () => console.log('Camera clicked!');
-    const handleLoginClickFromRegister = () => {
-        setShowRegisterModal(false);
-        navigate('/login');
-    };
+      <main className="flex-grow p-4 md:p-8">
+        <Suspense fallback={<div>Loading...</div>}>
+          <Outlet />
+        </Suspense>
+      </main>
 
-    return (
-        <div className="min-h-screen bg-gray-100 flex flex-col">
-            <NavBar
-                onSearchChange={handleSearchChange}
-                onSearchSubmit={handleSearchSubmit}
-                onAccountClick={handleAccountClick}
-                onCameraClick={handleCameraClick}
-            />
-            <main className="flex-grow p-4 md:p-8">
-                <Outlet />
-            </main>
-
-            {showRegisterModal && (
-                <RegisterPage
-                    onClose={() => setShowRegisterModal(false)}
-                    onLoginClick={handleLoginClickFromRegister}
-                />
-            )}
-        </div>
-    );
+      {open && (
+        <AuthModal
+          mode={mode}
+          onClose={() => dispatch(closeModal())}
+          onSwitchMode={(newMode) => dispatch(switchMode(newMode))}
+        />
+      )}
+    </div>
+  );
 };
 
-// Router definition
 function AppRouter() {
-    return (
-        <>
-            <ScrollToTop />
-            <Suspense fallback={<div className="text-center py-10">Loading...</div>}>
-                <Routes>
-                    {/* Public Routes */}
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
-                    <Route path="/" element={<MainLayout />}>
-                        <Route index element={<HomePage />} />
-                        <Route path="feed" element={<FeedPage />} />
+  return (
+    <>
+      <ScrollToTop />
+      <Suspense fallback={<div className="text-center py-10">Loading...</div>}>
+        <Routes>
+          <Route path="/" element={<MainLayout />}>
+            <Route index element={<HomePage />} />
+            <Route path="feed" element={<FeedPage />} />
 
-                        {/* Protected Routes */}
-                        <Route path="checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
-                        <Route path="store-upgrade" element={<ProtectedRoute><UpgradeStorePage /></ProtectedRoute>} />
-                        <Route path="add-product" element={<ProtectedRoute><AddProductPage /></ProtectedRoute>} />
-                        <Route path="add-service" element={<ProtectedRoute><AddServicePage /></ProtectedRoute>} />
-                        <Route path="statistics" element={<ProtectedRoute><StatCard /></ProtectedRoute>} />
-                        <Route path="subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
-                        <Route path="my-products" element={<ProtectedRoute><MyProductsPage /></ProtectedRoute>} />
-                        <Route path="my-products/:productId/details" element={<ProtectedRoute><ProductDetailsPage /></ProtectedRoute>} />
-                        <Route path="my-products/:productId/boost-setup" element={<ProtectedRoute><BoostProductSetupPage /></ProtectedRoute>} />
-                        <Route path="my-products/:productId/boost-preview" element={<ProtectedRoute><BoostAdPreviewPage /></ProtectedRoute>} />
-                        <Route path="my-services" element={<ProtectedRoute><MyServicesPage /></ProtectedRoute>} />
-                        <Route path="my-services/:serviceId/details" element={<ProtectedRoute><ServiceDetailsPage /></ProtectedRoute>} />
-                        <Route path="chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
-                        <Route path="orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
-                        <Route path="settings" element={<ProtectedRoute><SellerDashboardPage /></ProtectedRoute>} />
-                        <Route path="wallet/escrow" element={<ProtectedRoute><WalletDashboard type="escrow" /></ProtectedRoute>} />
-                        <Route path="wallet/shopping" element={<ProtectedRoute><WalletDashboard type="shopping" /></ProtectedRoute>} />
-                    </Route>
-                </Routes>
-            </Suspense>
-        </>
-    );
+            {/* Protected Routes */}
+            <Route path="checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
+            <Route path="store-upgrade" element={<ProtectedRoute><UpgradeStorePage /></ProtectedRoute>} />
+            <Route path="add-product" element={<ProtectedRoute><AddProductPage /></ProtectedRoute>} />
+            <Route path="add-service" element={<ProtectedRoute><AddServicePage /></ProtectedRoute>} />
+            <Route path="statistics" element={<ProtectedRoute><StatCard /></ProtectedRoute>} />
+            <Route path="subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
+            <Route path="my-products" element={<ProtectedRoute><MyProductsPage /></ProtectedRoute>} />
+            <Route path="my-products/:productId/details" element={<ProtectedRoute><ProductDetailsPage /></ProtectedRoute>} />
+            <Route path="my-products/:productId/boost-setup" element={<ProtectedRoute><BoostProductSetupPage /></ProtectedRoute>} />
+            <Route path="my-products/:productId/boost-preview" element={<ProtectedRoute><BoostAdPreviewPage /></ProtectedRoute>} />
+            <Route path="my-services" element={<ProtectedRoute><MyServicesPage /></ProtectedRoute>} />
+            <Route path="my-services/:serviceId/details" element={<ProtectedRoute><ServiceDetailsPage /></ProtectedRoute>} />
+            <Route path="chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+            <Route path="chat/:conversationId" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+            <Route path="orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
+
+            {/* Settings (Seller Dashboard) with nested routes */}
+            <Route path="settings" element={<ProtectedRoute><SellerDashboardPage /></ProtectedRoute>}>
+              <Route path="wallet">
+                <Route path="escrow" element={<WalletDashboard type="escrow" />} />
+                <Route path="shopping" element={<WalletDashboard type="shopping" />} />
+              </Route>
+              <Route path="store-upgrade" element={<UpgradeStorePage />} />
+            </Route>
+          </Route>
+        </Routes>
+      </Suspense>
+    </>
+  );
 }
 
 export default AppRouter;

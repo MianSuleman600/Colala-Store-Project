@@ -1,164 +1,211 @@
-// src/components/Feed/EditPostModal.jsx
-import React, { useState, useEffect } from 'react';
-import Modal from '../ui/Modal'; // Your generic Modal component
-import Button from '../ui/Button'; // Your reusable Button component
+import React, { useEffect, useState } from 'react';
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import { CameraIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useToast } from '../ui/ToastProvider';
 
-// Heroicons
-import {
-    CameraIcon, // For selecting images
-    XMarkIcon // For removing selected image
-} from '@heroicons/react/24/outline';
+const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_CHARS = 500;
 
-// Dummy images for demonstration
-import userProfilePic from '../../assets/images/profileImage.png'; // Current user's profile pic
-import dummyImage1 from '../../assets/images/productImages/1.png'; // Dummy selectable image 1
-import dummyImage2 from '../../assets/images/productImages/2.jpeg'; // Dummy selectable image 2
-import dummyImage3 from '../../assets/images/productImages/3.jpeg'; // Dummy selectable image 3
-import dummyImage4 from '../../assets/images/productImages/4.jpeg'; // Dummy selectable image 4
+const EditPostModal = ({
+  isOpen,
+  onClose,
+  onEditPost, // function(postId, payload) -> may return promise
+  post,
+  brandColor = '#EF4444',
+  contrastColor = '#FFFFFF',
+  userProfilePic,
+  selectableImages = [],
+}) => {
+  const { push } = useToast();
 
-/**
- * EditPostModal Component
- * Allows users to edit an existing post's text content and optional image.
- * It pre-populates the modal with the data from the post being edited.
- *
- * @param {object} props
- * @param {boolean} props.isOpen - Controls the visibility of the modal.
- * @param {function} props.onClose - Callback function to close the modal.
- * @param {function} props.onEditPost - Callback function when a post is edited.
- * @param {object} props.post - The post object to be edited.
- * @param {string} props.brandColor - The primary brand color for styling.
- * @param {string} props.contrastColor - The primary brand color for styling.
- */
-const EditPostModal = ({ isOpen, onClose, onEditPost, post, brandColor, contrastColor }) => {
-    // State is initialized with the text and image from the 'post' prop
-    const [postText, setPostText] = useState(post?.text || '');
-    const [selectedImage, setSelectedImage] = useState(post?.imageUrl || null);
-    const [showErrorMessage, setShowErrorMessage] = useState(false); // State for the custom error message
+  const [postText, setPostText] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [isRemovingExistingImage, setIsRemovingExistingImage] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-    // Use useEffect to update the state if the 'post' prop changes
-    // This is important for when the same modal component is used to edit different posts
-    useEffect(() => {
-        if (post) {
-            setPostText(post.text);
-            setSelectedImage(post.imageUrl);
-        }
-    }, [post]);
+  // Load post data when modal opens or post changes
+  useEffect(() => {
+    if (isOpen && post) {
+      setPostText(post.text || '');
+      setSelectedFile(null);
+      setPreviewUrl(post.imageUrl || null);
+      setIsRemovingExistingImage(false);
+    }
+  }, [isOpen, post]);
 
-    // Dummy selectable images
-    const selectableImages = [
-        dummyImage1,
-        dummyImage2,
-        dummyImage3,
-        dummyImage4,
-    ];
+  useEffect(() => {
+    if (selectedFile) {
+      const url = URL.createObjectURL(selectedFile);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+  }, [selectedFile]);
 
-    if (!isOpen) return null;
+  if (!isOpen) return null;
 
-    const handleEditPost = () => {
-        // Check if the user has made any changes
-        const hasChanges = postText.trim() !== post.text || selectedImage !== post.imageUrl;
+  const validateFile = (file) => {
+    if (!file) return true;
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      push('Unsupported file type. Please upload PNG/JPEG/WebP images.', { type: 'error' });
+      return false;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      push('File is too large. Maximum size is 5 MB.', { type: 'error' });
+      return false;
+    }
+    return true;
+  };
 
-        // Ensure there is some content to save
-        if (!hasChanges) {
-            // No changes, just close the modal
-            onClose();
-            return;
-        }
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !validateFile(file)) return;
+    setSelectedFile(file);
+    setIsRemovingExistingImage(false);
+  };
 
-        if (postText.trim() || selectedImage) {
-            const updatedPost = {
-                ...post, // Keep all existing post data
-                text: postText.trim(),
-                imageUrl: selectedImage,
-            };
-            onEditPost(updatedPost); // Pass the updated post to the parent component
-            onClose();
-        } else {
-            // Use a custom message box instead of alert()
-            setShowErrorMessage(true);
-            setTimeout(() => {
-                setShowErrorMessage(false);
-            }, 3000); // Hide the message after 3 seconds
-        }
-    };
+  const handlePickSelectable = (imgUrl) => {
+    setSelectedFile(null);
+    setPreviewUrl(imgUrl);
+    setIsRemovingExistingImage(false);
+  };
 
+  const isChanged = () => {
     return (
-        <Modal
-            isOpen={isOpen}
-            onClose={onClose}
-            title="Edit Post" // Title changed to "Edit Post"
-            className="max-w-md "
-        >
-            <div className="p-4 flex flex-col rounded-2xl space-y-4">
-                {/* User Info and Text Area */}
-                <div className="relative flex items-start space-x-3 p-2 border border-gray-200 rounded-2xl bg-gray-100 min-h-[120px]">
-                    <img
-                        src={userProfilePic}
-                        alt="Your Profile"
-                        className="w-10 h-10 rounded-full object-cover flex-shrink-0 mt-1 ml-1"
-                    />
-                    <textarea
-                        className="flex-grow p-2 pl-0 bg-transparent rounded-lg focus:outline-none resize-none text-gray-800"
-                        rows="4"
-                        placeholder="What is on your mind?"
-                        value={postText}
-                        onChange={(e) => setPostText(e.target.value)}
-                        style={{ minHeight: '80px' }}
-                    />
-                </div>
-
-                {/* Selected Image Preview (if an image is selected) */}
-                {selectedImage && (
-                    <div className="relative w-full h-48 rounded-lg overflow-hidden border border-gray-200">
-                        <img src={selectedImage} alt="Selected post" className="w-full h-full object-cover" />
-                        <button
-                            onClick={() => setSelectedImage(null)}
-                            className="absolute top-2 right-2 p-1 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-75 transition-colors"
-                            aria-label="Remove image"
-                        >
-                            <XMarkIcon className="h-4 w-4" />
-                        </button>
-                    </div>
-                )}
-
-                {/* Image Selection Thumbnails */}
-                <div className="flex space-x-2 overflow-x-auto p-2 border border-gray-200 rounded-lg bg-gray-50">
-                    <button
-                        className="flex-shrink-0 w-16 h-16 flex items-center justify-center rounded-md border-2 border-dashed border-gray-300 text-gray-400 hover:bg-gray-100 transition-colors"
-                        aria-label="Upload image"
-                        onClick={() => setShowErrorMessage(true)} // Example of using the message box
-                    >
-                        <CameraIcon className="h-6 w-6" />
-                    </button>
-                    {selectableImages.map((img, index) => (
-                        <img
-                            key={index}
-                            src={img}
-                            alt={`Selectable image ${index + 1}`}
-                            className={`flex-shrink-0 w-16 h-16 object-cover rounded-md cursor-pointer border-2 ${selectedImage === img ? `border-[${brandColor}]` : 'border-transparent'} hover:border-gray-300 transition-colors`}
-                            onClick={() => setSelectedImage(img)}
-                        />
-                    ))}
-                </div>
-
-                {/* Custom error message box */}
-                {showErrorMessage && (
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-center" role="alert">
-                        <span className="block sm:inline">Please add some text or select an image to save.</span>
-                    </div>
-                )}
-                
-                {/* Save Changes Button */}
-                <Button
-                    onClick={handleEditPost}
-                    className="w-full py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-shadow text-white hover:bg-red-600"
-                    style={{ backgroundColor: brandColor, color: contrastColor }}
-                >
-                    Save Changes {/* Button text changed to "Save Changes" */}
-                </Button>
-            </div>
-        </Modal>
+      (postText || '').trim() !== (post?.text || '').trim() ||
+      Boolean(selectedFile) ||
+      isRemovingExistingImage ||
+      previewUrl !== post?.imageUrl
     );
+  };
+
+  const handleSave = async () => {
+    if (!isChanged()) {
+      onClose?.();
+      return;
+    }
+    if (!postText.trim() && !selectedFile && !previewUrl) {
+      push('Please add some text or select an image to save.', { type: 'error' });
+      return;
+    }
+
+    setSubmitting(true);
+
+    // Build payload for API
+    let payload;
+    if (selectedFile) {
+      payload = new FormData();
+      payload.append('text', postText.trim());
+      payload.append('image', selectedFile);
+    } else if (isRemovingExistingImage) {
+      payload = { text: postText.trim(), removeImage: true };
+    } else {
+      payload = { text: postText.trim(), imageUrl: previewUrl || null };
+    }
+
+    try {
+      const res = onEditPost ? onEditPost(post.id, payload) : null;
+      if (res && typeof res.then === 'function') {
+        await res;
+      }
+      push('Post updated successfully.', { type: 'success' });
+      onClose?.();
+    } catch (err) {
+      push(err?.message || 'Failed to update post.', { type: 'error' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Edit Post" className="max-w-md" aria-label="Edit post">
+      <div className="p-4 flex flex-col rounded-2xl space-y-4">
+        {/* User Avatar & Text */}
+        <div className="relative flex items-start space-x-3 p-2 border border-gray-200 rounded-2xl bg-gray-100 min-h-[120px]">
+          <img
+            src={userProfilePic || '/default-profile.png'}
+            alt="Your Profile"
+            className="w-10 h-10 rounded-full object-cover flex-shrink-0 mt-1 ml-1"
+            onError={(e) => (e.currentTarget.src = '/default-profile.png')}
+          />
+          <textarea
+            aria-label="Edit post text"
+            maxLength={MAX_CHARS}
+            className="flex-grow p-2 pl-0 bg-transparent rounded-lg focus:outline-none resize-none text-gray-800"
+            rows="4"
+            placeholder="Edit your post..."
+            value={postText}
+            onChange={(e) => setPostText(e.target.value)}
+            style={{ minHeight: '80px' }}
+          />
+        </div>
+
+        {/* Character count */}
+        <div className="flex justify-between items-center text-xs text-gray-500 px-1">
+          <div>{postText.length}/{MAX_CHARS}</div>
+          <div className="text-right text-xs">{previewUrl ? 'Image selected' : 'No image'}</div>
+        </div>
+
+        {/* Image Preview */}
+        {previewUrl && (
+          <div className="relative w-full h-48 rounded-lg overflow-hidden border border-gray-200">
+            <img src={previewUrl} alt="Edit preview" className="w-full h-full object-cover" />
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedFile(null);
+                setPreviewUrl(null);
+                setIsRemovingExistingImage(true);
+              }}
+              className="absolute top-2 right-2 p-1 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-75 transition-colors"
+              aria-label="Remove image"
+            >
+              <XMarkIcon className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {/* File Upload & Selectable Images */}
+        <input id="edit-file-upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+        <div className="flex space-x-2 overflow-x-auto p-2 border border-gray-200 rounded-lg bg-gray-50 items-center">
+          <label
+            htmlFor="edit-file-upload"
+            className="flex-shrink-0 w-16 h-16 flex items-center justify-center rounded-md border-2 border-dashed border-gray-300 text-gray-400 hover:bg-gray-100 transition-colors cursor-pointer"
+            aria-label="Upload replacement image"
+            title="Upload image"
+          >
+            <CameraIcon className="h-6 w-6" />
+          </label>
+
+          {selectableImages.map((img, i) => (
+            <img
+              key={i}
+              src={img}
+              alt={`Selectable ${i + 1}`}
+              className={`flex-shrink-0 w-16 h-16 object-cover rounded-md cursor-pointer border-2 ${
+                previewUrl === img ? 'border-blue-500' : 'border-transparent'
+              } hover:border-gray-300 transition-colors`}
+              onClick={() => handlePickSelectable(img)}
+            />
+          ))}
+        </div>
+
+        {/* Save Button */}
+        <Button
+          type="button"
+          onClick={handleSave}
+          className="w-full py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-shadow text-white"
+          style={{ backgroundColor: brandColor, color: contrastColor, cursor: submitting ? 'not-allowed' : 'pointer' }}
+          disabled={submitting || !isChanged()}
+          aria-disabled={submitting || !isChanged()}
+        >
+          {submitting ? 'Saving...' : 'Save Changes'}
+        </Button>
+      </div>
+    </Modal>
+  );
 };
 
 export default EditPostModal;

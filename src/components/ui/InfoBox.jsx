@@ -7,7 +7,7 @@ import Card from './Card';
 
 const InfoBox = ({ title, actionText, actionOnClick, completionPercentage, actionButtonStyle }) => {
     return (
-        <Card className="p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+        <Card className="p-6 flex flex-col bg-[#DFDFDF] md:flex-row rounded-xl items-center justify-between gap-6">
             <div className="flex-grow text-center md:text-left">
                 <p className="text-lg text-gray-800 mb-2">{title}</p>
                 <Button

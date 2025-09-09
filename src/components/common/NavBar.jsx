@@ -1,293 +1,389 @@
-// src/components/common/NavBar.jsx
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ShoppingCart, Search, Camera, User, Menu, X } from 'lucide-react';
-import { useSelector } from 'react-redux';
-import { useGetStoreProfileQuery } from '../../services/storeProfileApi';
+import { useSelector, useDispatch } from 'react-redux';
+import { useStoreProfile } from '../../services/queries/storeProfileQuery';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { selectTotalItems } from '../../features/cart/cartSlice';
+import { selectCartItemsByUser } from '../../features/cart/cartSlice';
 import CartDropdown from './CartDropdown';
-import {getContrastTextColor} from '../../utils/colorUtils'
+import Skeleton from 'react-loading-skeleton';
+import 'react-loading-skeleton/dist/skeleton.css';
+import { openModal } from '../../redux/modalSlice';
 
-/**
- * Helper function to determine the best text color (black or white)
- * based on the background color for optimal contrast.
- * @param {string} hexcolor - The hex code of the background color.
- * @returns {string} - The hex code for the contrasting text color.
- */
-
-/**
- * Determines the currently active navigation link based on the pathname.
- * @param {string} pathname - The current URL pathname.
- * @returns {string|null} - The name of the active link or null if none match.
- */
-const getActiveNavLinkFromPath = (pathname) => {
-    switch (pathname) {
-        case '/':
-            return 'Home';
-        case '/feed':
-            return 'Feed';
-        case '/chat':
-            return 'Chat';
-        case '/orders':
-            return 'Orders';
-        case '/settings':
-            return 'Settings';
-        default:
-            return null;
-    }
+const linkPaths = {
+  Home: '/',
+  Feed: '/feed',
+  Chat: '/chat',
+  Orders: '/orders',
+  Settings: '/settings',
 };
 
-/**
- * A responsive and dynamic navigation bar component.
- * It features a logo, search bar, user account link, and a shopping cart with a dropdown.
- * The colors adapt based on the fetched store profile.
- * @param {object} props - Component props.
- * @param {function} props.onSearchChange - Callback for search input value changes.
- * @param {function} props.onSearchSubmit - Callback for search input submission (e.g., on Enter key press).
- * @param {function} props.onAccountClick - Callback for when the account icon is clicked.
- * @param {function} props.onCameraClick - Callback for when the camera icon is clicked.
- */
-function NavBar({ onSearchChange, onSearchSubmit, onAccountClick, onCameraClick }) {
-    // Redux state and hooks
-    const { isLoggedIn, userId } = useSelector((state) => state.user);
-    const totalItems = useSelector(selectTotalItems);
-    const { data: storeProfile, isLoading: isProfileLoading, error: profileError } = useGetStoreProfileQuery(userId, {
-        skip: !isLoggedIn || !userId,
-    });
-    const navigate = useNavigate();
-    const location = useLocation();
+const getActiveNavLinkFromPath = (pathname) =>
+  Object.keys(linkPaths).find((key) => linkPaths[key] === pathname) || null;
 
-    // State for local component UI
-    const [searchTerm, setSearchTerm] = useState('');
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [isCartOpen, setIsCartOpen] = useState(false);
+function NavBar({ onSearchChange, onSearchSubmit, onCameraClick, onAccountClick }) {
+  const dispatch = useDispatch();
+  const { isLoggedIn, userId } = useSelector((state) => state.user);
+  const userIdForCart = userId ?? 'guest';
+  const navigate = useNavigate();
+  const location = useLocation();
 
-    // Dynamic styling based on store profile
-    const brandColor = storeProfile?.brandColor || '#EF4444';
-    const contrastTextColor = getContrastTextColor(brandColor);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
-    // Get active navigation link
-    const currentActiveNavLink = getActiveNavLinkFromPath(location.pathname);
-    const links = ['Home', 'Feed', 'Chat', 'Orders', 'Settings'];
+  // Cart selectors
+  const selectMemoizedCartItems = useMemo(
+    () => selectCartItemsByUser(userIdForCart),
+    [userIdForCart]
+  );
+  const cartItems = useSelector(selectMemoizedCartItems);
+  const totalItems = useMemo(
+    () => cartItems.reduce((t, item) => t + (item.quantity || 0), 0),
+    [cartItems]
+  );
 
-    // Helper to determine the displayed store name/user state
-    const getDisplayedName = () => {
-        if (!isLoggedIn) return 'Guest';
-        if (isProfileLoading) return 'Loading...';
-        if (profileError) return 'Error';
-        // CORRECTED: Use storeName property
-        return storeProfile?.storeName || 'My Store';
-    };
-    const displayedStoreName = getDisplayedName();
+  // Store profile (for brand color)
+  const { data: storeProfileData, isLoading } = useStoreProfile(userId, {
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+  });
 
-    // Event handlers
-    const handleSearchChange = (e) => {
-        const value = e.target.value;
-        setSearchTerm(value);
-        if (onSearchChange) onSearchChange(value);
-    };
+  const guestProfile = { storeName: 'Guest', brandColor: '#EF4444' };
+  const storeProfile = isLoggedIn ? storeProfileData || {} : guestProfile;
+  const brandColor = storeProfile?.brandColor || '#EF4444';
+  const contrastTextColor = '#fff';
 
-    const handleSearchKeyDown = (e) => {
-        if (e.key === 'Enter' && onSearchSubmit) {
-            onSearchSubmit(searchTerm);
-        }
-    };
+  // Handlers
+  const handleSearchChangeInternal = useCallback(
+    (e) => {
+      const val = e.target.value;
+      setSearchTerm(val);
+      onSearchChange?.(val);
+    },
+    [onSearchChange]
+  );
 
-    const handleNavLinkClick = (linkName) => {
-        let path = '/';
-        switch (linkName) {
-            case 'Home': path = '/'; break;
-            case 'Feed': path = '/feed'; break;
-            case 'Chat': path = '/chat'; break;
-            case 'Orders': path = '/orders'; break;
-            case 'Settings': path = '/settings'; break;
-            default: path = '/';
-        }
-        navigate(path);
+  const handleSearchKeyDown = useCallback(
+    (e) => {
+      if (e.key === 'Enter') onSearchSubmit?.(searchTerm);
+    },
+    [onSearchSubmit, searchTerm]
+  );
+
+  const handleNavLinkClick = useCallback(
+    (k) => {
+      navigate(linkPaths[k] || '/');
+      setMobileMenuOpen(false);
+      setIsCartOpen(false);
+    },
+    [navigate]
+  );
+
+  const handleCartToggle = () => setIsCartOpen((prev) => !prev);
+  const handleCartClose = () => setIsCartOpen(false);
+
+  // Close menus on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setIsCartOpen(false);
+  }, [location.pathname]);
+
+  // Close on ESC
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
         setMobileMenuOpen(false);
+        setIsCartOpen(false);
+      }
     };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
-    const handleLogoClick = () => {
-        navigate('/');
-    };
+  const displayedStoreName = isLoggedIn
+    ? isLoading
+      ? <Skeleton width={80} />
+      : storeProfile?.storeName || 'My Store'
+    : 'Guest';
 
-    return (
-        <div className='w-full h-auto'>
-            <nav className='flex flex-col h-full'>
-                {/* Top bar with logo, search (desktop), and icons */}
-                <div
-                    className='h-[76px] w-full flex items-center justify-between sm:justify-center px-4 sm:px-6 lg:px-8 relative'
-                    style={{ backgroundColor: brandColor, color: contrastTextColor }}
-                >
-                    {/* Mobile Menu Toggle */}
-                    <div className='sm:hidden flex items-center z-50'>
-                        {mobileMenuOpen ? (
-                            <X size={28} className='cursor-pointer' style={{ color: contrastTextColor }} onClick={() => setMobileMenuOpen(false)} />
-                        ) : (
-                            <Menu size={28} className='cursor-pointer' style={{ color: contrastTextColor }} onClick={() => setMobileMenuOpen(true)} />
-                        )}
-                    </div>
-                    {/* Logo Section */}
-                    <div className='flex-shrink-0 flex items-center justify-start sm:w-auto w-[150px]'>
-                        <img
-                            src='/logo.png'
-                            onClick={handleLogoClick}
-                            alt='Colala Mall Logo'
-                            className='w-full h-auto max-w-[150px] object-contain cursor-pointer'
-                            width="150"
-                            height="50"
-                            onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/150x50/cccccc/333333?text=Logo"; }}
-                        />
-                    </div>
-                    {/* Desktop Search Bar */}
-                    <div className='flex-grow mx-4 max-w-lg hidden sm:block'>
-                        <div className='relative flex items-center w-full'>
-                            <Search size={20} className='absolute left-3 text-gray-500' />
-                            <input
-                                type='text'
-                                placeholder='Search any product, shop or category'
-                                className='w-full py-2 pl-10 pr-10 rounded-lg bg-white text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500'
-                                value={searchTerm}
-                                onChange={handleSearchChange}
-                                onKeyDown={handleSearchKeyDown}
-                            />
-                            <Camera
-                                size={20}
-                                className='absolute right-3 text-gray-500 cursor-pointer'
-                                onClick={onCameraClick}
-                            />
-                        </div>
-                    </div>
-                    {/* Desktop User and Cart Icons */}
-                    <div className='hidden sm:flex items-center justify-center gap-4 w-[200px] flex-shrink-0'>
-                        <div
-                            className='flex flex-col items-center text-sm sm:text-base cursor-pointer'
-                            onClick={onAccountClick}
-                        >
-                            <User size={20} style={{ color: contrastTextColor }} />
-                            <span className='font-bold'>{isLoggedIn ? 'Account' : 'Login/Register'}</span>
-                        </div>
-                        <div
-                            className='relative flex flex-col items-center text-sm sm:text-base cursor-pointer'
-                            onClick={() => setIsCartOpen(!isCartOpen)}
-                        >
-                            <ShoppingCart size={20} style={{ color: contrastTextColor }} />
-                            {totalItems > 0 && (
-                                <span className='absolute -top-1 -right-2 bg-red-500 text-white text-xs rounded-full px-1'>
-                                    {totalItems}
-                                </span>
-                            )}
-                            <span>Cart</span>
-                            {isCartOpen && (
-                                <CartDropdown
-                                    onClose={() => setIsCartOpen(false)}
-                                    brandColor={brandColor}
-                                    contrastTextColor={contrastTextColor}
-                                />
-                            )}
-                        </div>
-                    </div>
-                    {/* Mobile Cart Icon */}
-                    <div className='sm:hidden flex items-center z-50'>
-                        <div
-                            className='relative flex items-center cursor-pointer'
-                            onClick={() => setIsCartOpen(!isCartOpen)}
-                        >
-                            <ShoppingCart size={24} style={{ color: contrastTextColor }} />
-                            {totalItems > 0 && (
-                                <span className='absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-1'>{totalItems}</span>
-                            )}
-                            {isCartOpen && (
-                                <CartDropdown
-                                    onClose={() => setIsCartOpen(false)}
-                                    brandColor={brandColor}
-                                    contrastTextColor={contrastTextColor}
-                                />
-                            )}
-                        </div>
-                    </div>
+  return (
+    <div className="w-full sticky top-0 z-50">
+      <nav className="flex flex-col">
+        {/* Top bar */}
+        <div
+          className="h-[64px] sm:h-[80px] flex items-center justify-between px-4 sm:px-6 lg:px-8 relative gap-3"
+          style={{ backgroundColor: brandColor, color: contrastTextColor }}
+        >
+          {/* Mobile Menu Toggle */}
+          <div className="flex sm:hidden items-center">
+            {mobileMenuOpen ? (
+              <X size={28} className="cursor-pointer" onClick={() => setMobileMenuOpen(false)} />
+            ) : (
+              <Menu size={28} className="cursor-pointer" onClick={() => setMobileMenuOpen(true)} />
+            )}
+          </div>
+
+          {/* Logo */}
+          <div className="flex-shrink-0 flex items-center justify-start w-[120px] sm:w-[150px] h-[40px] sm:h-[50px]">
+            <img
+              src="/logo.png"
+              onClick={() => navigate('/')}
+              alt="Logo"
+              className="w-full h-full object-contain cursor-pointer"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = 'https://placehold.co/150x50/cccccc/333333?text=Logo';
+              }}
+            />
+          </div>
+
+          {/* Search (Desktop/Tablet) */}
+          <div className="hidden sm:block flex-grow mx-2 sm:mx-4 max-w-lg">
+            <div className="relative flex items-center w-full">
+              <Search size={20} className="absolute left-3 text-gray-500" />
+              <input
+                type="text"
+                placeholder="Search products, shop or category"
+                className="w-full py-2.5 pl-10 pr-10 rounded-lg bg-white text-gray-800"
+                value={searchTerm}
+                onChange={handleSearchChangeInternal}
+                onKeyDown={handleSearchKeyDown}
+              />
+              <Camera
+                size={24}
+                className="absolute right-3 text-gray-500 cursor-pointer"
+                onClick={onCameraClick}
+              />
+            </div>
+          </div>
+
+          {/* Right group (Desktop) */}
+          <div className="hidden sm:flex items-center justify-end gap-6 w-auto flex-shrink-0 relative">
+            {!isLoggedIn ? (
+              <button
+                className="flex items-center gap-2 cursor-pointer"
+                onClick={() => dispatch(openModal('login'))}
+                aria-label="Sign in or Register"
+              >
+                <User size={28} />
+                <div className="flex flex-col items-start text-white">
+                  <span className="text-xs">Welcome</span>
+                  <span className="font-bold leading-tight">Sign In/Register</span>
                 </div>
-                {/* Bottom bar with store name and navigation links */}
-                <div
-                    className='w-full h-[77px] rounded-br-[50px] rounded-bl-[50px] relative flex items-center justify-center px-4 sm:px-6 lg:px-8'
-                    style={{ backgroundColor: brandColor, color: contrastTextColor }}
-                >
-                    {isLoggedIn && (
-                        <div
-                            className='absolute left-1/2 -translate-x-1/2 lg:left-[210px] sm:left-[210px] md:left-12 sm:translate-x-0 text-xl sm:text-2xl font-bold whitespace-nowrap'
-                            style={{ fontFamily: 'Oleo Script', color: contrastTextColor }}
-                        >
-                            {displayedStoreName}
-                        </div>
-                    )}
-                    {/* Desktop Navigation Links */}
-                    <div className='hidden sm:flex gap-3 sm:gap-8 text-sm sm:text-base'>
-                        {links.map((link) => (
-                            <div
-                                key={link}
-                                className='flex flex-col justify-start items-center cursor-pointer group'
-                                onClick={() => handleNavLinkClick(link)}
-                            >
-                                <span style={{ color: contrastTextColor }}>{link}</span>
-                                <div
-                                    className={`h-0.5 mt-1 bg-white transition-transform duration-300 origin-left ${
-                                        currentActiveNavLink === link ? 'scale-x-100' : 'scale-x-0'
-                                    } group-hover:scale-x-100`}
-                                    style={{ width: '32px', backgroundColor: contrastTextColor }}
-                                ></div>
-                            </div>
-                        ))}
-                    </div>
+              </button>
+            ) : (
+              <button
+                className="flex items-center gap-2 cursor-pointer"
+                onClick={() => onAccountClick?.()}
+                aria-label="Account"
+              >
+                <User size={28} />
+                <div className="flex flex-col items-start">
+                  <span className="text-xs">Hi {displayedStoreName}</span>
+                  <span className="font-bold">Account</span>
                 </div>
-                {/* Mobile Menu Dropdown */}
-                {mobileMenuOpen && (
-                    <div className='sm:hidden bg-white text-black w-full py-4 px-6 shadow-md rounded-b-2xl absolute top-[76px] left-0 z-40'>
-                        {/* Mobile Search Bar */}
-                        <div className='flex items-center w-full mb-4'>
-                            <div className='relative flex-grow'>
-                                <Search size={20} className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-500' />
-                                <input
-                                    type='text'
-                                    placeholder='Search...'
-                                    className='w-full py-2 pl-10 pr-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500'
-                                    value={searchTerm}
-                                    onChange={handleSearchChange}
-                                    onKeyDown={handleSearchKeyDown}
-                                />
-                            </div>
-                            <Camera
-                                size={20}
-                                className='ml-3 text-gray-500 cursor-pointer'
-                                onClick={onCameraClick}
-                            />
-                        </div>
-                        {/* Mobile Navigation Links */}
-                        <div className='flex flex-col space-y-2'>
-                            <div
-                                className='py-2 px-1 cursor-pointer hover:bg-gray-100 rounded flex items-center gap-2'
-                                onClick={onAccountClick}
-                            >
-                                <User size={20} />
-                                <span className='font-semibold'>
-                                    {isLoggedIn ? `Hi ${displayedStoreName}` : 'Login/Register'}
-                                </span>
-                            </div>
-                            <hr className='border-gray-300 my-2' />
-                            {links.map((link) => (
-                                <div
-                                    key={link}
-                                    className='py-2 px-1 cursor-pointer hover:bg-gray-100 rounded font-medium'
-                                    onClick={() => handleNavLinkClick(link)}
-                                >
-                                    {link}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+              </button>
+            )}
+
+            {/* Cart (Desktop) */}
+            <div className="relative flex items-center gap-2">
+              <button
+                className="relative cursor-pointer"
+                onClick={handleCartToggle}
+                aria-expanded={isCartOpen ? 'true' : 'false'}
+                aria-label="Open cart"
+              >
+                <ShoppingCart size={28} />
+                {totalItems > 0 && (
+                  <span className="absolute -top-1 -right-2 bg-white text-red-500 text-xs rounded-full px-1.5 py-0.5">
+                    {totalItems}
+                  </span>
                 )}
-            </nav>
+              </button>
+
+              {isCartOpen && (
+                <>
+                  {/* Click-away overlay (desktop/tablet) */}
+                  <div
+                    className="hidden sm:block fixed inset-0 z-40"
+                    onClick={handleCartClose}
+                    aria-hidden="true"
+                  />
+                  {/* Anchor dropdown (desktop) */}
+                  <div className="hidden sm:block absolute right-0 top-full z-50">
+                    <CartDropdown
+                      onClose={handleCartClose}
+                      brandColor={brandColor}
+                      contrastTextColor={contrastTextColor}
+                      userId={userIdForCart}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Right icons (Mobile) */}
+          <div className="flex sm:hidden items-center gap-3 ml-auto">
+            {!isLoggedIn ? (
+              <button
+                aria-label="Sign in or Register"
+                onClick={() => dispatch(openModal('login'))}
+                className="p-1"
+              >
+                <User size={24} />
+              </button>
+            ) : (
+              <button aria-label="Account" onClick={() => onAccountClick?.()} className="p-1">
+                <User size={24} />
+              </button>
+            )}
+
+            <button
+              className="relative p-1"
+              onClick={handleCartToggle}
+              aria-expanded={isCartOpen ? 'true' : 'false'}
+              aria-label="Open cart"
+            >
+              <ShoppingCart size={24} />
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-2 bg-white text-red-500 text-[10px] rounded-full px-1 py-0.5">
+                  {totalItems}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
-    );
+
+        {/* Search (Mobile) + Store name centered below
+            Note: This is the bottom-most colored block on mobile, so we round its bottom corners */}
+        <div
+          className="sm:hidden px-4 pt-2 pb-3 rounded-bl-[32px] rounded-br-[32px]"
+          style={{ backgroundColor: brandColor }}
+        >
+          <div className="relative flex items-center w-full">
+            <Search size={18} className="absolute left-3 text-gray-700" />
+            <input
+              type="text"
+              placeholder="Search products, shop or category"
+              className="w-full py-2 pl-9 pr-9 rounded-lg bg-white text-gray-800"
+              value={searchTerm}
+              onChange={handleSearchChangeInternal}
+              onKeyDown={handleSearchKeyDown}
+            />
+            <Camera
+              size={20}
+              className="absolute right-3 text-gray-700 cursor-pointer"
+              onClick={onCameraClick}
+            />
+          </div>
+
+          {isLoggedIn && (
+            <div className="mt-2 text-center">
+              <span
+                className="text-lg font-bold"
+                style={{ color: contrastTextColor, fontFamily: 'Oleo Script' }}
+              >
+                {displayedStoreName}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Links row (hidden on mobile; rounded on desktop) */}
+        <div
+          className="hidden sm:flex w-full h-[70px] rounded-br-[32px] rounded-bl-[32px] items-center justify-start px-4 lg:px-8"
+          style={{ backgroundColor: brandColor, color: contrastTextColor }}
+        >
+          {isLoggedIn && (
+            <div
+              className="text-2xl sm:text-3xl font-bold mr-6"
+              style={{ fontFamily: 'Oleo Script', color: contrastTextColor }}
+            >
+              {displayedStoreName}
+            </div>
+          )}
+          <div className="flex flex-grow justify-center gap-10 text-base">
+            {Object.keys(linkPaths).map((link) => (
+              <button
+                key={link}
+                className="flex flex-col items-center cursor-pointer group"
+                onClick={() => handleNavLinkClick(link)}
+              >
+                <span>{link}</span>
+                <div
+                  className={`h-1 mt-1 bg-white transition-transform ${
+                    getActiveNavLinkFromPath(location.pathname) === link
+                      ? 'scale-x-100'
+                      : 'scale-x-0'
+                  } group-hover:scale-x-100`}
+                  style={{ width: '32px', borderRadius: '2px' }}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Mobile Menu Drawer */}
+        {mobileMenuOpen && (
+          <div className="sm:hidden relative">
+            <div
+              className="fixed inset-0 bg-black/40 z-40"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-hidden="true"
+            />
+            <div className="fixed top-[64px] left-0 right-0 z-50 bg-white rounded-b-2xl shadow-lg overflow-hidden">
+              <div className="grid grid-cols-2 gap-2 p-4">
+                {Object.keys(linkPaths).map((link) => (
+                  <button
+                    key={link}
+                    className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-medium"
+                    onClick={() => handleNavLinkClick(link)}
+                  >
+                    {link}
+                  </button>
+                ))}
+                {!isLoggedIn ? (
+                  <>
+                    <button
+                      className="py-3 px-4 rounded-lg bg-red-500 text-white font-semibold"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        dispatch(openModal('login'));
+                      }}
+                    >
+                      Sign In
+                    </button>
+                    <button
+                      className="py-3 px-4 rounded-lg bg-white border font-semibold text-red-500"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        dispatch(openModal('register'));
+                      }}
+                    >
+                      Register
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Cart Sheet */}
+        {isCartOpen && (
+          <div className="sm:hidden">
+            <CartDropdown
+              onClose={handleCartClose}
+              brandColor={brandColor}
+              contrastTextColor={contrastTextColor}
+              userId={userIdForCart}
+            />
+          </div>
+        )}
+      </nav>
+    </div>
+  );
 }
 
 export default NavBar;

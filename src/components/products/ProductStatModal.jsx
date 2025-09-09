@@ -1,134 +1,103 @@
-// src/components/products/ProductStatModal.jsx
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import Modal from '../ui/Modal.jsx';
 import ProductStatCard from './ProductStatCard.jsx';
-import { X } from 'lucide-react';
-import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import CustomChartTooltip from '../Dashboard/CustomChartTooltip.jsx';
 
-import CustomChartTooltip from '../Dashboard/CustomChartTooltip.jsx'; // Import the custom tooltip component
+const ProductStatModal = ({ isOpen, onClose, productStats = null, brandColor = '#EF4444' }) => {
+  const [chartReady, setChartReady] = useState(false);
+  const chartContainerRef = useRef(null);
 
-/**
- * ProductStatModal Component
- * Displays detailed statistics for a product, including a chart and various stat cards.
- * Matches the design in 'image_9e9943.png'.
- *
- * @param {object} props
- * @param {boolean} props.isOpen - Controls the visibility of the modal.
- * @param {function} props.onClose - Callback to close the modal.
- * @param {object} props.productStats - Object containing the statistics data.
- * @param {string} props.productStats.productName - Name of the product.
- * @param {number} props.productStats.views - Number of views.
- * @param {number} props.productStats.inCart - Number of times added to cart.
- * @param {number} props.productStats.completedOrders - Number of completed orders.
- * @param {number} props.productStats.impressions - Number of impressions.
- * @param {number} props.productStats.profileClicks - Number of profileClicks.
- * @param {number} props.productStats.chats - Number of chats.
- * @param {number} props.productStats.noClicks - Number of times no click occurred.
- * @param {object[]} props.productStats.chartData - Array of objects for chart data.
- * @param {string} props.brandColor - Primary brand color for styling.
- * @param {string} props.contrastTextColor - Text color for contrast.
- * @param {string} props.lightBrandColor - Lighter shade of brand color.
- */
-const ProductStatModal = ({ isOpen, onClose, productStats, brandColor, contrastTextColor, lightBrandColor }) => {
-    const [chartReady, setChartReady] = useState(false);
-    const chartContainerRef = useRef(null);
+  useEffect(() => {
+    let timer;
+    if (isOpen) {
+      timer = setTimeout(() => setChartReady(true), 100);
+    } else {
+      setChartReady(false);
+    }
+    return () => clearTimeout(timer);
+  }, [isOpen]);
 
-    // Use provided chartData or fallback to dummy data
-    const chartData = productStats.chartData && productStats.chartData.length > 0 ? productStats.chartData : [
-        { date: '1 Jul', Impressions: 50, Visitors: 30, Orders: 10 },
-        { date: '2 Jul', Impressions: 70, Visitors: 45, Orders: 15 },
-        { date: '3 Jul', Impressions: 40, Visitors: 20, Orders: 8 },
-        { date: '4 Jul', Impressions: 60, Visitors: 35, Orders: 12 },
-        { date: '5 Jul', Impressions: 80, Visitors: 50, Orders: 20 },
-        { date: '6 Jul', Impressions: 75, Visitors: 48, Orders: 18 },
-        { date: '7 Jul', Impressions: 90, Visitors: 60, Orders: 25 },
-    ];
+  const safeMetrics = useMemo(() => {
+    if (!productStats) return {};
+    if (productStats.metrics) return productStats.metrics;
+    return {
+      productViews: productStats.productViews ?? productStats.views ?? 0,
+      inCart: productStats.inCart ?? 0,
+      completedOrders: productStats.completedOrders ?? 0,
+      impressions: productStats.impressions ?? 0,
+      profileClicks: productStats.profileClicks ?? 0,
+      chats: productStats.chats ?? 0,
+      noClicks: productStats.noClicks ?? 0,
+    };
+  }, [productStats]);
 
-    useEffect(() => {
-        let timer;
-        if (isOpen) {
-            console.log("ProductStatModal: Chart data received:", chartData);
-            timer = setTimeout(() => {
-                setChartReady(true);
-                if (chartContainerRef.current) {
-                    console.log(
-                        "ProductStatModal: Chart container dimensions:",
-                        chartContainerRef.current.offsetWidth,
-                        "x",
-                        chartContainerRef.current.offsetHeight
-                    );
-                }
-            }, 100);
-        } else {
-            setChartReady(false);
-        }
-        return () => clearTimeout(timer);
-    }, [isOpen, chartData]);
+  const chartData = useMemo(() => {
+    if (!productStats?.chartData || !Array.isArray(productStats.chartData)) return [];
+    return productStats.chartData.map((item) => ({
+      date: item?.date ?? 'N/A',
+      Impressions: item?.Impressions ?? 0,
+      Visitors: item?.Visitors ?? 0,
+      Orders: item?.Orders ?? 0,
+    }));
+  }, [productStats?.chartData]);
 
-    if (!isOpen) return null;
+  const stats = useMemo(
+    () => [
+      { title: 'Views', value: safeMetrics.productViews ?? 0 },
+      { title: 'In Cart', value: safeMetrics.inCart ?? 0 },
+      { title: 'Completed Orders', value: safeMetrics.completedOrders ?? 0 },
+      { title: 'Impressions', value: safeMetrics.impressions ?? 0 },
+      { title: 'Profile Clicks', value: safeMetrics.profileClicks ?? 0 },
+      { title: 'Chats', value: safeMetrics.chats ?? 0 },
+      { title: 'No Clicks', value: safeMetrics.noClicks ?? 0, fullWidth: true },
+    ],
+    [safeMetrics]
+  );
 
-    return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`Product Stat`} className="max-w-lg" style={{ fontFamily: 'Inter, sans-serif' }}>
-            <div className="p-4 sm:p-6 space-y-6">
-                <div
-                    ref={chartContainerRef}
-                    className="bg-white rounded-3xl p-4 h-64 flex flex-col relative border border-gray-200 shadow-2xl"
-                >
-                    {chartReady && chartData && chartData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%" key={isOpen ? 'chart-open' : 'chart-closed'}>
-                            <BarChart
-                                data={chartData}
-                                margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-                            >
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
-                                <XAxis dataKey="date" axisLine={false} tickLine={false} />
-                                <YAxis axisLine={false} tickLine={false} tick={false} />
-                                {/* Use the custom tooltip component here */}
-                                <Tooltip content={<CustomChartTooltip />} cursor={{ fill: 'rgba(0,0,0,0.1)' }} />
-                                <Legend
-                                    align="left"
-                                    verticalAlign="top"
-                                    wrapperStyle={{ top: -10, left: 10, paddingBottom: 10 }}
-                                    iconType="circle"
-                                    layout="horizontal"
-                                    formatter={(value, entry, index) => {
-                                        if (entry && entry.payload) {
-                                            if (value === 'Impressions') return 'Impressions';
-                                            if (value === 'Visitors') return 'Visitors';
-                                            if (value === 'Orders') return 'Orders';
-                                        }
-                                        return value;
-                                    }}
-                                />
-                                <Bar dataKey="Impressions" fill="#F97316" radius={[5, 5, 0, 0]} />
-                                <Bar dataKey="Visitors" fill="#22C55E" radius={[5, 5, 0, 0]} />
-                                <Bar dataKey="Orders" fill="#EF4444" radius={[5, 5, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    ) : (
-                        <div className="flex items-center justify-center h-full text-gray-500">
-                            {!chartReady ? "Loading chart..." : "No chart data available."}
-                        </div>
-                    )}
-                </div>
+  if (!isOpen) return null;
 
-                {/* Stat Cards Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    <ProductStatCard title="Views" value={productStats.views} brandColor={brandColor} />
-                    <ProductStatCard title="In Cart" value={productStats.inCart} brandColor={brandColor} />
-                    <ProductStatCard title="Completed Order" value={productStats.completedOrders} brandColor={brandColor} />
-                    <ProductStatCard title="Impressions" value={productStats.impressions} brandColor={brandColor} />
-                    <ProductStatCard title="Profile Clicks" value={productStats.profileClicks} brandColor={brandColor} />
-                    <ProductStatCard title="Chats" value={productStats.chats} brandColor={brandColor} />
-                    <div className="col-span-2 sm:col-span-3">
-                        <ProductStatCard title="No Clicks" value={productStats.noClicks} brandColor={brandColor} />
-                    </div>
-                </div>
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={productStats?.name || productStats?.productName || 'Product Stats'}
+      className="max-w-2xl"
+    >
+      <div className="p-4 sm:p-6 space-y-6">
+        <div ref={chartContainerRef} className="bg-white rounded-3xl p-4 h-64 flex flex-col relative border border-gray-200 shadow-2xl">
+          {chartReady ? (
+            chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} />
+                  <YAxis axisLine={false} tickLine={false} />
+                  <Tooltip content={<CustomChartTooltip />} cursor={{ fill: 'rgba(0,0,0,0.1)' }} />
+                  <Legend align="left" verticalAlign="top" wrapperStyle={{ top: -10, left: 10 }} iconType="circle" />
+                  <Bar dataKey="Impressions" fill="#F97316" radius={[5, 5, 0, 0]} />
+                  <Bar dataKey="Visitors" fill="#22C55E" radius={[5, 5, 0, 0]} />
+                  <Bar dataKey="Orders" fill="#EF4444" radius={[5, 5, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">No chart data available.</div>
+            )
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-500">Loading chart...</div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {stats.map((stat, idx) => (
+            <div key={`${stat.title}-${idx}`} className={stat.fullWidth ? 'col-span-2 sm:col-span-3' : ''}>
+              <ProductStatCard title={stat.title} value={stat.value} brandColor={brandColor} />
             </div>
-        </Modal>
-    );
+          ))}
+        </div>
+      </div>
+    </Modal>
+  );
 };
 
 export default ProductStatModal;
