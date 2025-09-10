@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import {
   BarChart,
   Bar,
@@ -44,25 +45,26 @@ const makeFallbackArray = (len, factory) => Array.from({ length: len }, (_, i) =
 const AnalyticsPage = ({ storeId: propStoreId }) => {
   const { push } = useToast();
 
-  // If you have user state with storeId, you could fallback to that here (kept simple for now)
-  const storeId = propStoreId;
+  // Fallback to logged-in user's storeId if not provided via props
+  const userId = useSelector((s) => s.user?.userId);
+  const storeId = propStoreId || userId;
 
   const [selectedDateRange, setSelectedDateRange] = useState('7_days');
 
-  // Profile for colors
+  // Profile for colors (safe even if storeId is missing)
   const { data: storeProfile } = useStoreProfile(storeId, { enabled: !!storeId });
   const brandColor = useMemo(() => storeProfile?.brandColor || '#EF4444', [storeProfile]);
   const contrastTextColor = useMemo(() => getContrastTextColor(brandColor), [brandColor]);
 
-  // Analytics query (if your hook accepts range, pass it; otherwise ignore)
+  // Analytics query
   const {
     data: analyticsData,
     isLoading,
     isError,
     error,
-  } = useStoreAnalytics({ storeId, range: selectedDateRange });
+  } = useStoreAnalytics({ storeId, range: selectedDateRange }, { enabled: !!storeId });
 
-  // Toast errors
+  // Toast errors (non-blocking)
   useEffect(() => {
     if (isError) {
       push(error?.message || 'Failed to load analytics data.', { type: 'error' });
@@ -111,6 +113,15 @@ const AnalyticsPage = ({ storeId: propStoreId }) => {
     [safeData.financialMetrics]
   );
 
+  // If storeId is missing entirely
+  if (!storeId) {
+    return (
+      <div className="p-6 text-center text-gray-600">
+        No store selected. Please sign in or provide a storeId.
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6">
       <ScrollToTop />
@@ -138,12 +149,8 @@ const AnalyticsPage = ({ storeId: propStoreId }) => {
       </div>
 
       {/* Loading & Error (non-blocking) */}
-      {isLoading && (
-        <div className="p-4 text-gray-600">Loading analytics...</div>
-      )}
-      {isError && (
-        <div className="p-4 text-red-500">Failed to load analytics data. Showing fallback data.</div>
-      )}
+      {isLoading && <div className="p-4 text-gray-600">Loading analytics...</div>}
+      {isError && <div className="p-4 text-red-500">Failed to load analytics data. Showing fallback data.</div>}
 
       {/* Bar Chart */}
       <div className="bg-white rounded-2xl shadow-md mb-8 h-80">
@@ -177,12 +184,7 @@ const AnalyticsPage = ({ storeId: propStoreId }) => {
         <div key={section.title || idx} className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-700">{section.title}</h3>
-            {/* Optional section accent */}
-            <div
-              className="w-16 h-1 rounded-full"
-              style={{ backgroundColor: brandColor }}
-              aria-hidden
-            />
+            <div className="w-16 h-1 rounded-full" style={{ backgroundColor: brandColor }} aria-hidden />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {section.data.map((stat, i) => (

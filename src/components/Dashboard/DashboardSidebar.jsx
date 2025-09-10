@@ -81,7 +81,7 @@ const DashboardSidebar = ({
   };
 
   return (
-    <aside className="w-full h-full bg-white rounded-2xl p-4 shadow-md flex flex-col lg:static z-50">
+    <aside className="w-full h-full bg-white rounded-2xl p-2 shadow-md flex flex-col lg:static z-50">
       {children}
 
       {/* Mobile close button */}

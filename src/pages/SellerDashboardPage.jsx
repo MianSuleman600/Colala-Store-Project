@@ -109,7 +109,7 @@ const SellerDashboardPage = () => {
         className={`
           fixed top-0 left-0 h-full w-72 transform transition-transform duration-300 ease-in-out
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-          lg:static lg:translate-x-0 lg:w-80
+          lg:static lg:translate-x-0 lg:w-90
         `}
       >
         <div className="h-full p-2 lg:p-2">
