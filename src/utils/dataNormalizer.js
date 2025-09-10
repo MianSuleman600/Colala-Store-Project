@@ -510,3 +510,56 @@ export const normalizeAclRoles = (rows) => {
     answer: f.answer || '',
   }));
 };
+
+/* ---------------- Announcements ---------------- */
+export const normalizeAnnouncements = (rows) =>
+  normalizeData(rows, {
+    // Hydrate common image fields
+    imageKeys: ['imageUrl', 'image', 'thumbnail', 'icon'],
+    postProcess: (r) => {
+      // Prefer explicit image, fallback to hydrated banner
+      const hydrated =
+        hydrateImage(r.imageUrl || r.image || r.thumbnail || r.icon) || bannerImage;
+
+      return {
+        id: r.id || r._id || `ann-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        title: r.title || r.heading || 'Untitled',
+        message: r.message || r.text || r.body || '',
+        imageUrl: hydrated,
+        linkUrl: r.linkUrl || r.url || r.ctaUrl || '',
+        isActive: typeof r.isActive === 'boolean' ? r.isActive : (r.active ?? true),
+        pinned: Boolean(r.pinned),
+        priority: Number.isFinite(Number(r.priority)) ? Number(r.priority) : 0,
+        dateCreated: r.dateCreated || r.created_at || r.createdAt || new Date().toISOString(),
+        startDate: r.startDate || r.starts_at || r.startsAt || '',
+        endDate: r.endDate || r.ends_at || r.endsAt || '',
+        type: 'announcement',
+        ...r,
+      };
+    },
+  });
+
+/* ---------------- Banners ---------------- */
+export const normalizeBanners = (rows) =>
+  normalizeData(rows, {
+    imageKeys: ['imageUrl', 'image', 'thumbnail'],
+    postProcess: (r) => {
+      const hydrated =
+        hydrateImage(r.imageUrl || r.image || r.thumbnail) || bannerImage;
+
+      return {
+        id: r.id || r._id || `ban-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        title: r.title || r.name || 'Banner',
+        subtitle: r.subtitle || r.caption || '',
+        imageUrl: hydrated,
+        linkUrl: r.linkUrl || r.url || r.ctaUrl || '',
+        position: r.position || r.placement || 'top', // e.g., 'top' | 'bottom' | 'sidebar'
+        isActive: typeof r.isActive === 'boolean' ? r.isActive : (r.active ?? true),
+        dateCreated: r.dateCreated || r.created_at || r.createdAt || new Date().toISOString(),
+        startDate: r.startDate || r.starts_at || r.startsAt || '',
+        endDate: r.endDate || r.ends_at || r.endsAt || '',
+        type: 'banner',
+        ...r,
+      };
+    },
+  });

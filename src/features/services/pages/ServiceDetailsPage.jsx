@@ -13,7 +13,7 @@ import {
 
 import { useStoreProfile } from '../../../services/queries/storeProfileQuery';
 import { useService } from '../../../services/queries/useServiceQuery';
-import { useDeleteService } from '../../../services/mutations/useServiceMutation';
+import { useDeleteService } from '../../../services/mutations/useServicesMutation';
 import { useToast } from '../../../components/ui/ToastProvider';
 
 import Button from '../../../components/ui/Button';
