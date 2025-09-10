@@ -6,7 +6,7 @@ import { useSelector } from 'react-redux';
 import DashboardHeader from '../components/Dashboard/DashboardHeader';
 import DashboardSidebar from '../components/Dashboard/DashboardSidebar';
 
-import MyProductsPage from '../features/products/pages/MyProduct';
+import MyProductsPage from '../features/products/pages/MyProduct'; 
 import AnalyticsPage from '../components/Dashboard/AnalyticsPage';
 import SubscriptionPage from '../components/Dashboard/SubscriptionPage';
 import PromotedProductsPage from '../components/Dashboard/PromotedSection/PromotedProductsPage';
