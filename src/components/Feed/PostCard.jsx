@@ -10,7 +10,7 @@ import ShareIcon from '../../assets/icons/sharee.png';
 import CommentIcon from '../../assets/icons/comment.png';
 import TrashIcon from '../../assets/icons/delete.png';
 import PencilSquareIcon from '../../assets/icons/Pencil.png';
-import DownloadIcon from '../../assets/icons/download.png';
+import DownloadIcon from '../../assets/icons/download.png'; 
 
 const noop = () => { };
 
