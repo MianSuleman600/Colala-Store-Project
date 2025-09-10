@@ -13,7 +13,7 @@ import PencilSquareIcon from '../../assets/icons/Pencil.png';
 import DownloadIcon from '../../assets/icons/download.png'; 
 
 const noop = () => { };
-
+ 
 const PostCard = ({
   post,
   onCommentClick = noop,
