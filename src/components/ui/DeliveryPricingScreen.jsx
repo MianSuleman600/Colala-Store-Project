@@ -29,7 +29,7 @@ const DeliveryPricingScreen = ({ initialData, onSave, onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+        <div className="fixed inset-0 backdrop-blur-2xl bg-opacity-50 flex justify-center items-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center gap-2 mb-6">
                     <Button

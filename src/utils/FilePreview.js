@@ -1,3 +1,4 @@
+//D:\Project\frontend\src\utils\FilePreview.js
 import React from 'react';
 
 const renderFilePreview = (file) => {

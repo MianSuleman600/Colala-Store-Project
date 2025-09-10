@@ -98,7 +98,7 @@ const PushAnnouncementsTab = ({
       </Button>
 
       {showEditAnnouncementModal && announcementToEdit && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 backdrop-blur-2xl bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="relative bg-white rounded-xl shadow-xl max-h-[90vh] overflow-y-auto w-full max-w-md">
             <EditAnnouncementModal
               announcementToEdit={announcementToEdit}

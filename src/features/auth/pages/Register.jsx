@@ -225,14 +225,7 @@ const Register = ({ onClose, onSwitchToLogin, mode = 'register' }) => {
             {mode === 'register' ? 'Create a free account today' : 'Update your store details'}
           </p>
 
-          {mode === 'register' && (
-            <p className="text-center text-gray-500 my-4">
-              Already have an account?{' '}
-              <button type="button" onClick={onSwitchToLogin} className="font-semibold text-red-600 hover:underline">
-                Log In
-              </button>
-            </p>
-          )}
+          
 
           {CurrentForm}
         </div>

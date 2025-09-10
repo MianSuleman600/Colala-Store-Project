@@ -5,7 +5,7 @@ import { createSelector } from "reselect";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { getContrastTextColor } from "../../utils/colorUtils";
-import { useGetStoreProfileQuery } from "../../services/storeProfileApi";
+import { useStoreProfile } from "../../services/queries/storeProfileQuery";
 import { selectCartItemsByUser } from "../../features/cart/cartSlice";
 
 // ----- Selector factory for per-user total cost -----
@@ -38,7 +38,7 @@ export default function CheckoutPage({ userId = "default_user_id" }) {
   const totalCost = useSelector(totalCostSelector);
 
   // Fetch store profile for dynamic branding
-  const { data: storeProfile, error, isLoading } = useGetStoreProfileQuery(userId);
+  const { data: storeProfile, error, isLoading } = useStoreProfile(userId);
 
   if (isLoading) return <div className="p-8 text-center text-gray-600">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-600">Error: {error.message}</div>;
@@ -117,7 +117,7 @@ export default function CheckoutPage({ userId = "default_user_id" }) {
                       id="firstName"
                       name="firstName"
                       required
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      className="mt-1 p-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                     />
                   </div>
                   <div>
@@ -129,7 +129,7 @@ export default function CheckoutPage({ userId = "default_user_id" }) {
                       id="lastName"
                       name="lastName"
                       required
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      className="mt-1 p-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                     />
                   </div>
                 </div>
@@ -143,7 +143,7 @@ export default function CheckoutPage({ userId = "default_user_id" }) {
                     id="email"
                     name="email"
                     required
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 block w-full p-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
 
@@ -156,7 +156,7 @@ export default function CheckoutPage({ userId = "default_user_id" }) {
                     id="address"
                     name="address"
                     required
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 p-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
 
@@ -170,7 +170,7 @@ export default function CheckoutPage({ userId = "default_user_id" }) {
                       id="city"
                       name="city"
                       required
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      className="mt-1 p-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                     />
                   </div>
                   <div>
@@ -182,7 +182,7 @@ export default function CheckoutPage({ userId = "default_user_id" }) {
                       id="state"
                       name="state"
                       required
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      className="mt-1 p-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                     />
                   </div>
                   <div>
@@ -194,7 +194,7 @@ export default function CheckoutPage({ userId = "default_user_id" }) {
                       id="zip"
                       name="zip"
                       required
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      className="mt-1 p-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                     />
                   </div>
                 </div>

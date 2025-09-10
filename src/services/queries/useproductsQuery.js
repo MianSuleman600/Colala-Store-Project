@@ -87,3 +87,29 @@ export const useProductDetailsQuery = (productId, options = {}) =>
     staleTime: 5 * 60 * 1000,
     ...options,
   });
+
+  // --- Store Products (public store view) ---
+export const useStoreProductsQuery = (storeId, options = {}) =>
+  useQuery({
+    queryKey: ['storeProducts', storeId || 'unknown'],
+    queryFn: async () => {
+      const token = getToken();
+
+      // Prefer a dedicated API if available, otherwise fall back to getProducts with a storeId filter
+      let response;
+      if (typeof productService.getStoreProducts === 'function') {
+        response = await productService.getStoreProducts(storeId, token);
+      } else {
+        // Many backends support passing a storeId/sellerId filter object
+        response = await productService.getProducts(token, { storeId });
+      }
+
+      const arr = extractProductsArray(response);
+      return normalizeProducts(arr);
+    },
+    enabled: !!storeId,
+    staleTime: 5 * 60 * 1000,
+    keepPreviousData: true,
+    refetchOnWindowFocus: false,
+    ...options,
+  });

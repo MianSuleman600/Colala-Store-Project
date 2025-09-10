@@ -142,12 +142,21 @@ const ChatConversation = ({
             <ShoppingCart size={24} />
           </button>
           {isCartVisible && (
-            <div className="absolute right-0 mt-2 z-20">
+            <div className="absolute right-0 mt-2 z-20" onClick={(e) => e.stopPropagation()}>
               <CartDropdown
-                onClose={() => setIsCartVisible(false)}
+                userId={userId}
                 brandColor={brandColor}
                 contrastTextColor={sendButtonContrastTextColor}
-                userId={chat.id}
+                onClose={() => setIsCartVisible(false)}
+                onSelect={(selectedItems) => {
+                  setIsCartVisible(false);
+                  onSendMessage?.({
+                    text: '',
+                    file: null,
+                    cartItems: selectedItems, // [{ id, name, price, quantity, image }]
+                    editingMessageId: null,
+                  });
+                }}
               />
             </div>
           )}

@@ -10,17 +10,17 @@ export const useServices = (options = {}) =>
     queryKey: ['services'],
     queryFn: async () => {
       const response = await serviceService.getServices();
-      const services = Array.isArray(response?.services) ? response.services : [];
+      const services = Array.isArray(response?.services) ? response.services : (Array.isArray(response) ? response : []);
       return normalizeServices(services);
     },
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
+    keepPreviousData: true,
     ...options,
   });
 
 /**
  * Fetch a single service by ID and normalize
- * @param {string} serviceId
  */
 export const useService = (serviceId, options = {}) =>
   useQuery({
@@ -28,7 +28,8 @@ export const useService = (serviceId, options = {}) =>
     queryFn: async () => {
       if (!serviceId) return null;
       const response = await serviceService.getServiceById(serviceId);
-      return normalizeServices([response?.service || {}])[0] || null;
+      const raw = response?.service || response;
+      return normalizeServices([raw || {}])[0] || null;
     },
     enabled: !!serviceId,
     staleTime: 5 * 60 * 1000,

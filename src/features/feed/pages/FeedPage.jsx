@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import PostCard from '../../../components/Feed/PostCard';
 import CommentsModal from '../../../components/Feed/CommentsModal';
@@ -20,6 +21,9 @@ import { hydrateImage } from '../../../utils/dataNormalizer';
 const FeedPage = () => {
   const { push } = useToast();
   const { isLoggedIn, userName, userId } = useSelector((s) => s.user);
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const storeIdFilter = searchParams.get('storeId') || '';
 
   // Queries
   const { data: postsData, isLoading: postsLoading, error: postsError } = useGetPostsQuery();
@@ -27,12 +31,17 @@ const FeedPage = () => {
     enabled: Boolean(userId),
   });
 
+  // If filtering for a store, fetch that store’s profile for label
+  const { data: filterStoreProfile } = useStoreProfile(storeIdFilter, {
+    enabled: Boolean(storeIdFilter),
+  });
+
   // Extract user/store info and hydrate profile image
   const storeProfile = storeProfileData || null;
   const userProfilePic = hydrateImage(storeProfile?.profilePictureUrl) || '/default-profile.png';
   const defaultUserName = storeProfile?.storeName || userName || 'You';
 
-  // Brand colors (always computed before any return)
+  // Brand colors (stick to current user's branding for the page)
   const brandColor = useMemo(() => storeProfile?.brandColor || '#EF4444', [storeProfile]);
   const contrastColor = useMemo(() => getContrastTextColor(brandColor), [brandColor]);
 
@@ -51,7 +60,7 @@ const FeedPage = () => {
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [selectedPostForComments, setSelectedPostForComments] = useState(null);
 
-  // Sync posts with server and ensure comments are arrays
+  // Normalize incoming posts
   useEffect(() => {
     if (!postsData) return;
     const incoming = Array.isArray(postsData) ? postsData : postsData.posts || [];
@@ -64,7 +73,7 @@ const FeedPage = () => {
     setLocalPosts(hydrated);
   }, [postsData]);
 
-  // Sync user profile data with posts once it's loaded
+  // Sync current user's store data into their own posts
   useEffect(() => {
     if (!storeProfileData) return;
     setLocalPosts((prev) =>
@@ -77,13 +86,23 @@ const FeedPage = () => {
     );
   }, [storeProfileData, userId, defaultUserName, userProfilePic]);
 
-  // IMPORTANT: compute hooks BEFORE any conditional returns
-  const filteredPosts = useMemo(
-    () => (activeTab === 'myPosts' ? localPosts.filter((p) => p.userId === userId) : localPosts),
-    [activeTab, localPosts, userId]
-  );
+  // Helper to resolve which store authored a post
+  const getPostStoreId = (post) => String(post.storeId || post.sellerId || post.userId || '');
 
-  // ---- CREATE POST ----
+  // Apply store filter first, then tabs
+  const filteredByStore = useMemo(() => {
+    if (!storeIdFilter) return localPosts;
+    return localPosts.filter((p) => getPostStoreId(p) === String(storeIdFilter));
+  }, [localPosts, storeIdFilter]);
+
+  const visiblePosts = useMemo(() => {
+    if (activeTab === 'myPosts') {
+      return filteredByStore.filter((p) => String(p.userId) === String(userId));
+    }
+    return filteredByStore;
+  }, [filteredByStore, activeTab, userId]);
+
+  // ---- CREATE/EDIT/DELETE/COMMENTS (unchanged) ----
   const handleCreatePost = async (payload) => {
     const tempId = `temp-${Date.now()}`;
     const postText = payload?.get ? payload.get('text') : payload?.text || '';
@@ -125,7 +144,6 @@ const FeedPage = () => {
     }
   };
 
-  // ---- EDIT POST ----
   const handleEditPost = async (postId, payload) => {
     const oldPost = localPosts.find((p) => p.id === postId);
     if (!oldPost) return;
@@ -154,7 +172,6 @@ const FeedPage = () => {
     }
   };
 
-  // ---- DELETE POST ----
   const handleDeletePost = async (postId) => {
     const oldPosts = [...localPosts];
     setLocalPosts((prev) => prev.filter((p) => p.id !== postId));
@@ -168,7 +185,6 @@ const FeedPage = () => {
     }
   };
 
-  // ---- COMMENTS ----
   const handleCommentClick = (postId) => {
     const post = localPosts.find((p) => p.id === postId);
     if (post) {
@@ -214,7 +230,7 @@ const FeedPage = () => {
     }
   };
 
-  // Guards AFTER all hooks are declared
+  // Guards AFTER all hooks
   if (postsLoading || (isLoggedIn && profileLoading)) {
     return <div className="p-8 text-center text-gray-600">Loading...</div>;
   }
@@ -226,10 +242,32 @@ const FeedPage = () => {
     );
   }
 
+  const clearStoreFilter = () => {
+    searchParams.delete('storeId');
+    setSearchParams(searchParams, { replace: true });
+  };
+
+  const filterBanner = storeIdFilter ? (
+    <div className="mb-4 flex items-center justify-between rounded-md bg-yellow-50 p-3 text-sm">
+      <div className="text-gray-700">
+        Viewing posts from store: <span className="font-semibold">{filterStoreProfile?.storeName || storeIdFilter}</span>
+      </div>
+      <button
+        type="button"
+        onClick={clearStoreFilter}
+        className="rounded px-3 py-1 text-xs font-semibold bg-yellow-200 hover:bg-yellow-300"
+      >
+        Clear filter
+      </button>
+    </div>
+  ) : null;
+
   return (
     <div className="relative min-h-screen">
       <div className="container mx-auto flex flex-col justify-center p-4 md:p-8">
         <div className="lg:w-1/2 sm:w-full mx-auto flex flex-col justify-center">
+          {filterBanner}
+
           {/* Tabs */}
           <div className="flex w-full mb-6 rounded-lg overflow-hidden shadow-sm">
             <button
@@ -252,7 +290,7 @@ const FeedPage = () => {
               style={activeTab === 'allPosts' ? { backgroundColor: brandColor, color: contrastColor } : {}}
               aria-pressed={activeTab === 'allPosts'}
             >
-              All Posts
+              {storeIdFilter ? 'Store Posts' : 'All Posts'}
             </button>
           </div>
 
@@ -263,7 +301,7 @@ const FeedPage = () => {
               !isLoggedIn ? 'opacity-50 cursor-not-allowed' : ''
             }`}
             style={{ backgroundColor: brandColor, color: contrastColor }}
-            onClick={() => isLoggedIn && setShowCreateModal(true)}
+            onClick={() => isLoggedIn && /* optionally restrict create to own feed */ setShowCreateModal(true)}
             disabled={!isLoggedIn}
             aria-disabled={!isLoggedIn}
           >
@@ -272,8 +310,8 @@ const FeedPage = () => {
 
           {/* Post List */}
           <div className="grid grid-cols-1 gap-6">
-            {filteredPosts.length > 0 ? (
-              filteredPosts.map((post) => (
+            {visiblePosts.length > 0 ? (
+              visiblePosts.map((post) => (
                 <PostCard
                   key={post.id}
                   post={{
@@ -295,7 +333,11 @@ const FeedPage = () => {
               ))
             ) : (
               <p className="text-gray-600 col-span-full text-center">
-                {activeTab === 'myPosts' ? 'You have no posts yet.' : 'No posts to display.'}
+                {storeIdFilter
+                  ? 'No posts from this store.'
+                  : activeTab === 'myPosts'
+                  ? 'You have no posts yet.'
+                  : 'No posts to display.'}
               </p>
             )}
           </div>

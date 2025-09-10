@@ -19,7 +19,10 @@ import { useUpdateProduct, useDeleteProduct } from '../../../services/mutations/
 import { getLightBrandColor, getContrastTextColor } from '../../../utils/colorUtils.js';
 import { useToast } from '../../../components/ui/ToastProvider';
 
-const MyProductsPage = ({ showAddProductButton = true }) => {
+const MyProductsPage = ({
+  showAddProductButton = true,
+  gridVariant = 'home', // 'home' => 5 cols at xl, 'sidebar' => max 3 cols
+}) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { push } = useToast();
@@ -32,14 +35,13 @@ const MyProductsPage = ({ showAddProductButton = true }) => {
     enabled: isLoggedIn && !!userId,
   });
 
-  // Products (already normalized in the query)
+  // Products
   const {
     data: products = [],
     error: productsError,
     isLoading: productsLoading,
   } = useGetMyProductsQuery(userId, { enabled: isLoggedIn && !!userId });
 
-  // Surface errors via toast
   useEffect(() => {
     if (profileError) push('Failed to load store profile.', { type: 'error' });
     if (productsError) push('Failed to load your products.', { type: 'error' });
@@ -155,7 +157,7 @@ const MyProductsPage = ({ showAddProductButton = true }) => {
     setShowMoreOptionsPopover(false);
   };
 
-  // Product actions (optimistic updates using React Query cache)
+  // Product actions (optimistic updates)
   const handleMarkAsSold = (productId) => {
     queryClient.setQueryData(['myProducts', userId || 'anonymous'], (old = []) =>
       old.map((p) => (p.id === productId ? { ...p, status: 'Sold Out' } : p))
@@ -204,12 +206,12 @@ const MyProductsPage = ({ showAddProductButton = true }) => {
 
   if (!isLoggedIn) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-100px)] text-gray-600">
-        <p className="text-lg mb-4">Please log in to view your products.</p>
+      <div className="flex min-h-[calc(100vh-100px)] flex-col items-center justify-center text-gray-600">
+        <p className="mb-4 text-lg">Please log in to view your products.</p>
         <Button
           onClick={() => navigate('/login')}
           style={{ backgroundColor: brandColor, color: contrastTextColor }}
-          className="py-2 px-6 rounded-lg font-semibold"
+          className="rounded-lg py-2 px-6 font-semibold"
         >
           Login Now
         </Button>
@@ -217,19 +219,25 @@ const MyProductsPage = ({ showAddProductButton = true }) => {
     );
   }
 
+  // Decide grid columns by layout variant
+  const gridClasses =
+    gridVariant === 'sidebar'
+      ? 'grid items-stretch grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3'
+      : 'grid items-stretch grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
+
   return (
     <div className="container mx-auto p-4 md:p-8">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">My Product/Services</h2>
+      <h2 className="mb-6 text-2xl font-bold text-gray-800">My Product/Services</h2>
 
       {/* Main Tabs */}
-      <div className="flex border-b border-gray-200 mb-6">
+      <div className="mb-6 flex border-b border-gray-200">
         {['products', 'services'].map((tab) => {
           const active = selectedMainTab === tab;
           return (
             <button
               key={tab}
               type="button"
-              className={`py-2 px-4 text-lg font-medium ${active ? 'border-b-2' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-2 text-lg font-medium ${active ? 'border-b-2' : 'text-gray-500 hover:text-gray-700'}`}
               style={active ? { borderColor: brandColor, color: brandColor } : {}}
               onClick={() => setSelectedMainTab(tab)}
               aria-pressed={active}
@@ -244,26 +252,28 @@ const MyProductsPage = ({ showAddProductButton = true }) => {
         <>
           {/* Add Product Button */}
           {showAddProductButton && (
-            <div className="flex w-full justify-end mb-6">
+            <div className="mb-6 flex w-full justify-end">
               <Button
                 onClick={handleAddProductClick}
                 style={{ backgroundColor: brandColor, color: contrastTextColor }}
-                className="py-2 px-6 rounded-lg w-full sm:w-auto font-semibold flex items-center shadow-md hover:shadow-lg transition-shadow"
+                className="flex w-full items-center rounded-lg py-2 px-6 font-semibold shadow-md transition-shadow hover:shadow-lg sm:w-auto"
               >
-                <PlusIcon className="h-5 w-5 mr-2" /> Add New Product
+                <PlusIcon className="mr-2 h-5 w-5" /> Add New Product
               </Button>
             </div>
           )}
 
           {/* Filter Tabs */}
-          <div className="flex space-x-4 mb-6">
+          <div className="mb-6 flex space-x-4">
             {['All', 'Sponsored', 'Out of Stock'].map((tab) => {
               const isActive = productFilterTab === tab;
               return (
                 <Button
                   key={tab}
                   onClick={() => setProductFilterTab(tab)}
-                  className={`py-2 px-4 rounded-lg font-semibold transition-colors duration-200 ${isActive ? 'shadow-md' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                  className={`rounded-lg py-2 px-4 font-semibold transition-colors duration-200 ${
+                    isActive ? 'shadow-md' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
                   style={isActive ? { backgroundColor: brandColor, color: contrastTextColor } : {}}
                 >
                   {tab}
@@ -274,26 +284,26 @@ const MyProductsPage = ({ showAddProductButton = true }) => {
 
           {/* Product List */}
           {productsLoading ? (
-            <div className="text-center py-12 text-gray-500">Loading products...</div>
+            <div className="py-12 text-center text-gray-500">Loading products...</div>
           ) : filteredProducts.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg shadow-md">
-              <p className="text-lg text-gray-600 mb-4">
+            <div className="rounded-lg bg-white py-12 text-center shadow-md">
+              <p className="mb-4 text-lg text-gray-600">
                 No products found for this filter.
-                {productFilterTab === 'All' && ' Click "Add Your First Product" to get started!'}
+                {productFilterTab === 'All' && ' Click "Add New Product" to get started!'}
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className={gridClasses}>
               {filteredProducts.map((product) => (
                 <ProductDisplayCard
                   key={product.id}
-                  product={product}
+                  item={product}
                   brandColor={brandColor}
                   contrastTextColor={contrastTextColor}
-                  lightBrandColor={lightBrandColor}
-                  mode="default"
+                  mode={productFilterTab === 'Sponsored' ? 'sponsored' : 'product'}
                   onEdit={() => handleEditProduct(product.id)}
                   onMoreOptionsClick={handleMoreOptionsClick}
+                  onViewDetailsClick={() => handleProductStatClick(product.id)} // for sponsored "View Details"
                 />
               ))}
             </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Input from "../../../../components/ui/Input";
@@ -7,11 +7,16 @@ import LocationSelectModal from "../../../../components/models/LocationSelectMod
 import DeliveryPricingScreen from "../../../../components/ui/DeliveryPricingScreen";
 import DeliveryPriceCard from "../../../../components/ui/DeliveryPriceCard";
 import StepIndicator from "../../../../components/ui/StepIndicator";
-import renderFilePreview from "../../../../utils/FilePreview";
-import { ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { useToast } from "../../../../components/ui/ToastProvider";
+
+import { ArrowLeftIcon, CameraIcon } from "@heroicons/react/24/outline";
 
 const dummyColors = ["#FF0000", "#0000FF", "#008000", "#FFA500", "#800080", "#FFC0CB", "#00CED1", "#FFD700", "#A52A2A"];
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+// Allowed video MIME types and size (adjust if needed)
+const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
+const MAX_VIDEO_MB = 50;
 
 const Level3Form = ({
   formData,
@@ -26,6 +31,7 @@ const Level3Form = ({
   contrastColor = "#FFFFFF",
 }) => {
   const navigate = useNavigate();
+  const { push } = useToast();
 
   const [validationErrors, setValidationErrors] = useState({});
   const [showDeliveryPricingModal, setShowDeliveryPricingModal] = useState(false);
@@ -41,9 +47,26 @@ const Level3Form = ({
     selectedColor
   } = formData;
 
-  useEffect(() => {
-    return () => { if (storeVideo instanceof File) URL.revokeObjectURL(storeVideo); };
+  // Refs for video input
+  const videoInputRef = useRef(null);
+
+  // Create preview URL for video
+  const videoPreviewUrl = useMemo(() => {
+    if (!storeVideo) return "";
+    if (typeof storeVideo === "string") return storeVideo;
+    if (storeVideo?.fileUrl) return storeVideo.fileUrl;
+    if (storeVideo instanceof File) return URL.createObjectURL(storeVideo);
+    if (storeVideo?.file instanceof File) return URL.createObjectURL(storeVideo.file);
+    return "";
   }, [storeVideo]);
+
+  useEffect(() => {
+    return () => {
+      if (videoPreviewUrl && videoPreviewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(videoPreviewUrl);
+      }
+    };
+  }, [videoPreviewUrl]);
 
   const handleSaveDeliveryPrice = (data) => {
     const updated = editingDeliveryPriceIndex !== null
@@ -113,6 +136,31 @@ const Level3Form = ({
 
   const wrapperClass = `w-full h-full ${mode === "register" ? "max-w-[389px] px-4 py-2 sm:px-8" : "p-0"}`;
 
+  // Validate selected video before passing to parent
+  const validateVideo = useCallback((file) => {
+    if (!ALLOWED_VIDEO_TYPES.includes(file.type)) {
+      push("Only MP4, MOV (QuickTime), or WEBM videos are allowed.", { type: "error" });
+      return false;
+    }
+    if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+      push(`Max video size is ${MAX_VIDEO_MB}MB.`, { type: "error" });
+      return false;
+    }
+    return true;
+  }, [push]);
+
+  const onVideoChange = (e) => {
+    const file = e?.target?.files?.[0];
+    if (!file) return;
+    if (!validateVideo(file)) {
+      e.target.value = "";
+      return;
+    }
+    // Let parent handle updating formData.storeVideo
+    handleFileChange(e);
+    setValidationErrors((prev) => ({ ...prev, storeVideo: "" }));
+  };
+
   return (
     <div className={wrapperClass}>
       {/* Header */}
@@ -129,6 +177,7 @@ const Level3Form = ({
       <form onSubmit={(e) => e.preventDefault()} className="mt-6 flex flex-col gap-4 h-full">
         {activeStep === 1 && (
           <>
+            {/* Toggle physical store */}
             <div className="flex items-center justify-between p-3 rounded-lg border bg-white shadow-sm">
               <span>Does your business have a physical store?</span>
               <label className="inline-flex items-center cursor-pointer">
@@ -146,19 +195,51 @@ const Level3Form = ({
               </label>
             </div>
 
+            {/* Video upload section */}
             {hasPhysicalStore && (
-              <>
-                <label className="text-sm mt-3">Upload 1 minute store video</label>
-                <div className="border-2 border-dashed rounded-md min-h-[120px] flex flex-col items-center justify-center">
-                  {renderFilePreview(storeVideo)}
-                  <label className="cursor-pointer text-red-500 mt-2">
-                    Upload Video
-                    <input type="file" name="storeVideo" className="sr-only" accept="video/*" onChange={handleFileChange} />
-                  </label>
+              <div className="mt-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Upload a 1-minute video of your store
+                </label>
+
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => videoInputRef.current?.click()}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && videoInputRef.current?.click()}
+                  className="w-full h-48 rounded-xl  border-gray-300 flex items-center justify-center overflow-hidden bg-gray-50 hover:border-gray-400 transition-colors mt-2"
+                  aria-label="Upload store video"
+                >
+                  {videoPreviewUrl ? (
+                    <video
+                      src={videoPreviewUrl}
+                      controls
+                      className="h-full w-full object-contain bg-black"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center text-gray-500">
+                      <CameraIcon className="h-8 w-8 text-gray-400" />
+                      <span className="mt-1 text-xs text-center">Tap to upload a clear 1-minute store video (MP4/MOV/WEBM)</span>
+                    </div>
+                  )}
                 </div>
-                {validationErrors.storeVideo && <p className="text-xs text-red-500">{validationErrors.storeVideo}</p>}
-              </>
+
+                <input
+                  ref={videoInputRef}
+                  type="file"
+                  name="storeVideo"
+                  className="sr-only"
+                  accept={ALLOWED_VIDEO_TYPES.join(",")}
+                  onChange={onVideoChange}
+                />
+
+                {validationErrors.storeVideo && (
+                  <p className="text-xs text-red-500 mt-1">{validationErrors.storeVideo}</p>
+                )}
+              </div>
             )}
+
+
           </>
         )}
 
@@ -228,10 +309,15 @@ const Level3Form = ({
         )}
 
         <div className="flex gap-2 mt-auto">
-          <Button onClick={onBack} className="bg-gray-100 rounded-[15px]">
+          <Button type="button" onClick={onBack} className="bg-gray-100 rounded-[15px]">
             <ArrowLeftIcon className="h-5" />
           </Button>
-          <Button onClick={handleProceed} className="flex-1 rounded-[15px]" style={{ ...brandBgStyle, ...contrastTextStyle, ...brandHoverStyle }}>
+          <Button
+            type="button"
+            onClick={handleProceed}
+            className="flex-1 rounded-[15px]"
+            style={{ ...brandBgStyle, ...contrastTextStyle, ...brandHoverStyle }}
+          >
             {mode === "register" && activeStep === 1
               ? "Proceed"
               : mode === "register"
@@ -239,11 +325,8 @@ const Level3Form = ({
                 : "Confirm Upgrade"}
           </Button>
         </div>
-        {mode === "register" && onLoginClick && (
-          <Button onClick={onLoginClick} className="mt-2 bg-gray-100 border">
-            Already have an account? Login
-          </Button>
-        )}
+         {mode === "register" && <Button type="button" onClick={onLoginClick} className="bg-gray-100 border">Login</Button>}
+           
       </form>
 
       {showLocationSelectModal && (

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import Input from "../../../../components/ui/Input";
 import Button from "../../../../components/ui/Button";
 import StepIndicator from "../../../../components/ui/StepIndicator";
@@ -8,15 +8,19 @@ import SetNewPasswordModal from "../../../../components/models/SetNewPasswordMod
 import renderFilePreview from "../../../../utils/FilePreview.js";
 import { useToast } from "../../../../components/ui/ToastProvider";
 import { authService } from "../../../../services/authService";
+import { useNavigate } from "react-router-dom";
 
 import {
   EnvelopeIcon, LockClosedIcon, ArrowLeftIcon, EyeIcon, EyeSlashIcon,
   PhoneIcon, MapPinIcon, BuildingStorefrontIcon, CameraIcon,
-  TagIcon, XMarkIcon
+  TagIcon, XMarkIcon, ChevronDownIcon, BriefcaseIcon
 } from "@heroicons/react/24/outline";
 
 const locations = ["Lagos", "Abuja", "Port Harcourt", "Ibadan"];
 const dummyCategories = ["Electronics", "Fashion", "Books", "Groceries", "Sports", "Health"];
+
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const MAX_IMAGE_MB = 5;
 
 const Level1Form = ({
   mode = "register",
@@ -34,6 +38,7 @@ const Level1Form = ({
   const { push } = useToast();
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate(); // USE LOWERCASE
 
   // Category dropdown state
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
@@ -45,6 +50,10 @@ const Level1Form = ({
   const [resetEmail, setResetEmail] = useState("");
   const [resetOtp, setResetOtp] = useState("");
   const [processing, setProcessing] = useState({ send: false, verify: false, reset: false });
+
+  // Upload refs for Step 2
+  const profileInputRef = useRef(null);
+  const bannerInputRef = useRef(null);
 
   const brandBgStyle = { backgroundColor: brandColor };
   const brandTextStyle = { color: brandColor };
@@ -142,15 +151,72 @@ const Level1Form = ({
     mode === "register" ? "max-w-[389px] px-2 py-4 sm:px-8" : "max-w-none p-0"
   }`;
 
+  // Helpers for Step 2 validation
+  const validateImage = (file) => {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      push("Only JPG, PNG, WEBP images are allowed.", { type: "error" });
+      return false;
+    }
+    if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
+      push(`Max image size is ${MAX_IMAGE_MB}MB.`, { type: "error" });
+      return false;
+    }
+    return true;
+  };
+
+  const onProfileFileChange = (e) => {
+    const file = e?.target?.files?.[0];
+    if (!file) return;
+    if (!validateImage(file)) {
+      e.target.value = "";
+      return;
+    }
+    handleFileChange(e);
+  };
+
+  const onBannerFileChange = (e) => {
+    const file = e?.target?.files?.[0];
+    if (!file) return;
+    if (!validateImage(file)) {
+      e.target.value = "";
+      return;
+    }
+    handleFileChange(e);
+  };
+
+  const getPreviewUrl = (val) => {
+    if (!val) return "";
+    if (typeof val === "string") return val;
+    if (val instanceof File) return URL.createObjectURL(val);
+    if (val?.fileUrl) return val.fileUrl;
+    if (val?.file instanceof File) return URL.createObjectURL(val.file);
+    return "";
+  };
+
+  const profilePreview = getPreviewUrl(formData.profilePicture);
+  const bannerPreview = getPreviewUrl(formData.storeBanner);
+
+  useEffect(() => {
+    return () => {
+      // Optionally revoke created URLs if you track them
+    };
+  }, []);
+
+  // FIX: reliable Home navigation
+  const handleGoHome = useCallback((e) => {
+    e?.preventDefault?.();
+    navigate("/"); // push to home
+  }, [navigate]);
+
   return (
     <div className={wrapperClass}>
       {/* Header */}
       <div className="w-full p-4 border rounded-[15px] shadow-sm bg-white mt-6">
         <div className="flex justify-between items-center">
-          <h4 className="text-lg font-semibold" style={brandTextStyle}>Level 1</h4>
-          <button className="text-sm hover:underline" style={brandTextStyle}>View Benefits</button>
+          <h4 className="text-lg font-semibold" style={{ color: brandColor }}>Level 1</h4>
+          <button className="text-sm hover:underline" style={{ color: brandColor }}>View Benefits</button>
         </div>
-        <StepIndicator steps={level1GlobalSteps} currentStep={activeStep} brandColor={brandColor} contrastColor={contrastColor} />
+        <StepIndicator steps={[1, 2, 3]} currentStep={activeStep} brandColor={brandColor} contrastColor={contrastColor} />
       </div>
 
       {/* Steps */}
@@ -167,12 +233,11 @@ const Level1Form = ({
                 {locations.map((loc) => <option key={loc}>{loc}</option>)}
               </select>
             </div>
-            {errors.storeLocation && <p className="text-xs" style={brandTextStyle}>{errors.storeLocation}</p>}
+            {errors.storeLocation && <p className="text-xs" style={{ color: brandColor }}>{errors.storeLocation}</p>}
 
             <Input name="email" type="email" placeholder="Email" icon={<EnvelopeIcon className="h-5 w-5" />} value={formData.email || ""} onChange={handleChange} error={errors.email} />
             <Input name="phoneNumber" type="tel" placeholder="Phone Number" icon={<PhoneIcon className="h-5 w-5" />} value={formData.phoneNumber || ""} onChange={handleChange} error={errors.phoneNumber} />
 
-            {/* Register-only password creation */}
             {mode === "register" && (
               <>
                 <Input
@@ -190,16 +255,16 @@ const Level1Form = ({
                   error={errors.password}
                 />
                 <button
+                  type="button"
                   onClick={() => setShowEnterEmail(true)}
                   className="text-sm hover:underline text-right w-full block mt-1"
-                  style={brandTextStyle}
+                  style={{ color: brandColor }}
                 >
                   Forgot Password?
                 </button>
               </>
             )}
 
-            {/* Upgrade-only change password via modal flow */}
             {mode === "upgrade" && (
               <div className="rounded-[15px] p-3 bg-white border">
                 <div className="flex items-center justify-between">
@@ -208,7 +273,7 @@ const Level1Form = ({
                     type="button"
                     onClick={handleOpenChangePassword}
                     className="px-3 py-1 rounded-md text-sm"
-                    style={{ ...brandBgStyle, ...contrastTextStyle }}
+                    style={{ backgroundColor: brandColor, color: contrastColor }}
                   >
                     Change
                   </Button>
@@ -219,45 +284,102 @@ const Level1Form = ({
               </div>
             )}
 
-            {/* Referral */}
             <Input name="referralCode" placeholder="Referral Code (Optional)" value={formData.referralCode || ""} onChange={handleChange} error={errors.referralCode} />
 
-            <div className="mt-4 flex gap-2">
-              {mode === "upgrade" && <Button onClick={onSaveExit} className="bg-black w-1/2 text-white">Save & Exit</Button>}
-              <Button onClick={handleProceed} className="w-1/2" style={{ ...brandBgStyle, ...contrastTextStyle, ...brandHoverStyle }}>Proceed</Button>
-              {mode === "register" && <Button onClick={onLoginClick} className="bg-gray-100 border">Login</Button>}
+            <div className="mt-4 flex flex-col gap-2">
+              {mode === "upgrade" && <Button type="button" onClick={onSaveExit} className="bg-black w-1/2 text-white">Save & Exit</Button>}
+              <Button type="button" onClick={handleProceed} className="w-full" style={{ backgroundColor: brandColor, color: contrastColor, ...brandHoverStyle }}>
+                Create Account
+              </Button>
+              {mode === "register" && <Button type="button" onClick={onLoginClick} className="bg-gray-100 border">Login</Button>}
             </div>
+
+            {mode === "register" && (
+              <p className="text-[8px] p-1 text-center">
+                By proceeding you agree to Colala’s <span className="text-redd text-[8px]">terms of use</span> and privacy policy
+              </p>
+            )}
           </>
         )}
 
         {/* STEP 2 */}
         {activeStep === 2 && (
           <>
-            <div className="border-2 border-dashed rounded-md p-6 text-center">
-              <CameraIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <label className="cursor-pointer" style={brandTextStyle}>
-                Upload Profile Picture
-                <input type="file" name="profilePicture" className="sr-only" onChange={handleFileChange} accept="image/*" />
+            {/* Profile Picture */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Upload a profile picture for your store
               </label>
-              {renderFilePreview(formData.profilePicture)}
-            </div>
-            {errors.profilePicture && <p className="text-xs" style={brandTextStyle}>{errors.profilePicture}</p>}
 
-            <div className="border-2 border-dashed rounded-md p-6 text-center">
-              <CameraIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <label className="cursor-pointer" style={brandTextStyle}>
-                Upload Store Banner
-                <input type="file" name="storeBanner" className="sr-only" onChange={handleFileChange} accept="image/*" />
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => profileInputRef.current?.click()}
+                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && profileInputRef.current?.click()}
+                className="mx-auto h-32 w-32 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden bg-gray-50 hover:border-gray-400 transition-colors"
+                aria-label="Upload profile picture"
+              >
+                {profilePreview ? (
+                  <img src={profilePreview} alt="Profile Preview" className="h-full w-full object-cover rounded-full" />
+                ) : (
+                  <CameraIcon className="h-8 w-8 text-gray-400" />
+                )}
+              </div>
+
+              <input
+                ref={profileInputRef}
+                type="file"
+                name="profilePicture"
+                className="sr-only"
+                accept={ALLOWED_IMAGE_TYPES.join(",")}
+                onChange={onProfileFileChange}
+              />
+
+              {errors.profilePicture && <p className="text-xs mt-1" style={{ color: brandColor }}>{errors.profilePicture}</p>}
+            </div>
+
+            {/* Store Banner */}
+            <div className="space-y-2 mt-6">
+              <label className="block text-sm font-medium text-gray-700">
+                Upload a banner for your store
               </label>
-              {renderFilePreview(formData.storeBanner)}
-            </div>
-            {errors.storeBanner && <p className="text-xs" style={brandTextStyle}>{errors.storeBanner}</p>}
 
-            <div className="flex gap-4">
-              <Button onClick={onBack}><ArrowLeftIcon className="h-5 w-5" /></Button>
-              {mode === "upgrade" && <Button onClick={onSaveExit}>Save & Exit</Button>}
-              <Button onClick={handleProceed} className="flex-1" style={{ ...brandBgStyle, ...contrastTextStyle, ...brandHoverStyle }}>Proceed</Button>
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => bannerInputRef.current?.click()}
+                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && bannerInputRef.current?.click()}
+                className="w-full h-36 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden bg-gray-50 hover:border-gray-400 transition-colors"
+                aria-label="Upload store banner"
+              >
+                {bannerPreview ? (
+                  <img src={bannerPreview} alt="Banner Preview" className="h-full w-full object-cover" />
+                ) : (
+                  <CameraIcon className="h-8 w-8 text-gray-400" />
+                )}
+              </div>
+
+              <input
+                ref={bannerInputRef}
+                type="file"
+                name="storeBanner"
+                className="sr-only"
+                accept={ALLOWED_IMAGE_TYPES.join(",")}
+                onChange={onBannerFileChange}
+              />
+
+              {errors.storeBanner && <p className="text-xs mt-1" style={{ color: brandColor }}>{errors.storeBanner}</p>}
             </div>
+
+            <div className="flex gap-4 mt-6">
+              <Button type="button" onClick={onBack}><ArrowLeftIcon className="h-5 w-5" /></Button>
+              {mode === "upgrade" && <Button type="button" onClick={onSaveExit}>Save & Exit</Button>}
+              <Button type="button" onClick={handleProceed} className="flex-1" style={{ backgroundColor: brandColor, color: contrastColor, ...brandHoverStyle }}>
+                Proceed
+              </Button>
+            </div>
+
+            {mode === "register" && <Button type="button" onClick={onLoginClick} className="bg-gray-100 border mt-2">Login</Button>}
           </>
         )}
 
@@ -271,15 +393,15 @@ const Level1Form = ({
               </div>
               {showCategoryDropdown && (
                 <div className="absolute mt-2 border w-full rounded-lg shadow bg-white z-20">
-                  {dummyCategories.map(cat => (
+                  {dummyCategories.map((cat) => (
                     <div
                       key={cat}
                       onClick={() => {
                         const selected = formData.categories || [];
-                        const updated = selected.includes(cat) ? selected.filter(c => c !== cat) : [...selected, cat];
+                        const updated = selected.includes(cat) ? selected.filter((c) => c !== cat) : [...selected, cat];
                         handleChange({ target: { name: "categories", value: updated } });
                       }}
-                      className={`p-2 cursor-pointer hover:bg-gray-100 ${formData.categories?.includes(cat) ? 'bg-red-100' : ''}`}
+                      className={`p-2 cursor-pointer hover:bg-gray-100 ${formData.categories?.includes(cat) ? "bg-red-100" : ""}`}
                     >
                       {cat}
                     </div>
@@ -287,13 +409,13 @@ const Level1Form = ({
                 </div>
               )}
             </div>
-            {errors.categories && <p className="text-xs" style={brandTextStyle}>{errors.categories}</p>}
+            {errors.categories && <p className="text-xs" style={{ color: brandColor }}>{errors.categories}</p>}
 
             <div className="flex flex-wrap gap-2 mt-2">
-              {formData.categories?.map(cat => (
-                <span key={cat} className="px-3 py-1 rounded-full text-sm flex items-center" style={{ ...brandBgStyle, ...contrastTextStyle }}>
+              {formData.categories?.map((cat) => (
+                <span key={cat} className="px-3 py-1 rounded-full text-sm flex items-center" style={{ backgroundColor: brandColor, color: contrastColor }}>
                   {cat}
-                  <button onClick={() => handleRemoveCategory(cat)} className="ml-2"><XMarkIcon className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => handleRemoveCategory(cat)} className="ml-2"><XMarkIcon className="h-4 w-4" /></button>
                 </span>
               ))}
             </div>
@@ -303,13 +425,20 @@ const Level1Form = ({
             <Input name="facebook" placeholder="Facebook Link" value={formData.facebook || ""} onChange={handleChange} />
             <Input name="twitter" placeholder="Twitter Link" value={formData.twitter || ""} onChange={handleChange} />
 
-            <div className="flex flex-col gap-2">
-              <Button onClick={onBack}><ArrowLeftIcon className="h-5 w-5" /></Button>
-              {mode === "upgrade" && <Button onClick={onSaveExit}>Save & Exit</Button>}
-              <Button onClick={handleProceed} style={{ ...brandBgStyle, ...contrastTextStyle, ...brandHoverStyle }}>
+            <div className="flex gap-2">
+              <Button type="button" onClick={onBack}><ArrowLeftIcon className="h-5 w-5" /></Button>
+              {mode === "upgrade" && <Button type="button" onClick={onSaveExit}>Save & Exit</Button>}
+              <Button type="button" onClick={handleProceed} style={{ backgroundColor: brandColor, color: contrastColor, ...brandHoverStyle }}>
                 {mode === "register" ? "Proceed to Level 2" : "Update"}
               </Button>
+              {mode === "register" && (
+                <Button type="button" onClick={handleGoHome} className="px-3 bg-black text-white rounded-lg">
+                  Home
+                </Button>
+              )}
             </div>
+
+            {mode === "register" && <Button type="button" onClick={onLoginClick} className="bg-gray-100 border mt-2">Login</Button>}
           </>
         )}
       </div>

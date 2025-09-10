@@ -168,7 +168,7 @@ const AccessControl = ({ brandColor = '#EF4444', contrastTextColor = '#FFFFFF' }
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 backdrop-blur-2xl bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar shadow-lg">
             <div className="sticky top-0 bg-white p-6 border-b border-gray-200 flex justify-between items-center z-10">
               <h2 className="text-xl font-semibold">{editingUser ? 'Edit User' : 'Add User'}</h2>

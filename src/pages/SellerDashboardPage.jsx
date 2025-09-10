@@ -69,7 +69,7 @@ const SellerDashboardPage = () => {
   const renderPageContent = () => {
     switch (activeSidebarItem) {
       case 'My Products':
-        return <MyProductsPage brandColor={brandColor} contrastTextColor={contrastTextColor} lightBrandColor={lightBrandColor} showAddProductButton={false} />;
+        return <MyProductsPage brandColor={brandColor} contrastTextColor={contrastTextColor} lightBrandColor={lightBrandColor} showAddProductButton={false} gridVariant="sidebar" />;
       case 'Analytics':
         return <AnalyticsPage brandColor={brandColor} />;
       case 'Subscriptions':
