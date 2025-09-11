@@ -10,7 +10,6 @@ import ShareIcon from '../../assets/icons/sharee.png';
 import CommentIcon from '../../assets/icons/comment.png';
 import TrashIcon from '../../assets/icons/delete.png';
 import PencilSquareIcon from '../../assets/icons/Pencil.png';
-import DownloadIcon from '../../assets/icons/download.png'; 
 
 const noop = () => { };
  
@@ -225,7 +224,7 @@ const PostCard = ({
               title="Download Image"
               aria-label="Download image"
             >
-              <img src={DownloadIcon} alt="Download" className="h-6 w-6" />
+              <img src='/icons/download.png' alt="Download" className="h-6 w-6" />
             </button>
           )}
         </div>
