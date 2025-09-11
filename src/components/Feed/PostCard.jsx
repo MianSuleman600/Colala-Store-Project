@@ -230,7 +230,7 @@ const PostCard = ({
           )}
         </div>
       </div>
-    </Card>
+    </Card> 
   );
 };
 
