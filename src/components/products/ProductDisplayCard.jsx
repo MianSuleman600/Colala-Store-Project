@@ -187,7 +187,7 @@ const ProductDisplayCard = ({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-500">Product Clicks</span>
-              <span className="font-semibold">{isService ? item.productClicks ?? 0 : item.metrics?.productClicks ?? 0}</span>
+              <span className="font-semibold">{isService  ? item.productClicks ?? 0 : item.metrics?.productClicks ?? 0}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-500">Messages</span>

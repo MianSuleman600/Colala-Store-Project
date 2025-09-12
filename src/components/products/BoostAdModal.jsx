@@ -9,7 +9,7 @@ const BoostAdModal = ({ isOpen, onClose, onProceed, brandColor, contrastTextColo
 
   return (
     <div className="fixed inset-0 flex items-center backdrop-blur-sm justify-center z-50 p-4">
-      <div className="bg-[#f58756] rounded-2xl shadow-xl w-full max-w-[350px] max-h-[90vh] sm:max-h-[80vh] overflow-hidden relative flex flex-col">
+      <div className="bg-[#f58756] rounded-4xl shadow-xl w-full max-w-[360px] max-h-[90vh] sm:max-h-[80vh] overflow-hidden relative flex flex-col">
         <div className="relative rounded-t-2xl flex flex-col items-center justify-center text-white">
           <img src={megaphoneImage} alt="Boost" className="w-72 h-auto" />
           <h3 className="text-xl absolute -top-4 mt-4 font-semibold">Boost Ad</h3>
@@ -24,7 +24,7 @@ const BoostAdModal = ({ isOpen, onClose, onProceed, brandColor, contrastTextColo
           </button>
         </div>
 
-        <div className="p-6 space-y-6 flex-1 bg-[#ffd2d2] overflow-auto custom-scrollbar modal-content-area">
+        <div className="p-3 space-y-6  flex-1 bg-[#ffd2d2] overflow-auto custom-scrollbar modal-content-area">
           <h4 className="text-sm font-bold text-gray-800 text-center mb-4" style={{ color: brandColor }}>
             Get Amazing Benefits from Boosting your product
           </h4>

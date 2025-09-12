@@ -1,3 +1,4 @@
+//D:\Project\frontend\src\services\queries\useReferralQuery.js
 import { useQuery } from '@tanstack/react-query';
 import { referralService } from '../settings/referralService.js';
 import {

@@ -130,22 +130,11 @@ const MyProductsPage = ({ showAddProductButton = true, gridVariant = 'home' }) =
       return;
     }
     setSelectedProductStats({
-      productId: product.id,
-      productName: product.name ?? 'Unnamed Product',
-      views: product.metrics?.productViews ?? 0,
-      clicks: product.metrics?.productClicks ?? 0,
-      messages: product.metrics?.messages ?? 0,
-      inCart: product.metrics?.inCart ?? 0,
-      completedOrders: product.metrics?.completedOrders ?? 0,
-      impressions: product.metrics?.impressions ?? 0,
-      profileClicks: product.metrics?.profileClicks ?? 0,
-      chats: product.metrics?.chats ?? 0,
-      noClicks: product.metrics?.noClicks ?? 0,
-      estimatedReach: product.metrics?.estimatedReach ?? 'N/A',
-      estimatedProductClicks: product.metrics?.estimatedProductClicks ?? 0,
-      spendingWalletBalance: product.metrics?.spendingWalletBalance ?? 0,
-      chartData: product.chartData ?? [],
-      name: product.name,
+     productId: product.id,
+    productName: product.name ?? 'Unnamed Product',
+    metrics: product.metrics ?? {},
+    chartData: product.chartData ?? [],
+    name: product.name,
     });
     setShowProductStatModal(true);
     setShowMoreOptionsPopover(false);

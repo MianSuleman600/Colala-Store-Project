@@ -180,6 +180,11 @@ export const ENDPOINTS = {
     FAQS: u('/referrals/faqs'),
     PRODUCTS: (params = {}) => `${u('/referrals/products')}${buildQuery(params)}`,
   },
+   ADS_WALLET: {
+    WALLET: u('/ads/wallet'),
+    TOPUP: u('/ads/wallet/topup'),
+    TRANSACTIONS: (params = {}) => `${u('/ads/wallet/transactions')}${buildQuery(params)}`,
+  },
 
   SUPPORT: {
     CHATS: {

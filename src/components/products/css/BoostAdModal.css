@@ -24,8 +24,8 @@
 /* Specific styling for the modal content area to ensure top rounding */
 .modal-content-area {
     /* This creates the rounded corners for the content area */
-    border-top-left-radius: 1rem; /* rounded-2xl */
-    border-top-right-radius: 1rem; /* rounded-2xl */
+    border-top-left-radius: 3rem; /* rounded-2xl */
+    border-top-right-radius: 3rem; /* rounded-2xl */
     position: relative; /* Needed for z-index if you decide to use it */
     /* Ensure the background covers the rounded corners */
     background-clip: padding-box; 
