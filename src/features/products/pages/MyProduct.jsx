@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+// src/pages/.../MyProductsPage.jsx
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -19,10 +20,15 @@ import { useUpdateProduct, useDeleteProduct } from '../../../services/mutations/
 import { getLightBrandColor, getContrastTextColor } from '../../../utils/colorUtils.js';
 import { useToast } from '../../../components/ui/ToastProvider';
 
-const MyProductsPage = ({
-  showAddProductButton = true,
-  gridVariant = 'home', // 'home' => 5 cols at xl, 'sidebar' => max 3 cols
-}) => {
+const normalizeStatus = (s) => {
+  const raw = String(s || '').trim().toLowerCase();
+  if (raw === 'available' || raw === 'active') return 'available';
+  if (['sold', 'sold out', 'out of stock', 'oos'].includes(raw)) return 'sold';
+  if (raw === 'unavailable' || raw === 'inactive') return 'unavailable';
+  return 'available';
+};
+
+const MyProductsPage = ({ showAddProductButton = true, gridVariant = 'home' }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { push } = useToast();
@@ -66,13 +72,13 @@ const MyProductsPage = ({
   const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 });
   const [selectedProductForOptions, setSelectedProductForOptions] = useState(null);
 
-  // Mutations with toasts
-  const updateProductMutation = useUpdateProduct({
+  // Mutations with toasts (PASS userId!)
+  const updateProductMutation = useUpdateProduct(userId, {
     onSuccess: () => push('Product updated.', { type: 'success' }),
     onError: (err) => push(err?.message || 'Error updating product.', { type: 'error' }),
   });
 
-  const deleteProductMutation = useDeleteProduct({
+  const deleteProductMutation = useDeleteProduct(userId, {
     onSuccess: () => push('Product deleted.', { type: 'success' }),
     onError: (err) => push(err?.message || 'Error deleting product.', { type: 'error' }),
   });
@@ -83,7 +89,8 @@ const MyProductsPage = ({
       if (productFilterTab === 'All') return true;
       if (productFilterTab === 'Sponsored') return Boolean(product.isSponsored);
       if (productFilterTab === 'Out of Stock') {
-        return product.status === 'Sold Out' || product.status === 'Unavailable';
+        const ns = normalizeStatus(product.status);
+        return ns === 'sold' || ns === 'unavailable';
       }
       return true;
     });
@@ -94,19 +101,14 @@ const MyProductsPage = ({
     setShowProductStatModal(false);
     setSelectedProductStats(null);
   };
-
   const handleCloseBoostAdModal = () => {
     setShowBoostAdModal(false);
     setSelectedProductForBoost(null);
   };
-
   const handleProceedBoostAd = () => {
-    if (selectedProductForBoost) {
-      navigate(`/my-products/${selectedProductForBoost}/boost-setup`);
-    }
+    if (selectedProductForBoost) navigate(`/my-products/${selectedProductForBoost}/boost-setup`);
     handleCloseBoostAdModal();
   };
-
   const handleAddProductClick = () => navigate('/add-product');
 
   const handleMoreOptionsClick = (event, productId) => {
@@ -127,7 +129,6 @@ const MyProductsPage = ({
       setShowMoreOptionsPopover(false);
       return;
     }
-
     setSelectedProductStats({
       productId: product.id,
       productName: product.name ?? 'Unnamed Product',
@@ -146,7 +147,6 @@ const MyProductsPage = ({
       chartData: product.chartData ?? [],
       name: product.name,
     });
-
     setShowProductStatModal(true);
     setShowMoreOptionsPopover(false);
   };
@@ -157,28 +157,32 @@ const MyProductsPage = ({
     setShowMoreOptionsPopover(false);
   };
 
-  // Product actions (optimistic updates)
+  // Product actions (optimistic updates + API patch)
+  const cacheKey = ['myProducts', userId || 'anonymous'];
+
   const handleMarkAsSold = (productId) => {
-    queryClient.setQueryData(['myProducts', userId || 'anonymous'], (old = []) =>
-      old.map((p) => (p.id === productId ? { ...p, status: 'Sold Out' } : p))
+    // optimistic
+    queryClient.setQueryData(cacheKey, (old = []) =>
+      old.map((p) => (p.id === productId ? { ...p, status: 'sold' } : p))
     );
+    // patch
     updateProductMutation.mutate(
-      { id: productId, payload: { status: 'Sold Out' } },
+      { id: productId, payload: { status: 'sold' } },
       {
-        onError: () => queryClient.invalidateQueries({ queryKey: ['myProducts', userId || 'anonymous'] }),
+        onError: () => queryClient.invalidateQueries({ queryKey: cacheKey }),
       }
     );
     setShowMoreOptionsPopover(false);
   };
 
   const handleMarkAsUnavailable = (productId) => {
-    queryClient.setQueryData(['myProducts', userId || 'anonymous'], (old = []) =>
-      old.map((p) => (p.id === productId ? { ...p, status: 'Unavailable' } : p))
+    queryClient.setQueryData(cacheKey, (old = []) =>
+      old.map((p) => (p.id === productId ? { ...p, status: 'unavailable' } : p))
     );
     updateProductMutation.mutate(
-      { id: productId, payload: { status: 'Unavailable' } },
+      { id: productId, payload: { status: 'unavailable' } },
       {
-        onError: () => queryClient.invalidateQueries({ queryKey: ['myProducts', userId || 'anonymous'] }),
+        onError: () => queryClient.invalidateQueries({ queryKey: cacheKey }),
       }
     );
     setShowMoreOptionsPopover(false);
@@ -190,13 +194,11 @@ const MyProductsPage = ({
       return;
     }
     if (window.confirm('Are you sure you want to delete this product?')) {
-      const prev = queryClient.getQueryData(['myProducts', userId || 'anonymous']) || [];
-      queryClient.setQueryData(['myProducts', userId || 'anonymous'], (curr = []) =>
-        curr.filter((p) => p.id !== productId)
-      );
+      const prev = queryClient.getQueryData(cacheKey) || [];
+      queryClient.setQueryData(cacheKey, (curr = []) => curr.filter((p) => p.id !== productId));
       deleteProductMutation.mutate(productId, {
-        onError: () => queryClient.setQueryData(['myProducts', userId || 'anonymous'], prev),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['myProducts', userId || 'anonymous'] }),
+        onError: () => queryClient.setQueryData(cacheKey, prev),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: cacheKey }),
       });
     }
     setShowMoreOptionsPopover(false);
@@ -219,7 +221,6 @@ const MyProductsPage = ({
     );
   }
 
-  // Decide grid columns by layout variant
   const gridClasses =
     gridVariant === 'sidebar'
       ? 'grid items-stretch grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3'
@@ -250,7 +251,6 @@ const MyProductsPage = ({
 
       {selectedMainTab === 'products' ? (
         <>
-          {/* Add Product Button */}
           {showAddProductButton && (
             <div className="mb-6 flex w-full justify-end">
               <Button
@@ -303,7 +303,7 @@ const MyProductsPage = ({
                   mode={productFilterTab === 'Sponsored' ? 'sponsored' : 'product'}
                   onEdit={() => handleEditProduct(product.id)}
                   onMoreOptionsClick={handleMoreOptionsClick}
-                  onViewDetailsClick={() => handleProductStatClick(product.id)} // for sponsored "View Details"
+                  onViewDetailsClick={() => handleProductStatClick(product.id)}
                 />
               ))}
             </div>

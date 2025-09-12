@@ -1,9 +1,11 @@
+// src/services/mutations/useProductMutation.js
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { productService } from '../index.js';
-import { normalizeProducts } from '../../utils/dataNormalizer.js';
 
 const getToken = () =>
   (typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : '') || '';
+
+const takeItem = (res) => res?.product || res?.data || res || null;
 
 /**
  * Add a new product with optimistic update (user-scoped)
@@ -13,28 +15,26 @@ export const useAddProduct = (userId, options = {}) => {
   const key = ['myProducts', userId || 'anonymous'];
 
   return useMutation({
-    mutationFn: async (payload) =>
-      productService.addProduct(payload, getToken(), { userId }),
+    mutationFn: async (payload) => productService.addProduct(payload, getToken(), { userId }),
     onMutate: async (newProduct) => {
       await queryClient.cancelQueries({ queryKey: key });
-      const previousProducts = queryClient.getQueryData(key) || [];
-      // Ensure ownerId is set for optimistic item
-      const optimisticProduct = normalizeProducts([{ ownerId: userId, ...newProduct }])[0];
-      queryClient.setQueryData(key, (old = []) => [optimisticProduct, ...old]);
-      return { previousProducts };
+      const prev = queryClient.getQueryData(key) || [];
+      const optimistic = { ownerId: userId, status: 'available', ...newProduct, id: newProduct?.id || `tmp-${Date.now()}` };
+      queryClient.setQueryData(key, (old = []) => [optimistic, ...old]);
+      return { prev };
     },
-    onError: (error, _vars, context) => {
-      if (context?.previousProducts) {
-        queryClient.setQueryData(key, context.previousProducts);
-      }
-      options.onError?.(error);
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(key, ctx.prev);
+      options.onError?.(_err);
     },
-    onSuccess: (data) => {
-      const normalized = normalizeProducts([data])[0];
-      queryClient.setQueryData(key, (old = []) =>
-        [normalized, ...old.filter((p) => p.id !== normalized.id)]
-      );
-      options.onSuccess?.(normalized);
+    onSuccess: (resp) => {
+      const item = takeItem(resp);
+      if (!item?.id) return queryClient.invalidateQueries({ queryKey: key });
+      queryClient.setQueryData(key, (old = []) => {
+        const withoutTmp = old.filter((p) => p.id !== item.id && !String(p.id).startsWith('tmp-'));
+        return [item, ...withoutTmp];
+      });
+      options.onSuccess?.(item);
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
   });
@@ -48,17 +48,17 @@ export const useBulkUploadProducts = (userId, options = {}) => {
   const key = ['myProducts', userId || 'anonymous'];
 
   return useMutation({
-    mutationFn: async (fileOrList) =>
-      productService.bulkUploadProducts(fileOrList, getToken(), { userId }),
-    onSuccess: (data) => {
-      const normalized = normalizeProducts(data || []);
-      // Merge into cache without duplicates by id
+    mutationFn: async (fileOrList) => productService.bulkUploadProducts(fileOrList, getToken(), { userId }),
+    onSuccess: (resp) => {
+      const list = Array.isArray(resp) ? resp : resp?.products || [];
       queryClient.setQueryData(key, (old = []) => {
         const map = new Map((old || []).map((p) => [p.id, p]));
-        normalized.forEach((p) => map.set(p.id, p));
+        list.forEach((p) => {
+          if (p?.id) map.set(p.id, p);
+        });
         return Array.from(map.values());
       });
-      options.onSuccess?.(normalized);
+      options.onSuccess?.(list);
     },
     onError: (error) => options.onError?.(error),
     onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
@@ -66,7 +66,7 @@ export const useBulkUploadProducts = (userId, options = {}) => {
 };
 
 /**
- * Update a product (user-scoped)
+ * Update a product (user-scoped) e.g. { status: 'sold' } or { status: 'unavailable' }
  */
 export const useUpdateProduct = (userId, options = {}) => {
   const queryClient = useQueryClient();
@@ -77,14 +77,29 @@ export const useUpdateProduct = (userId, options = {}) => {
       if (!id) throw new Error('Missing product id.');
       return productService.updateProduct(id, payload, getToken());
     },
-    onSuccess: (data) => {
-      const normalized = normalizeProducts([data])[0];
-      queryClient.setQueryData(key, (old = []) =>
-        old.map((p) => (p.id === normalized.id ? normalized : p))
-      );
-      options.onSuccess?.(normalized);
+    onMutate: async ({ id, payload }) => {
+      await queryClient.cancelQueries({ queryKey: key });
+      const prev = queryClient.getQueryData(key) || [];
+      if (payload && typeof payload.status === 'string') {
+        const s = payload.status.toLowerCase();
+        if (['available', 'unavailable', 'sold'].includes(s)) {
+          queryClient.setQueryData(key, (old = []) =>
+            old.map((p) => (p.id === id ? { ...p, status: s } : p))
+          );
+        }
+      }
+      return { prev };
     },
-    onError: (error) => options.onError?.(error),
+    onError: (error, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(key, ctx.prev);
+      options.onError?.(error);
+    },
+    onSuccess: (resp) => {
+      const item = takeItem(resp);
+      if (!item?.id) return queryClient.invalidateQueries({ queryKey: key });
+      queryClient.setQueryData(key, (old = []) => old.map((p) => (p.id === item.id ? { ...p, ...item } : p)));
+      options.onSuccess?.(item);
+    },
     onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
   });
 };
@@ -101,11 +116,21 @@ export const useDeleteProduct = (userId, options = {}) => {
       if (!id) throw new Error('Missing product id.');
       return productService.deleteProduct(id, getToken());
     },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: key });
+      const prev = queryClient.getQueryData(key) || [];
+      queryClient.setQueryData(key, (old = []) => old.filter((p) => p.id !== id));
+      return { prev };
+    },
+    onError: (error, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(key, ctx.prev);
+      options.onError?.(error);
+    },
     onSuccess: (_resp, id) => {
+      // ensure removed
       queryClient.setQueryData(key, (old = []) => old.filter((p) => p.id !== id));
       options.onSuccess?.();
     },
-    onError: (error) => options.onError?.(error),
     onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
   });
 };

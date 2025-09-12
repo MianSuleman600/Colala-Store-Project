@@ -1,6 +1,5 @@
-// src/hooks/useBannerQuery.js
 import { useQuery } from '@tanstack/react-query';
-import { announcementService } from '../settings/announcementService';
+import { announcementService } from '../settings/announcementService'; // unified path
 
 const KEYS = {
   banners: (params = {}) => ['banners', params],
@@ -14,7 +13,10 @@ export const useBannersQuery = (params = {}, options = {}) =>
       const res = await announcementService.getBanners(params);
       return res.banners || [];
     },
-    staleTime: 60_000,
+    staleTime: 0, // optional: force fresh
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
     ...options,
   });
 
@@ -25,7 +27,10 @@ export const useActiveBannersQuery = (params = {}, options = {}) =>
       const res = await announcementService.getActiveBanners(params);
       return res.banners || [];
     },
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
     ...options,
   });
 

@@ -1,3 +1,4 @@
+// src/components/products/ProductDisplayCard.jsx
 import React from 'react';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
@@ -23,88 +24,104 @@ const ProductDisplayCard = ({
   onMoreOptionsClick = () => {},
 }) => {
   const isService = mode === 'service';
+  const isProductMode = mode === 'product';
   const contrast = contrastTextColor ?? getContrastTextColor(brandColor);
+
+  // Normalize status to canonical values
+  const raw = String(item.status || '').trim().toLowerCase();
+  // backward compatibility mapping
+  const normalizedStatus =
+    raw === 'available' || raw === 'active'
+      ? 'available'
+      : raw === 'sold' || raw === 'sold out' || raw === 'out of stock' || raw === 'oos'
+      ? 'sold'
+      : raw === 'unavailable' || raw === 'inactive'
+      ? 'unavailable'
+      : 'available';
+
+  const isUnavailable = normalizedStatus === 'unavailable';
+  const isSold = normalizedStatus === 'sold';
+  const isMasked = isUnavailable || isSold;
 
   const displayPrice = Number(item.discountPrice ?? item.currentPrice ?? item.price ?? 0);
   const originalPrice =
     item.discountPrice != null ? Number(item.currentPrice ?? item.price ?? 0) : null;
 
-  // Build a normalized cart payload so reducers always get valid id/price/image
-  const buildCartItem = (src = {}) => {
-    return {
-      id: src.id || src._id, // support both id and _id
-      name: src.name || src.title || 'Unnamed Product',
-      price: Number(src.discountPrice ?? src.currentPrice ?? src.price ?? 0),
-      image: src.imageUrl || src.images?.[0]?.url || src.image || '',
-      // optional meta you may want in cart UI
-      storeId: src.storeId,
-      sku: src.sku,
-      variantId: src.selectedVariantId || src.variantId,
-      brand: src.brand || src.brandName,
-      category: src.category || src.categoryName,
-    };
-  };
+  const buildCartItem = (src = {}) => ({
+    id: src.id || src._id,
+    name: src.name || src.title || 'Unnamed Product',
+    price: Number(src.discountPrice ?? src.currentPrice ?? src.price ?? 0),
+    image: src.imageUrl || src.images?.[0]?.url || src.image || '',
+    storeId: src.storeId,
+    sku: src.sku,
+    variantId: src.selectedVariantId || src.variantId,
+    brand: src.brand || src.brandName,
+    category: src.category || src.categoryName,
+  });
 
   const handleAddToCartClick = (e) => {
     e.stopPropagation();
     e.preventDefault();
-
+    if (isMasked) return; // cannot add when sold/unavailable
     const cartItem = buildCartItem(item);
-
-    // If id is missing, do nothing (prevents silent failures in reducer)
-    if (!cartItem.id) {
-      // Optional: console.warn('Missing product id for cart add', item);
-      return;
-    }
-
-    // Call parent handler with normalized cart payload (first arg) and raw item (second arg)
-    if (typeof onAddToCart === 'function') {
-      onAddToCart(cartItem, item);
-    } else {
-      // Optional fallback: emit an event if no handler is wired
-      window.dispatchEvent?.(
-        new CustomEvent('CART_ADD_ITEM', { detail: { item: cartItem } })
-      );
-    }
+    if (!cartItem.id) return;
+    onAddToCart?.(cartItem, item);
   };
 
+  const disabledProps = isMasked ? { disabled: true, 'aria-disabled': true, tabIndex: -1 } : {};
+  const disabledClasses = isMasked ? 'opacity-40 cursor-not-allowed pointer-events-none' : '';
+
+  const badgeText = isSold ? 'Out of Stock' : isUnavailable ? 'Unavailable' : null;
+
   return (
-    <Card className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl bg-white shadow-md">
-      {/* Top Image */}
+    <Card className="relative flex h-full w-full flex-col overflow-hidden rounded-3xl bg-white shadow-lg">
+      {/* Full overlay mask */}
+      <div
+        className={`absolute inset-0 z-20 bg-black/50 flex items-center justify-center rounded-3xl transition-opacity ${
+          isMasked ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        role="status"
+        aria-label={isMasked ? badgeText : undefined}
+      >
+        {badgeText && (
+          <span className="select-none rounded-lg px-3 py-2 text-2xl font-semibold uppercase tracking-wide text-white shadow">
+            {badgeText}
+          </span>
+        )}
+      </div>
+
+      {/* Top image */}
       <div className="relative h-40 w-full bg-gray-100 sm:h-48">
         {item.imageUrl ? (
-          <img
-            src={item.imageUrl}
-            alt={item.name || 'Item'}
-            className="h-full w-full object-cover"
-          />
+          <img src={item.imageUrl} alt={item.name || 'Item'} className="h-full w-full object-cover" loading="lazy" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-gray-400">
-            No Image
-          </div>
+          <div className="flex h-full w-full items-center justify-center text-gray-400">No Image</div>
         )}
 
-        {/* Sponsored Tag */}
+        {/* Sponsored tag */}
         {mode !== 'myServices' && item.isSponsored && (
-          <div className="absolute left-2 top-2 flex items-center rounded-md bg-black/60 px-2 py-1 text-xs text-white">
+          <div className="absolute left-2 top-2 z-10 flex items-center rounded-md bg-black/60 px-2 py-1 text-xs text-white">
             <FireIcon className="mr-1 h-4 w-4 text-orange-400" />
             Sponsored
           </div>
         )}
+
+        {/* Top-right status badge */}
+        {badgeText && (
+          <div className="absolute right-2 top-2 z-10 rounded-md bg-black/70 px-2 py-1 text-xs font-semibold uppercase text-white">
+            {badgeText}
+          </div>
+        )}
       </div>
 
-      {/* Store & Rating (not for services) */}
+      {/* Store & rating */}
       {mode !== 'service' && (
         <div className="flex items-center gap-2 bg-[#F2F2F2] px-3 py-2">
-          <img
-            src={item.storeLogo || '/default-profile.png'}
-            alt="store logo"
-            className="h-6 w-6 rounded-full object-cover"
-          />
-          <span className="text-sm font-medium text-gray-800">
+          <img src={item.storeLogo || '/default-profile.png'} alt="store logo" className="h-6 w-6 rounded-full object-cover" loading="lazy" />
+          <span className="text-sm font-medium text-gray-800" style={{ color: brandColor }}>
             {item.storeName || 'Store'}
           </span>
-          <span className="ml-auto flex items-center gap-1 pr-1 text-sm text-yellow-600">
+          <span className="ml-auto flex items-center gap-1 pr-1 text-sm" style={{ color: brandColor }}>
             <StarIcon className="h-4 w-4" />
             {item.rating ?? '4.5'}
           </span>
@@ -113,15 +130,11 @@ const ProductDisplayCard = ({
 
       {/* Body */}
       <div className="flex flex-1 flex-col p-4">
-        {/* Title */}
-        <h3 className="mb-2 line-clamp-2 text-lg font-semibold text-gray-900">
-          {item.name || 'Item Name'}
-        </h3>
+        <h3 className="mb-2 line-clamp-2 text-lg font-semibold text-gray-900">{item.name || 'Item Name'}</h3>
 
-        {/* Price or Range */}
         {!isService ? (
           <div className="mb-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-red-600">
+            <span className="text-2xl font-bold" style={{ color: brandColor }}>
               ₦{Number.isFinite(displayPrice) ? displayPrice.toLocaleString() : '0'}
             </span>
             {originalPrice !== null && (
@@ -138,15 +151,12 @@ const ProductDisplayCard = ({
           </div>
         )}
 
-        {/* Tags (delivery/discount) - products only */}
         {!isService && (
           <div className="mb-4 flex flex-wrap gap-2">
             {item.hasFreeDelivery && (
               <span
                 className="flex items-center overflow-hidden rounded-md text-xs text-white shadow-sm"
-                style={{
-                  background: `linear-gradient(120deg, ${brandColor} 0 30%, orange 30% 100%)`,
-                }}
+                style={{ background: `linear-gradient(120deg, ${brandColor} 0 30%, orange 30% 100%)` }}
               >
                 <span className="flex items-center justify-center px-2">
                   <ShoppingCartIcon className="h-4 w-4" style={{ color: contrast }} />
@@ -154,13 +164,10 @@ const ProductDisplayCard = ({
                 <span className="px-3 py-1">Free delivery</span>
               </span>
             )}
-
             {item.hasBulkDiscount && (
               <span
                 className="flex items-center overflow-hidden rounded-md text-xs text-white shadow-sm"
-                style={{
-                  background: `linear-gradient(120deg, ${brandColor} 0 30%, orange 30% 100%)`,
-                }}
+                style={{ background: `linear-gradient(120deg, ${brandColor} 0 30%, orange 30% 100%)` }}
               >
                 <span className="flex items-center justify-center px-2">
                   <ShoppingCartIcon className="h-4 w-4" style={{ color: contrast }} />
@@ -171,100 +178,88 @@ const ProductDisplayCard = ({
           </div>
         )}
 
-        {/* Metrics for products and sponsored (not profile, not services) */}
-        {!isService && mode !== 'profile' && (
-          <div className="mt-auto border-t border-gray-100 pt-3 text-sm text-gray-600">
-            <div className="mb-2 grid grid-cols-3 gap-2">
-              <span>{item.metrics?.productViews ?? 0} Views</span>
-              <span>{item.metrics?.productClicks ?? 0} Luxes</span>
-              <span>{item.metrics?.messages ?? 0} Messages</span>
+        {/* Metrics */}
+        <div className="mt-auto w-full">
+          <div className="mb-4 grid gap-3 text-sm text-gray-700">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500">Product Views</span>
+              <span className="font-semibold">{isService ? item.serviceViews ?? 0 : item.metrics?.productViews ?? 0}</span>
             </div>
-
-            {/* Category + actions for 'product' mode */}
-            {mode === 'product' && (
-              <div className="mt-2 flex items-center justify-between">
-                <span className="rounded-lg border px-2 py-1 text-gray-800">
-                  {item.category || 'Uncategorized'}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    aria-label="Edit"
-                    onClick={() => onEdit(item.id)}
-                    className="rounded p-1 hover:bg-gray-100"
-                    title="Edit"
-                  >
-                    <PencilSquareIcon className="h-6 w-6 text-gray-700" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="More options"
-                    onClick={(e) => onMoreOptionsClick(e, item.id)}
-                    className="rounded p-1 hover:bg-gray-100"
-                    title="More options"
-                  >
-                    <EllipsisVerticalIcon className="h-6 w-6 text-gray-700" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* CTA for 'sponsored' mode */}
-            {mode === 'sponsored' && (
-              <Button
-                className="mt-3 w-full rounded-lg py-2 font-semibold shadow-sm"
-                style={{ backgroundColor: brandColor, color: contrast }}
-                onClick={() => onViewDetailsClick(item.id)}
-              >
-                View Details
-              </Button>
-            )}
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500">Product Clicks</span>
+              <span className="font-semibold">{isService ? item.productClicks ?? 0 : item.metrics?.productClicks ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500">Messages</span>
+              <span className="font-semibold">{isService ? item.messages ?? 0 : item.metrics?.messages ?? 0}</span>
+            </div>
           </div>
-        )}
 
-        {/* Service-specific details */}
-        {isService && (
-          <div className="mt-auto w-full">
-            <div className="mb-4 grid grid-cols-3 gap-3 text-sm text-gray-700">
-              <div className="flex flex-col items-center rounded-lg bg-gray-50 p-2">
-                <span className="text-xs text-gray-500">Views</span>
-                <span className="font-semibold">{item.serviceViews ?? 0}</span>
-              </div>
-              <div className="flex flex-col items-center rounded-lg bg-gray-50 p-2">
-                <span className="text-xs text-gray-500">Clicks</span>
-                <span className="font-semibold">{item.productClicks ?? 0}</span>
-              </div>
-              <div className="flex flex-col items-center rounded-lg bg-gray-50 p-2">
-                <span className="text-xs text-gray-500">Messages</span>
-                <span className="font-semibold">{item.messages ?? 0}</span>
+          {isProductMode && (
+            <div className="flex items-center justify-between">
+              <span className="rounded-lg border px-2 py-1 text-gray-800">{item.category || 'Uncategorized'}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  aria-label="Edit"
+                  onClick={() => !isMasked && onEdit(item.id || item._id)}
+                  className={`rounded p-1 hover:bg-gray-100 ${disabledClasses}`}
+                  title="Edit"
+                  {...disabledProps}
+                >
+                  <PencilSquareIcon className="h-6 w-6 text-gray-700" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="More options"
+                  onClick={(e) => !isMasked && onMoreOptionsClick(e, item.id || item._id)}
+                  className={`rounded p-1 hover:bg-gray-100 ${disabledClasses}`}
+                  title="More options"
+                  {...disabledProps}
+                >
+                  <EllipsisVerticalIcon className="h-6 w-6 text-gray-700" />
+                </button>
               </div>
             </div>
+          )}
 
+          {mode === 'sponsored' && (
             <Button
-              onClick={() => onViewStatsClick(item.id)}
-              className="w-full rounded-lg py-2 font-semibold shadow-md transition-shadow hover:shadow-lg"
+              className={`mt-3 w-full rounded-lg py-2 font-semibold shadow-sm ${disabledClasses}`}
               style={{ backgroundColor: brandColor, color: contrast }}
+              onClick={() => !isMasked && onViewDetailsClick(item.id || item._id)}
+              {...disabledProps}
+            >
+              View Details
+            </Button>
+          )}
+
+          {isService && (
+            <Button
+              onClick={() => !isMasked && onViewStatsClick(item.id || item._id)}
+              className={`w-full rounded-lg py-2 font-semibold shadow-md transition-shadow hover:shadow-lg ${disabledClasses}`}
+              style={{ backgroundColor: brandColor, color: contrast }}
+              {...disabledProps}
             >
               Details
             </Button>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* Profile-specific footer (cart icon lives here) */}
         {mode === 'profile' && (
           <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3">
             <div className="flex items-center text-sm text-gray-500">
-             <MapPinIcon className="h-6 w-6 " />
+              <MapPinIcon className="h-6 w-6" />
               <span>{item.location || 'Lagos, Nigeria'}</span>
             </div>
-
             <button
               type="button"
               onClick={handleAddToCartClick}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 transition hover:bg-gray-50"
+              className={`flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 transition hover:bg-gray-50 ${disabledClasses}`}
               aria-label="Add to cart"
               title="Add to cart"
               data-testid="add-to-cart-button"
+              {...disabledProps}
             >
               <ShoppingCartIcon className="h-6 w-6 text-gray-700" />
             </button>

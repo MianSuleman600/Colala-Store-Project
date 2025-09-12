@@ -157,7 +157,7 @@ const StoreOwnerInfoSection = ({
             <StoreSocialLinks isLoggedIn={isLoggedIn} storeData={storeData} />
 
             {/* Actions */}
-            <div className="flex space-x-4 mt-4">
+            <div className="flex  space-x-4 mt-4">
               <Button
                 onClick={handleAddProduct}
                 className="flex-1 py-2 px-4 rounded-2xl"

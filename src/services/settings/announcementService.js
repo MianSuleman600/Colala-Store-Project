@@ -1,15 +1,8 @@
-// src/services/announcementService.js
+// src/services/settings/announcementService.js
 import { apiRequest } from '../../api/apiClient.js';
 import { ENDPOINTS } from '../../api/apiConfig.js';
 import { USE_DUMMY_DATA } from '../../utils/config.js';
 import * as normalizers from '../../utils/dataNormalizer.js';
-
-// Safe normalizers
-const idFn = (x) => x;
-const normAnnouncements =
-  typeof normalizers.normalizeAnnouncements === 'function' ? normalizers.normalizeAnnouncements : idFn;
-const normBanners =
-  typeof normalizers.normalizeBanners === 'function' ? normalizers.normalizeBanners : idFn;
 
 // Dummy seeds
 import dummyAnnouncements from '../../utils/data/dummyAnnouncements.js';
@@ -30,35 +23,65 @@ const nowStr = () => {
   return `${month}-${day}-${year}/${hoursStr}:${minutes}${ampm}`;
 };
 
-const toSafeAnnouncementPayload = (p = {}, partial = false) => {
-  const base = {};
-  if (!partial || p.text !== undefined) base.text = String(p.text || '').trim();
-  if (!partial || p.active !== undefined) base.active = Boolean(p.active);
-  if (!partial || p.startAt !== undefined) base.startAt = p.startAt || null;
-  if (!partial || p.endAt !== undefined) base.endAt = p.endAt || null;
-  if (!partial || p.priority !== undefined) base.priority = Number.isFinite(+p.priority) ? +p.priority : 0;
-  if (!partial || p.pinned !== undefined) base.pinned = Boolean(p.pinned);
-  return base;
-};
-
-const toSafeBannerPayload = (p = {}, partial = false) => {
-  const base = {};
-  if (!partial || p.imageUrl !== undefined) base.imageUrl = String(p.imageUrl || '').trim();
-  if (!partial || p.link !== undefined) base.link = String(p.link || '').trim();
-  if (!partial || p.active !== undefined) base.active = Boolean(p.active);
-  if (!partial || p.placement !== undefined) base.placement = String(p.placement || 'home'); // 'home' | 'profile'
-  if (!partial || p.alt !== undefined) base.alt = String(p.alt || 'Promotional Banner');
-  return base;
-};
-
-// Helpers to accept Laravel resource responses
+// Robust list/item extractors for various API shapes
 const takeList = (res) => {
-  if (Array.isArray(res?.data)) return res.data;
+  const d1 = res?.data ?? res;
+  if (Array.isArray(d1)) return d1;
+  const d2 = d1?.data ?? d1?.result ?? d1?.results;
+  if (Array.isArray(d2)) return d2;
+  if (Array.isArray(d1?.items)) return d1.items;
   if (Array.isArray(res?.items)) return res.items;
-  if (Array.isArray(res)) return res;
   return [];
 };
-const takeItem = (res) => res?.data || res;
+const takeItem = (res) => {
+  const d1 = res?.data ?? res;
+  return d1?.data ?? d1;
+};
+
+// Absolute URL resolver for relative paths
+const ASSET_BASE =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ASSETS_BASE_URL) ||
+  (ENDPOINTS?.ASSET_BASE_URL || '');
+
+const toAbsoluteUrl = (p) => {
+  if (!p) return '';
+  if (/^https?:\/\//i.test(p) || /^data:|^blob:/i.test(p)) return p;
+  if (!ASSET_BASE) return p;
+  return `${String(ASSET_BASE).replace(/\/+$/, '')}/${String(p).replace(/^\/+/, '')}`;
+};
+
+// Fallback normalizer for banners (maps snake_case to camelCase, ensures imageUrl)
+const normalizeBannerMinimal = (b = {}) => ({
+  id: b.id ?? b.uuid ?? b._id ?? b.banner_id ?? String(Date.now()),
+  imageUrl: toAbsoluteUrl(
+    b.imageUrl ?? b.image_url ?? b.image_path ?? b.image ?? b.url ?? ''
+  ),
+  link: b.link ?? b.target_url ?? b.href ?? '',
+  alt: b.alt ?? b.title ?? 'Promotional Banner',
+  active:
+    typeof b.active === 'boolean'
+      ? b.active
+      : Boolean(
+          Number(b.active) ||
+            b.status === 'active' ||
+            b.is_active ||
+            b.enabled
+        ),
+  placement: b.placement ?? b.location ?? b.slot ?? 'home',
+  dateCreated: b.dateCreated ?? b.created_at ?? b.createdAt ?? '',
+  impressions: b.impressions ?? b.views ?? 0,
+});
+
+// Safe normalizers
+const normAnnouncements =
+  typeof normalizers.normalizeAnnouncements === 'function'
+    ? normalizers.normalizeAnnouncements
+    : (arr) => Array.isArray(arr) ? arr : [];
+
+const normBanners =
+  typeof normalizers.normalizeBanners === 'function'
+    ? normalizers.normalizeBanners
+    : (arr) => (Array.isArray(arr) ? arr.map(normalizeBannerMinimal) : []);
 
 /* ---------------- Dummy Service ---------------- */
 let ANN = Array.isArray(dummyAnnouncements) ? [...dummyAnnouncements] : [];
@@ -72,12 +95,16 @@ const dummyAnnouncementService = {
     announcements: normAnnouncements(ANN.filter((a) => a.active)),
   }),
   createAnnouncement: async (payload) => {
-    const safe = toSafeAnnouncementPayload(payload);
     const item = {
       id: `ann-${Date.now()}`,
       impressions: 0,
       dateCreated: nowStr(),
-      ...safe,
+      text: String(payload?.text || '').trim(),
+      active: Boolean(payload?.active),
+      startAt: payload?.startAt || null,
+      endAt: payload?.endAt || null,
+      priority: Number.isFinite(+payload?.priority) ? +payload.priority : 0,
+      pinned: Boolean(payload?.pinned),
     };
     ANN.unshift(item);
     return { success: true, announcement: normAnnouncements([item])[0] };
@@ -85,7 +112,7 @@ const dummyAnnouncementService = {
   updateAnnouncement: async (id, payload) => {
     const idx = ANN.findIndex((a) => a.id === id);
     if (idx === -1) return { success: false, message: 'Announcement not found' };
-    ANN[idx] = { ...ANN[idx], ...toSafeAnnouncementPayload(payload, true) };
+    ANN[idx] = { ...ANN[idx], ...payload };
     return { success: true, announcement: normAnnouncements([ANN[idx]])[0] };
   },
   deleteAnnouncement: async (id) => {
@@ -111,12 +138,15 @@ const dummyAnnouncementService = {
     return { success: true, banners: normBanners(list) };
   },
   createBanner: async (payload) => {
-    const safe = toSafeBannerPayload(payload);
     const item = {
       id: `ban-${Date.now()}`,
       impressions: 0,
       dateCreated: nowStr(),
-      ...safe,
+      imageUrl: String(payload?.imageUrl || '').trim(),
+      link: String(payload?.link || '').trim(),
+      active: Boolean(payload?.active),
+      placement: String(payload?.placement || 'home'),
+      alt: String(payload?.alt || 'Promotional Banner'),
     };
     BNR.unshift(item);
     return { success: true, banner: normBanners([item])[0] };
@@ -124,7 +154,7 @@ const dummyAnnouncementService = {
   updateBanner: async (id, payload) => {
     const idx = BNR.findIndex((b) => b.id === id);
     if (idx === -1) return { success: false, message: 'Banner not found' };
-    BNR[idx] = { ...BNR[idx], ...toSafeBannerPayload(payload, true) };
+    BNR[idx] = { ...BNR[idx], ...payload };
     return { success: true, banner: normBanners([BNR[idx]])[0] };
   },
   deleteBanner: async (id) => {
@@ -147,48 +177,42 @@ const apiAnnouncementService = {
     return { success: true, announcements: normAnnouncements(takeList(res)) };
   },
   getActiveAnnouncements: async (params = {}) => {
-    const res = await apiRequest({ url: ENDPOINTS.ANNOUNCEMENTS.ACTIVE(params), method: 'GET' });
+    const url =
+      typeof ENDPOINTS.ANNOUNCEMENTS.ACTIVE === 'function'
+        ? ENDPOINTS.ANNOUNCEMENTS.ACTIVE(params)
+        : ENDPOINTS.ANNOUNCEMENTS.ACTIVE;
+    const res = await apiRequest({ url, method: 'GET', params });
     return { success: true, announcements: normAnnouncements(takeList(res)) };
-  },
-  createAnnouncement: async (payload) => {
-    const res = await apiRequest({
-      url: ENDPOINTS.ANNOUNCEMENTS.CREATE,
-      method: 'POST',
-      data: toSafeAnnouncementPayload(payload),
-    });
-    return { success: true, announcement: normAnnouncements([takeItem(res)])[0] };
-  },
-  updateAnnouncement: async (id, payload) => {
-    const res = await apiRequest({
-      url: ENDPOINTS.ANNOUNCEMENTS.UPDATE(id),
-      method: 'PUT',
-      data: toSafeAnnouncementPayload(payload, true),
-    });
-    return { success: true, announcement: normAnnouncements([takeItem(res)])[0] };
-  },
-  deleteAnnouncement: async (id) => {
-    await apiRequest({ url: ENDPOINTS.ANNOUNCEMENTS.DELETE(id), method: 'DELETE' });
-    return { success: true };
-  },
-  trackAnnouncementImpression: async (id) => {
-    await apiRequest({ url: ENDPOINTS.ANNOUNCEMENTS.TRACK_IMPRESSION(id), method: 'POST' });
-    return { success: true };
   },
 
   // Banners
   getBanners: async (params = {}) => {
-    const res = await apiRequest({ url: ENDPOINTS.BANNERS.LIST(params), method: 'GET' });
+    const url =
+      typeof ENDPOINTS.BANNERS.LIST === 'function'
+        ? ENDPOINTS.BANNERS.LIST(params)
+        : ENDPOINTS.BANNERS.LIST;
+    const res = await apiRequest({ url, method: 'GET', params });
     return { success: true, banners: normBanners(takeList(res)) };
   },
   getActiveBanners: async (params = {}) => {
-    const res = await apiRequest({ url: ENDPOINTS.BANNERS.ACTIVE(params), method: 'GET' });
+    const url =
+      typeof ENDPOINTS.BANNERS.ACTIVE === 'function'
+        ? ENDPOINTS.BANNERS.ACTIVE(params)
+        : ENDPOINTS.BANNERS.ACTIVE;
+    const res = await apiRequest({ url, method: 'GET', params });
     return { success: true, banners: normBanners(takeList(res)) };
   },
   createBanner: async (payload) => {
     const res = await apiRequest({
       url: ENDPOINTS.BANNERS.CREATE,
       method: 'POST',
-      data: toSafeBannerPayload(payload),
+      data: {
+        imageUrl: String(payload?.imageUrl || '').trim(),
+        link: String(payload?.link || '').trim(),
+        active: Boolean(payload?.active),
+        placement: String(payload?.placement || 'home'),
+        alt: String(payload?.alt || 'Promotional Banner'),
+      },
     });
     return { success: true, banner: normBanners([takeItem(res)])[0] };
   },
@@ -196,7 +220,7 @@ const apiAnnouncementService = {
     const res = await apiRequest({
       url: ENDPOINTS.BANNERS.UPDATE(id),
       method: 'PUT',
-      data: toSafeBannerPayload(payload, true),
+      data: payload,
     });
     return { success: true, banner: normBanners([takeItem(res)])[0] };
   },
@@ -210,5 +234,4 @@ const apiAnnouncementService = {
   },
 };
 
-// Export
 export const announcementService = USE_DUMMY_DATA ? dummyAnnouncementService : apiAnnouncementService;

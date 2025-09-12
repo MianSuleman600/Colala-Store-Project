@@ -12,10 +12,7 @@ import StoreOwnerInfoSection from '../components/store/StoreOwnerInfoSection';
 import StoreProfileModal from '../components/models/StoreProfileModal';
 import Button from '../components/ui/Button';
 
-// Updated: pull announcement banner (text)
-import AnnouncementBanner from '../components/announcements/AnnouncementBanner';
-
-// Keep your promotional banner UI (now DB-backed)
+// Updated: DB-backed promotional banner UI
 import PromotionBanner from '../components/ui/PromotionBanner';
 
 import Card from '../components/ui/Card';
@@ -126,8 +123,6 @@ export default function HomePage() {
       {error && (
         <div className="text-center text-red-500">{error.message || 'Failed to load store data.'}</div>
       )}
-
-   
 
       {/* Modals */}
       {isStoreBuilderModalOpen && (
@@ -265,7 +260,7 @@ export default function HomePage() {
           {/* DB-backed promotional banner for Home placement */}
           <PromotionBanner
             placement="home"
-            onButtonClick={() => (window.location.href = '/shop')}
+            onButtonClick={() => (window.location.href = '/')}
             className="mt-2"
           />
 
