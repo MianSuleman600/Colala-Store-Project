@@ -1,5 +1,5 @@
 // src/pages/products/ProductDetailsPage.jsx
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import Button from '../../../components/ui/Button';
@@ -14,7 +14,7 @@ import ProductDeleteModal from '../../../components/models/ProductDeleteModal';
 import { useMediaGallery } from '../../../hooks/Products/useMediaGallery';
 import { useProductActions } from '../../../hooks/Products/useProductActions';
 import { useLike } from '../../../hooks/Products/useLike';
-import { HeartIcon as HeartIconOutline } from '@heroicons/react/24/outline';
+import { HeartIcon as HeartIconOutline, ChartBarIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import BackButton from '../../../components/ui/BackButton';
 
@@ -24,6 +24,7 @@ const ProductDetailsPage = () => {
   const { userId } = useSelector((s) => s.user);
   const { push } = useToast();
 
+  // Hooks must always be called
   const { data: storeProfileData, isLoading: profileLoading } = useStoreProfile(userId, { enabled: !!userId });
   const brandColor = storeProfileData?.brandColor || '#EF4444';
   const contrastTextColor = getContrastTextColor(brandColor);
@@ -34,12 +35,58 @@ const ProductDetailsPage = () => {
   const { markStatus, deleteProduct, copyLink, shareLink, normalizeStatus } = useProductActions({ productId, userId });
   const { liked, toggle: toggleLike } = useLike(productId, userId);
 
+  // Local UI state (always declared before any early return)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [activeTab, setActiveTab] = useState('description'); // 'description' | 'reviews'
+  const [qty, setQty] = useState(1);
 
+  // Derivations that are safe even when product is undefined
   const currentStatus = useMemo(() => normalizeStatus(product?.status), [product, normalizeStatus]);
+  const quantityLeft = Number(product?.detailsPageInfo?.quantityLeft ?? 0);
+  const reviews = Array.isArray(product?.reviews)
+    ? product.reviews
+    : Array.isArray(product?.detailsPageInfo?.reviews)
+    ? product.detailsPageInfo.reviews
+    : [];
+  const reviewCount = reviews.length;
 
-  if (isLoading || profileLoading) return <div className="flex justify-center items-center h-screen">Loading product details...</div>;
-  if (isError || !product) return <div className="flex justify-center items-center h-screen text-red-500">Failed to load product: {error?.message || 'Unknown error'}</div>;
+  // Keep qty in range based on quantityLeft
+  useEffect(() => {
+    setQty(quantityLeft > 0 ? 1 : 0);
+  }, [productId, quantityLeft]);
+
+  const isMinusDisabled = qty <= 1;
+  const isPlusDisabled = quantityLeft <= 0 || qty >= quantityLeft;
+
+  const handleDecrement = () => {
+    setQty((q) => Math.max(1, q - 1));
+  };
+
+  const handleIncrement = () => {
+    if (quantityLeft <= 0) {
+      push?.('Out of stock.', { type: 'warning' });
+      return;
+    }
+    setQty((q) => {
+      if (q >= quantityLeft) {
+        push?.('You reached the available stock.', { type: 'info' });
+        return q;
+      }
+      return q + 1;
+    });
+  };
+
+  // Early returns AFTER all hooks
+  if (isLoading || profileLoading) {
+    return <div className="flex justify-center items-center h-screen">Loading product details...</div>;
+  }
+  if (isError || !product) {
+    return (
+      <div className="flex justify-center items-center h-screen text-red-500">
+        Failed to load product: {error?.message || 'Unknown error'}
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-8 bg-gray-50 min-h-screen font-sans">
@@ -141,38 +188,62 @@ const ProductDetailsPage = () => {
 
           <hr className="my-4 border-t border-gray-300 opacity-60" />
 
-          {/* Quantity Selector (display only) */}
+          {/* Quantity Selector */}
           <div className="flex items-center justify-between py-4 mb-4 mt-4">
-            <span className="text-gray-700 text-sm">Quantity left</span>
-            <span className="font-semibold" style={{ color: brandColor }}>
-              {product.detailsPageInfo?.quantityLeft ?? 0}
-            </span>
+            <div className="flex flex-col">
+              <span className="text-gray-700 text-sm">Quantity left</span>
+              <span className="font-semibold" style={{ color: brandColor }}>
+                {quantityLeft}
+              </span>
+            </div>
             <div className="flex items-center rounded-md overflow-hidden">
-              <button className="px-3 py-1 text-lg rounded-xl" style={{ backgroundColor: brandColor, color: contrastTextColor }} disabled>
+              <button
+                className="px-3 py-1 text-lg rounded-l-xl disabled:opacity-50"
+                style={{ backgroundColor: brandColor, color: contrastTextColor }}
+                onClick={handleDecrement}
+                disabled={isMinusDisabled}
+                aria-label="Decrease quantity"
+                title="Decrease quantity"
+              >
                 -
               </button>
-              <input type="text" value={1} readOnly className="w-12 text-center bg-white text-gray-900 py-1" />
-              <button className="px-3 py-1 text-lg rounded-xl" style={{ backgroundColor: brandColor, color: contrastTextColor }} disabled>
+              <input
+                type="text"
+                value={qty}
+                readOnly
+                className="w-12 text-center bg-white text-gray-900 py-1"
+                aria-label="Selected quantity"
+              />
+              <button
+                className="px-3 py-1 text-lg rounded-r-xl disabled:opacity-50"
+                style={{ backgroundColor: brandColor, color: contrastTextColor }}
+                onClick={handleIncrement}
+                disabled={isPlusDisabled}
+                aria-label="Increase quantity"
+                title="Increase quantity"
+              >
                 +
               </button>
             </div>
           </div>
 
-          {/* Actions */}
+          {/* Actions (with set icons for status and delete) */}
           <div className="grid grid-cols-4 gap-4 mt-2">
             <Button
               onClick={() => setShowDeleteConfirm(true)}
-              className="flex items-center justify-center p-3 rounded-md shadow-sm hover:shadow-md bg-white text-gray-700"
+              className="flex items-center justify-center gap-2 p-3 rounded-md shadow-sm hover:shadow-md bg-white text-gray-700"
               title="Delete"
             >
+              <TrashIcon className="h-5 w-5" />
               Delete
             </Button>
 
             <Button
               onClick={() => navigate(`/my-products/${productId}/stats`)}
-              className="flex items-center justify-center p-3 rounded-md shadow-sm hover:shadow-md bg-white text-gray-700"
+              className="flex items-center justify-center gap-2 p-3 rounded-md shadow-sm hover:shadow-md bg-white text-gray-700"
               title="Stats"
             >
+              <ChartBarIcon className="h-5 w-5" />
               Stats
             </Button>
 
@@ -200,16 +271,54 @@ const ProductDetailsPage = () => {
       {/* Tabs */}
       <div className="bg-white rounded-lg shadow-md p-4 md:p-6 mt-6 border border-gray-200">
         <div className="flex border-b rounded-2xl border-gray-200 mb-4 gap-2">
-          <button className="py-2 px-4 text-lg rounded-xl" style={{ backgroundColor: brandColor, color: contrastTextColor }}>
+          <button
+            className={`py-2 px-4 text-lg rounded-xl ${activeTab === 'description' ? '' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}
+            style={activeTab === 'description' ? { backgroundColor: brandColor, color: contrastTextColor } : {}}
+            onClick={() => setActiveTab('description')}
+            aria-selected={activeTab === 'description'}
+          >
             Description
           </button>
-          <button className="py-2 px-4 rounded-xl text-lg text-gray-600 hover:text-gray-800">Reviews</button>
+          <button
+            className={`py-2 px-4 text-lg rounded-xl ${activeTab === 'reviews' ? '' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}
+            style={activeTab === 'reviews' ? { backgroundColor: brandColor, color: contrastTextColor } : {}}
+            onClick={() => setActiveTab('reviews')}
+            aria-selected={activeTab === 'reviews'}
+          >
+            Reviews {reviewCount ? `(${reviewCount})` : ''}
+          </button>
         </div>
-        <div>
-          <p className="text-gray-700 leading-relaxed">
-            {product.detailsPageInfo?.description || 'No description available.'}
-          </p>
-        </div>
+
+        {activeTab === 'description' ? (
+          <div>
+            <p className="text-gray-700 leading-relaxed">
+              {product.detailsPageInfo?.description || 'No description available.'}
+            </p>
+          </div>
+        ) : (
+          <div>
+            {reviewCount > 0 ? (
+              <ul className="space-y-4">
+                {reviews.map((r, idx) => {
+                  const author = r?.userName || r?.name || 'Anonymous';
+                  const rating = typeof r?.rating === 'number' ? r.rating : null;
+                  const comment = r?.comment || r?.text || '';
+                  return (
+                    <li key={r?.id || r?._id || idx} className="border border-gray-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-gray-800">{author}</span>
+                        {rating != null && <span className="text-yellow-500 text-sm">★ {rating}</span>}
+                      </div>
+                      <p className="text-gray-700 text-sm">{comment}</p>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="text-gray-600">No reviews yet.</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

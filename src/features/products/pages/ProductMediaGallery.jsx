@@ -13,8 +13,7 @@ const ProductMediaGallery = ({
   onThumbClick,
   onPlayClick,
   onVideoError,
-  onImageError,
-  // Optional: render arbitrary UI inside the main viewer bottom (used by Service pages only)
+  onImageError, // (src) => (e) => void
   overlayBottom = null,
 }) => {
   const selectedBorder = { borderColor: brandColor };
@@ -28,16 +27,24 @@ const ProductMediaGallery = ({
             src={selectedDisplay || FALLBACK_IMAGE}
             alt="Selected"
             className="w-full h-full object-contain rounded-lg"
-            onError={onImageError(selectedDisplay)}
+            // Attach error handler only if it's not the fallback itself
+            onError={
+              selectedDisplay && selectedDisplay !== FALLBACK_IMAGE
+                ? onImageError(selectedDisplay)
+                : undefined
+            }
           />
         ) : (
           <>
             <video
+              key={selectedDisplay || 'video'}         // Force remount on src change
               ref={videoRef}
               src={selectedDisplay}
               className="w-full h-full object-contain bg-black rounded-lg"
               controls
               playsInline
+              preload="metadata"
+              crossOrigin="anonymous"
               onError={onVideoError}
             />
             {!isPlaying && (
@@ -56,7 +63,6 @@ const ProductMediaGallery = ({
           </>
         )}
 
-        {/* Service-only overlay is injected by parent. Product pages do not pass this prop. */}
         {overlayBottom ? (
           <div className="absolute bottom-0 left-0 right-0">
             {overlayBottom}
@@ -91,7 +97,11 @@ const ProductMediaGallery = ({
                     src={rawSrc || FALLBACK_IMAGE}
                     alt={`Thumbnail ${index + 1}`}
                     className="w-full h-full object-cover"
-                    onError={onImageError(rawSrc)}
+                    onError={
+                      rawSrc && rawSrc !== FALLBACK_IMAGE
+                        ? onImageError(rawSrc)
+                        : undefined
+                    }
                   />
                 )}
               </button>

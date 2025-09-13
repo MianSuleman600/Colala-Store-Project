@@ -1,4 +1,3 @@
-// src/hooks/useMediaGallery.js
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FALLBACK_IMAGE, isVideoUrl, dedupe } from '../../utils/mediaUtils';
 import { useToast } from '../../components/ui/ToastProvider';
@@ -10,10 +9,14 @@ export const useMediaGallery = (product) => {
   const main = product?.detailsPageInfo?.mainImageUrl || '';
   const fallback = product?.imageUrl || '';
 
-  const mediaRawList = useMemo(() => dedupe([...(Array.isArray(thumbs) ? thumbs : []), main, fallback]), [thumbs, main, fallback]);
+  const mediaRawList = useMemo(
+    () => dedupe([...(Array.isArray(thumbs) ? thumbs : []), main, fallback]),
+    [thumbs, main, fallback]
+  );
 
   const [failedSrc, setFailedSrc] = useState({});
-  const markFailed = (src) => src && setFailedSrc((prev) => (prev[src] ? prev : { ...prev, [src]: true }));
+  const markFailed = (src) =>
+    src && setFailedSrc((prev) => (prev[src] ? prev : { ...prev, [src]: true }));
 
   const [selectedRaw, setSelectedRaw] = useState('');
   const [selectedIsVideo, setSelectedIsVideo] = useState(false);
@@ -23,6 +26,7 @@ export const useMediaGallery = (product) => {
   const productId = product?.id || product?._id || '';
   const initializedIdRef = useRef(null);
 
+  // Initialize once per productId
   useEffect(() => {
     if (!productId) return;
     if (initializedIdRef.current === productId) return;
@@ -37,6 +41,7 @@ export const useMediaGallery = (product) => {
   const selectedDisplay = failedSrc[selectedRaw] ? FALLBACK_IMAGE : selectedRaw;
   const isVideoDisplay = selectedIsVideo && !failedSrc[selectedRaw];
 
+  // Pause if leaving video
   useEffect(() => {
     if (!isVideoDisplay && videoRef.current) {
       try {
@@ -45,6 +50,18 @@ export const useMediaGallery = (product) => {
       setIsPlaying(false);
     }
   }, [isVideoDisplay]);
+
+  // Force the video element to reinitialize when switching to a video
+  useEffect(() => {
+    if (isVideoDisplay && videoRef.current) {
+      try {
+        videoRef.current.pause();
+        videoRef.current.currentTime = 0;
+        videoRef.current.load(); // Important for first-visit reliability
+        setIsPlaying(false);
+      } catch {}
+    }
+  }, [isVideoDisplay, selectedDisplay]);
 
   const handleThumbClick = (rawSrc) => {
     if (!rawSrc) return;
@@ -68,9 +85,18 @@ export const useMediaGallery = (product) => {
   };
 
   const handleVideoError = () => {
+    // Mark this src as failed and pick the first available image if possible
     markFailed(selectedRaw);
-    setSelectedIsVideo(false);
     setIsPlaying(false);
+
+    const firstImage = mediaRawList.find((u) => !isVideoUrl(u) && !failedSrc[u]);
+    if (firstImage) {
+      setSelectedRaw(firstImage);
+      setSelectedIsVideo(false);
+    } else {
+      setSelectedIsVideo(false);
+    }
+
     push?.('Unable to load video. Showing image instead.', { type: 'info' });
   };
 

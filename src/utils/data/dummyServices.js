@@ -7,9 +7,13 @@ export const dummyServices = [
   {
     id: 'service-1',
     name: 'Sasha Fashion Designer',
+    ownerId: 'default_user_id',
     userName: 'Sasha Stores',
     profilePic: userProfilePic,
     rating: 4.5,
+    serviceViews: 2100,
+    productClicks: 210,
+    messages: 20,
     // Media
     imageUrl: serviceImage1,
     images: [serviceImage1, serviceImage2],
@@ -48,7 +52,11 @@ export const dummyServices = [
   {
     id: 'service-2',
     name: 'Elite Tailoring Services',
+    ownerId: 'default_user_id',
     userName: 'Elite Couture',
+    serviceViews: 2100,
+    productClicks: 210,
+    messages: 20,
     profilePic: userProfilePic,
     rating: 4.7,
     // Media

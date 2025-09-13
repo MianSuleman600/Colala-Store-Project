@@ -182,7 +182,7 @@ const ProductDisplayCard = ({
         <div className="mt-auto w-full">
           <div className="mb-4 grid gap-3 text-sm text-gray-700">
             <div className="flex items-center justify-between">
-              <span className="text-gray-500">Product Views</span>
+              <span className="text-gray-500">{isService ? "Service Views" : "Product Views"}</span>
               <span className="font-semibold">{isService ? item.serviceViews ?? 0 : item.metrics?.productViews ?? 0}</span>
             </div>
             <div className="flex items-center justify-between">
