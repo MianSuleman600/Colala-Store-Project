@@ -1,4 +1,3 @@
-// src/components/products/ProductMediaGallery.jsx
 import React from 'react';
 import { VideoCameraIcon } from '@heroicons/react/24/outline';
 import { FALLBACK_IMAGE, isVideoUrl } from '../../../utils/mediaUtils';
@@ -15,6 +14,8 @@ const ProductMediaGallery = ({
   onPlayClick,
   onVideoError,
   onImageError,
+  // Optional: render arbitrary UI inside the main viewer bottom (used by Service pages only)
+  overlayBottom = null,
 }) => {
   const selectedBorder = { borderColor: brandColor };
 
@@ -54,6 +55,13 @@ const ProductMediaGallery = ({
             )}
           </>
         )}
+
+        {/* Service-only overlay is injected by parent. Product pages do not pass this prop. */}
+        {overlayBottom ? (
+          <div className="absolute bottom-0 left-0 right-0">
+            {overlayBottom}
+          </div>
+        ) : null}
       </div>
 
       {/* Thumbnails */}

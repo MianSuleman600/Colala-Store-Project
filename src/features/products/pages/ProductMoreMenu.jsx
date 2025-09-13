@@ -42,7 +42,7 @@ const ProductMoreMenu = ({
 
   return (
     <div className="relative" ref={ref}>
-      <button className="p-2 rounded-full hover:bg-gray-200" title="More" onClick={() => setOpen((v) => !v)}>
+      <button className="p-2 rounded-full bg-white hover:bg-gray-200" title="More" onClick={() => setOpen((v) => !v)}>
         <EllipsisVerticalIcon className="h-6 w-6 text-gray-600" />
       </button>
 

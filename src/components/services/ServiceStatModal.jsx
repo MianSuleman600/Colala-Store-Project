@@ -16,12 +16,12 @@ const ServiceStatModal = ({ isOpen, onClose, serviceStats, brandColor, contrastT
   const chartData = serviceStats.chartData || [];
 
   const handleEditService = () => {
-    navigate('/add-service');
+    navigate(`/my-services/${serviceStats.id}/edit`, { state: { from: `/my-services/${serviceStats.id}/details` } });
     onClose();
   };
 
   const handleViewService = () => {
-    navigate(`/my-services/${serviceStats.id}/details`);
+    navigate(`/my-services/${serviceStats.id}/details`, { state: { from: '/my-services' } });
     onClose();
   };
 
@@ -68,7 +68,7 @@ const ServiceStatModal = ({ isOpen, onClose, serviceStats, brandColor, contrastT
         </div>
 
         <div className="bg-white rounded-xl p-1 border border-gray-200 w-full h-[220px] mt-3">
-          <ResponsiveContainer width="100%" height="100%">
+         <ResponsiveContainer width="100%" height={200}>
             <BarChart data={chartData} margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="date" tick={{ fontSize: 10 }} />

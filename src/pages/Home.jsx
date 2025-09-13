@@ -70,9 +70,9 @@ export default function HomePage() {
     [isLoggedIn, dispatch]
   );
 
-  const handleUpgradeStore = useCallback(() => {
+  const handleSubscribe = useCallback(() => {
     if (isLoggedIn) {
-      window.location.href = '/store-upgrade';
+      window.location.href = '/subscription';
     } else {
       dispatch(openModal('register'));
     }
@@ -297,7 +297,7 @@ export default function HomePage() {
               title="Subscription"
               description="Manage your subscription package here effectively"
               icon={checkIcon}
-              onClick={handleUpgradeStore}
+              onClick={handleSubscribe}
               brandColor={brandColor}
               contrastTextColor={contrastTextColor}
               isGuestView={!isLoggedIn}

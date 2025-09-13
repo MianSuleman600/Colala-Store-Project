@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { ChevronDown, TrendingUp, TrendingDown } from 'lucide-react';
+import BackButton from '../../components/ui/BackButton'
 
 import { useStoreAnalytics } from '../../services/queries/useStoreAnalyticsQuery';
 import { useStoreProfile } from '../../services/queries/storeProfileQuery';
@@ -26,6 +27,7 @@ const StatCard = ({ title = 'N/A', value = '--', percentage, trend }) => {
 
   return (
     <div className="bg-white p-4 rounded-xl shadow-md flex flex-col items-start justify-between">
+      
       <h4 className="text-sm font-medium text-gray-600 mb-2">{title}</h4>
       <div className="flex items-center w-full justify-between">
         <span className="text-2xl font-bold text-gray-800">{value ?? '--'}</span>
@@ -125,7 +127,7 @@ const AnalyticsPage = ({ storeId: propStoreId }) => {
   return (
     <div className="p-4 md:p-6">
       <ScrollToTop />
-
+ <BackButton className="md:hidden mb-2" fallback="/" />
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-3xl font-bold text-gray-800">Analytics</h2>
 

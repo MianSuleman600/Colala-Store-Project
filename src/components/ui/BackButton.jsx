@@ -1,6 +1,5 @@
-// src/components/ui/BackButton.jsx
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 
 const BackButton = ({
@@ -10,14 +9,32 @@ const BackButton = ({
   title = 'Back',
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleBack = () => {
     try {
+      // If history has entries, go back
       if (window.history && window.history.length > 1) {
         navigate(-1);
-      } else {
-        navigate(fallback);
+        return;
       }
+
+      // If a route set `state.from`, respect it (good for PWA entry points)
+      if (location.state?.from) {
+        navigate(location.state.from, { replace: true });
+        return;
+      }
+
+      // If referrer is same-origin, try back again (some PWA cases)
+      const sameOriginReferrer =
+        document.referrer && new URL(document.referrer).origin === window.location.origin;
+      if (sameOriginReferrer) {
+        navigate(-1);
+        return;
+      }
+
+      // Otherwise, fallback (home, list page, etc.)
+      navigate(fallback);
     } catch {
       navigate(fallback);
     }

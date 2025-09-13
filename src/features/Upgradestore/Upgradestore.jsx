@@ -278,7 +278,7 @@ const UpgradeStorePage = () => {
                 key={lvl.id}
                 className={[
                   'p-4 border rounded-2xl shadow-sm transition-colors',
-                  isActive ? 'border-red-500/50 ring-1 ring-red-500/40' : 'border-gray-300',
+                  isActive ? ' ring-1 ring-red-500/40' : 'border-gray-300',
                 ].join(' ')}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -297,12 +297,7 @@ const UpgradeStorePage = () => {
                   {lvl.completion}%
                 </p>
 
-                <div className="text-xs text-gray-500 mb-3">
-                  <p>Steps: {lvl.steps}</p>
-                  <p>
-                    Fields: {lvl.completed}/{lvl.total}
-                  </p>
-                </div>
+                
 
                 <Button
                   className="w-full py-3 rounded-[15px] text-base shadow-md"

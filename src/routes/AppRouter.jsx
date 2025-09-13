@@ -106,6 +106,7 @@ function AppRouter() {
             {/* Product boost */}
             <Route path="my-products/:productId/boost-setup" element={<ProtectedRoute><BoostProductSetupPage /></ProtectedRoute>} />
             <Route path="my-products/:productId/boost-preview" element={<ProtectedRoute><BoostAdPreviewPage /></ProtectedRoute>} />
+            <Route path="my-services/:serviceId/edit" element={<ProtectedRoute><AddServicePage /></ProtectedRoute>} />
 
             {/* Services */}
             <Route path="add-service" element={<ProtectedRoute><AddServicePage /></ProtectedRoute>} />

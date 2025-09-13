@@ -1,3 +1,4 @@
+//D:\Project\frontend\src\components\Dashboard\SubscriptionPage.jsx
 import React, { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -166,17 +167,7 @@ const SubscriptionPage = () => {
         ))}
       </div>
 
-      {/* Optional CTA */}
-      <div className="mt-10">
-        <Button
-          type="button"
-          onClick={() => navigate('/pricing')}
-          className="px-6 py-3 rounded-full font-semibold shadow-md"
-          style={{ backgroundColor: brandColor, color: contrastTextColor }}
-        >
-          View Full Pricing
-        </Button>
-      </div>
+     
     </div>
   );
 };
