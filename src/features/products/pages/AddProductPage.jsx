@@ -99,12 +99,12 @@ const AddProductPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex justify-center items-center p-4 lg:p-8">
-      <div className="relative flex w-full max-w-[1200px] bg-white rounded-2xl shadow-xl overflow-hidden p-8">
+    <div className="min-h-screen bg-gray-100 w-full flex justify-center items-center p-8">
+      <div className="relative flex w-full  bg-white rounded-2xl shadow-xl overflow-hidden lg:p-2">
         <div className="flex flex-col md:flex-row w-full gap-8">
           {/* Left: Media */}
           <div className="flex-1 flex flex-col space-y-6 text-left">
-            <h1 className="text-3xl font-bold text-gray-800 mb-4">{isEdit ? 'Edit Product' : 'Add Product'}</h1>
+            <h1 className="text-3xl font-bold p-4 text-gray-800 mb-4">{isEdit ? 'Edit Product' : 'Add Product'}</h1>
             <ProductMediaUpload
               productImages={formData.productImages}
               productVideo={formData.productVideo}

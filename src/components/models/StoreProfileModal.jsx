@@ -267,7 +267,7 @@ function StoreProfileModal({ isOpen, onClose, storeId }) {
     }
 
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3  gap-4">
         {filteredProducts.map((p) => (
           <ProductDisplayCard
             key={p.id || p._id}

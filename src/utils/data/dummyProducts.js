@@ -296,7 +296,7 @@ const dummyProducts = [
     name: 'Samsung 55" QLED TV',
     currentPrice: 850000,
     originalPrice: 950000,
-    imageUrl: '/src/assets/images/productImages/tv.jpeg',
+    imageUrl: '/src/assets/images/productImages/3.jpeg',
     discountText: '5% Off',
     profile: { profilePic: '/src/assets/images/profileImage.png', userName: 'Sasha Stores' },
     rating: 4.9,
@@ -323,12 +323,12 @@ const dummyProducts = [
     ],
     boostSetup: { isBoosted: true, boostAmount: 75000, duration: '14 days' },
     detailsPageInfo: {
-      mainImageUrl: '/src/assets/images/productImages/tv.jpeg',
+      mainImageUrl: '/src/assets/images/productImages/4.jpeg',
       productVideo: video,
       thumbnailUrls: [
         video,
-        '/src/assets/images/productImages/tv.jpeg',
-        '/src/assets/images/productImages/tv2.jpeg',
+        '/src/assets/images/productImages/2.jpeg',
+        '/src/assets/images/productImages/3.jpeg',
       ],
       colors: [
         { name: 'Black', hex: '#000000' }
@@ -352,7 +352,7 @@ const dummyProducts = [
     name: 'Nike Air Max 270',
     currentPrice: 45000,
     originalPrice: 50000,
-    imageUrl: '/src/assets/images/productImages/nike.jpeg',
+    imageUrl: '/src/assets/images/productImages/2.jpeg',
     discountText: 'Free Socks with purchase',
     profile: { profilePic: '/src/assets/images/profileImage.png', userName: 'Techie Hub' },
     rating: 4.2,
@@ -378,12 +378,12 @@ const dummyProducts = [
       { name: 'Mar', value: 350, Impressions: 150, Visitors: 90, Orders: 60 },
     ],
     detailsPageInfo: {
-      mainImageUrl: '/src/assets/images/productImages/nike.jpeg',
+      mainImageUrl: '/src/assets/images/productImages/2.jpeg',
       productVideo: video,
       thumbnailUrls: [
         video,
-        '/src/assets/images/productImages/nike.jpeg',
-        '/src/assets/images/productImages/nike2.jpeg',
+        '/src/assets/images/productImages/1.jpeg',
+        '/src/assets/images/productImages/2.jpeg',
       ],
       colors: [
         { name: 'Black/White', hex: '#000000' },
@@ -405,7 +405,7 @@ const dummyProducts = [
     name: 'Wooden Kitchen Table',
     currentPrice: 120000,
     originalPrice: 150000,
-    imageUrl: '/src/assets/images/productImages/table.jpeg',
+    imageUrl: '/src/assets/images/productImages/3.jpeg',
     discountText: '10% Off for new customers',
     profile: { profilePic: '/src/assets/images/profileImage.png', userName: 'Sasha Stores' },
     rating: 4.5,
@@ -429,11 +429,11 @@ const dummyProducts = [
       { name: 'Mar', value: 350, Impressions: 150, Visitors: 90, Orders: 60 },
     ],
     detailsPageInfo: {
-      mainImageUrl: '/src/assets/images/productImages/table.jpeg',
+      mainImageUrl: '/src/assets/images/productImages/3.jpeg',
       productVideo: video,
       thumbnailUrls: [
         video,
-        '/src/assets/images/productImages/table.jpeg',
+        '/src/assets/images/productImages/2.jpeg',
       ],
       colors: [
         { name: 'Natural Oak', hex: '#A9A9A9' }
