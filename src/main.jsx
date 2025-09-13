@@ -1,4 +1,4 @@
-// src/main.jsx
+// src/main.jsx (only SWManager changed)
 import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
@@ -10,33 +10,54 @@ import { ToastProvider, useToast } from './components/ui/ToastProvider.jsx';
 import { loadFormData } from './features/auth/registrationSlice.js';
 import { loadFromIndexedDB } from './utils/indexedDB.js';
 
-// Register SW inside a component so we can show toasts
 const SWManager = () => {
   const { push } = useToast();
 
   useEffect(() => {
-    if ('serviceWorker' in navigator && import.meta.env.PROD) {
-      import('virtual:pwa-register')
-        .then(({ registerSW }) => {
-          registerSW({
-            onNeedRefresh() {
-              push('A new version is available. Refresh to update.', { type: 'info', duration: 5000 });
-            },
-            onOfflineReady() {
-              push('App is ready to work offline.', { type: 'success' });
-            },
-          });
-        })
-        .catch((err) => {
-          console.error('SW registration failed:', err);
+    if (!('serviceWorker' in navigator)) return;
+
+    const register = async () => {
+      try {
+        const isDev = import.meta.env.DEV;
+        const swUrl = isDev ? '/dev-sw.js?dev-sw' : '/sw.js';
+        const reg = await navigator.serviceWorker.register(swUrl, {
+          scope: '/',
+          ...(isDev ? { type: 'module' } : {}), // important: dev SW must be module
         });
-    }
+
+        // Show toasts similar to virtual:pwa-register behavior
+        reg.addEventListener('updatefound', () => {
+          const installing = reg.installing;
+          if (!installing) return;
+          installing.addEventListener('statechange', () => {
+            if (installing.state === 'installed') {
+              if (navigator.serviceWorker.controller) {
+                // Updated SW installed, page controlled by old SW
+                push?.('A new version is available. Refresh to update.', { type: 'info', duration: 5000 });
+              } else {
+                // First install: offline ready
+                push?.('App is ready to work offline.', { type: 'success' });
+              }
+            }
+          });
+        });
+
+        if (isDev) {
+          // Optional: quiet message on successful dev registration
+          console.info('[PWA] Dev SW registered as module.');
+        }
+      } catch (err) {
+        console.error('SW registration failed:', err);
+      }
+    };
+
+    register();
   }, [push]);
 
   return null;
 };
 
-// Initialize offline data
+// Initialize offline data (unchanged)
 const OfflineInitializer = ({ children }) => {
   const dispatch = useDispatch();
   const { push } = useToast();
@@ -48,23 +69,10 @@ const OfflineInitializer = ({ children }) => {
         if (storedData) {
           dispatch(loadFormData(storedData));
           push('Recovered your saved form progress.', { type: 'success' });
-        } else {
-          // Not an error — just no data
-          console.info('No saved registration data found in IndexedDB.');
         }
       } catch (error) {
         console.error('Error loading offline registration data:', error);
         push('Could not load saved data. You can continue.', { type: 'error' });
-        // Optional: fallback to localStorage if you still use it
-        try {
-          const backup = localStorage.getItem('registrationForm');
-          if (backup) {
-            dispatch(loadFormData(JSON.parse(backup)));
-            push('Recovered backup form data from localStorage.', { type: 'success' });
-          }
-        } catch {
-          // swallow
-        }
       }
     };
     loadOfflineData();
@@ -73,7 +81,7 @@ const OfflineInitializer = ({ children }) => {
   return children;
 };
 
-// Bootstrap
+// Bootstrap unchanged…
 const root = document.getElementById('root');
 
 ReactDOM.createRoot(root).render(
