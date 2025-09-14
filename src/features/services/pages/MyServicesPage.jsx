@@ -7,7 +7,7 @@ import { useStoreProfile } from '../../../services/queries/storeProfileQuery';
 import { useToast } from '../../../components/ui/ToastProvider';
 import { useServices } from '../../../services/queries/useServiceQuery';
 
-const MyServicesPage = () => {
+const MyServicesPage = ({gridVariant = 'home'}) => {
   const { push } = useToast();
   const { userId, isLoggedIn } = useSelector((state) => state.user);
 
@@ -30,6 +30,11 @@ const MyServicesPage = () => {
   const [activeTab] = useState('services');
   const [showServiceStatModal, setShowServiceStatModal] = useState(false);
   const [selectedServiceStats, setSelectedServiceStats] = useState(null);
+
+   const gridClasses =
+    gridVariant === 'sidebar'
+      ? 'grid items-stretch grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3'
+      : 'grid items-stretch grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
 
   const handleViewServiceStats = (serviceId) => {
     const service = services.find((s) => s.id === serviceId);
@@ -64,7 +69,7 @@ const MyServicesPage = () => {
         services.length === 0 ? (
           <div className="text-center py-16 text-gray-600">You have no services yet.</div>
         ) : (
-          <div className="grid items-stretch grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div  className={gridClasses}>
             {services.map((service) => (
               <ProductDisplayCard
                 key={service.id}
