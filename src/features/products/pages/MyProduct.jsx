@@ -299,7 +299,9 @@ const MyProductsPage = ({ showAddProductButton = true, gridVariant = 'home' }) =
           )}
         </>
       ) : (
-        <MyServicesPage />
+        <MyServicesPage 
+        gridVariant={gridVariant}
+        />
       )}
 
       {/* Modals */}

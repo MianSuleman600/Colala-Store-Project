@@ -16,6 +16,8 @@ import { useToast } from '../../components/ui/ToastProvider';
 const genTempId = (prefix = 'temp') =>
   (globalThis.crypto?.randomUUID?.() || `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
 
+const getChatId = (c) => c?.id || c?._id || c?.conversationId || null;
+
 const ChatPage = () => {
   const { push } = useToast();
   const queryClient = useQueryClient();
@@ -56,9 +58,7 @@ const ChatPage = () => {
     const seen = new Map();
     return chats.map((c, idx) => {
       const base =
-        c.id ||
-        c._id ||
-        c.conversationId ||
+        getChatId(c) ||
         (Array.isArray(c.participants) && c.participants.length
           ? c.participants.slice().sort().join('|')
           : `chat-${idx}`);
@@ -81,14 +81,14 @@ const ChatPage = () => {
 
   // Set initial active chat (desktop)
   useEffect(() => {
-    if (window.innerWidth >= 768 && chatsWithKeys.length > 0 && !activeChatId) {
-      setActiveChatId(chatsWithKeys[0]?.id || chatsWithKeys[0]?._id || chatsWithKeys[0]?.conversationId || null);
+    if (typeof window !== 'undefined' && window.innerWidth >= 768 && chatsWithKeys.length > 0 && !activeChatId) {
+      setActiveChatId(getChatId(chatsWithKeys[0]));
     }
   }, [chatsWithKeys, activeChatId]);
 
   // Active chat
   const activeChat = useMemo(
-    () => chatsWithKeys.find((c) => c.id === activeChatId || c._id === activeChatId || c.conversationId === activeChatId) || null,
+    () => chatsWithKeys.find((c) => getChatId(c) === activeChatId) || null,
     [chatsWithKeys, activeChatId]
   );
 
@@ -103,7 +103,7 @@ const ChatPage = () => {
       if (Array.isArray(oldData?.chats)) return { ...oldData, chats: nextArr };
       const obj = {};
       nextArr.forEach((c) => {
-        const id = c?.id || c?._id || c?.conversationId;
+        const id = getChatId(c);
         if (id) obj[id] = c;
       });
       return { ...oldData, chats: obj };
@@ -123,7 +123,7 @@ const ChatPage = () => {
 
   /** ----------------- Handlers ----------------- **/
   const handleSendMessage = ({ text = '', file = null, cartItems = null, editingMessageId = null }) => {
-    if (!activeChat || !token) return;
+    if (!activeChatId || !token) return;
 
     const tempId = genTempId('msg');
     const tempMessage = {
@@ -144,21 +144,23 @@ const ChatPage = () => {
       isMine: true,
     };
 
+    // optimistic
     updateChatsCache((arr) =>
       arr.map((chatItem) =>
-        (chatItem.id || chatItem._id || chatItem.conversationId) === activeChat.id
+        getChatId(chatItem) === activeChatId
           ? { ...chatItem, messages: [...(chatItem.messages || []), tempMessage] }
           : chatItem
       )
     );
 
+    // network
     sendMessageMutation.mutate(
-      { chatId: activeChat.id, payload: { text, file, cartItems, senderId: userId }, token, editingMessageId },
+      { chatId: activeChatId, payload: { text, file, cartItems, senderId: userId }, token, editingMessageId },
       {
         onSuccess: (serverMessage) => {
           updateChatsCache((arr) =>
             arr.map((chatItem) =>
-              (chatItem.id || chatItem._id || chatItem.conversationId) === activeChat.id
+              getChatId(chatItem) === activeChatId
                 ? {
                     ...chatItem,
                     messages: (chatItem.messages || []).map((msg) =>
@@ -178,11 +180,11 @@ const ChatPage = () => {
   };
 
   const handleEditMessage = (messageId, newText) => {
-    if (!activeChat || !token) return;
+    if (!activeChatId || !token) return;
 
     updateChatsCache((arr) =>
       arr.map((chatItem) =>
-        (chatItem.id || chatItem._id || chatItem.conversationId) === activeChat.id
+        getChatId(chatItem) === activeChatId
           ? {
               ...chatItem,
               messages: (chatItem.messages || []).map((m) => (m.id === messageId ? { ...m, text: newText } : m)),
@@ -192,7 +194,7 @@ const ChatPage = () => {
     );
 
     editMessageMutation.mutate(
-      { chatId: activeChat.id, messageId, payload: { text: newText }, token },
+      { chatId: activeChatId, messageId, payload: { text: newText }, token },
       {
         onError: (err) => {
           push(err?.message || 'Failed to edit message.', { type: 'error' });
@@ -203,13 +205,14 @@ const ChatPage = () => {
   };
 
   const handleDeleteMessage = (messageId) => {
-    if (!activeChat || !token) return;
+    if (!activeChatId || !token) return;
 
-    let prevMessages = activeChat.messages;
+    let prevMessages =
+      activeChat?.messages || [];
 
     updateChatsCache((arr) =>
       arr.map((chatItem) =>
-        (chatItem.id || chatItem._id || chatItem.conversationId) === activeChat.id
+        getChatId(chatItem) === activeChatId
           ? {
               ...chatItem,
               messages: (chatItem.messages || []).filter((m) => m.id !== messageId),
@@ -219,13 +222,13 @@ const ChatPage = () => {
     );
 
     deleteMessageMutation.mutate(
-      { chatId: activeChat.id, messageId, token },
+      { chatId: activeChatId, messageId, token },
       {
         onError: (err) => {
           push(err?.message || 'Failed to delete message.', { type: 'error' });
           updateChatsCache((arr) =>
             arr.map((chatItem) =>
-              (chatItem.id || chatItem._id || chatItem.conversationId) === activeChat.id
+              getChatId(chatItem) === activeChatId
                 ? { ...chatItem, messages: prevMessages }
                 : chatItem
             )
@@ -245,16 +248,19 @@ const ChatPage = () => {
         }`}
       >
         {chatsWithKeys.length ? (
-          chatsWithKeys.map((chat) => (
-            <ChatListItem
-              key={chat.__key}
-              chat={chat}
-              isActive={(chat.id || chat._id || chat.conversationId) === activeChatId}
-              onClick={() => setActiveChatId(chat.id || chat._id || chat.conversationId)}
-              brandColor={brandColor}
-              contrastTextColor={contrastTextColor}
-            />
-          ))
+          chatsWithKeys.map((chat) => {
+            const id = getChatId(chat);
+            return (
+              <ChatListItem
+                key={chat.__key}
+                chat={chat}
+                isActive={id === activeChatId}
+                onClick={() => setActiveChatId(id)}
+                brandColor={brandColor}
+                contrastTextColor={contrastTextColor}
+              />
+            );
+          })
         ) : (
           <div className="text-center text-gray-500 py-8">No chats available</div>
         )}
@@ -262,7 +268,7 @@ const ChatPage = () => {
 
       {/* Chat Conversation */}
       <div
-        className={`flex-1 flex flex-col rounded-2xl bg-gray-100 m-0 md:m-4 shadow-2xl ${
+        className={`flex-1 min-h-0 flex flex-col rounded-2xl bg-gray-100 m-0 md:m-4 shadow-2xl ${
           activeChatId ? 'block' : 'hidden md:block'
         }`}
       >

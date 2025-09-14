@@ -45,7 +45,7 @@ const ProductDisplayCard = ({
 
   const displayPrice = Number(item.discountPrice ?? item.currentPrice ?? item.price ?? 0);
   const originalPrice =
-    item.discountPrice != null ? Number(item.currentPrice ?? item.price ?? 0) : null;
+    item.originalPrice != null ? Number(item.currentPrice ?? item.price ?? 0) : null;
 
   const buildCartItem = (src = {}) => ({
     id: src.id || src._id,
@@ -138,7 +138,7 @@ const ProductDisplayCard = ({
               ₦{Number.isFinite(displayPrice) ? displayPrice.toLocaleString() : '0'}
             </span>
             {originalPrice !== null && (
-              <span className="text-base text-gray-400 line-through">
+              <span className="text-[12px] text-gray-400 line-through">
                 ₦{Number.isFinite(originalPrice) ? originalPrice.toLocaleString() : '0'}
               </span>
             )}

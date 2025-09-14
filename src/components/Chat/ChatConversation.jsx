@@ -1,6 +1,5 @@
-// src/components/Chat/ChatConversation.jsx
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Paperclip, X, SendHorizontal, ShoppingCart, ChevronLeft } from 'lucide-react';
+import { Paperclip, X, SendHorizontal, ShoppingCart, ChevronLeft, ArrowDown } from 'lucide-react';
 import { getContrastTextColor } from '../../utils/colorUtils';
 import CartDropdown from '../common/CartDropdown';
 import ChatMessage from './ChatMessage';
@@ -11,9 +10,10 @@ const ChatConversation = ({
   onDelete,              // (messageId) => void (server delete)
   onSendMessage,         // ({ text, file, cartItems, editingMessageId }) => void
   brandColor = '#2563EB',
+  contrastTextColor,     // optional
   onBack,                // () => void (mobile navigate back to list)
 }) => {
-  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const fileInputRef = useRef(null);
 
   const [messageInput, setMessageInput] = useState('');
@@ -21,6 +21,7 @@ const ChatConversation = ({
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [isCartVisible, setIsCartVisible] = useState(false);
   const [messages, setMessages] = useState(chat?.messages || []);
+  const [atBottom, setAtBottom] = useState(true);
 
   const currentUserPic = '/fallback-profile.png';
   const receiverPic = useMemo(() => chat?.userProfilePic || currentUserPic, [chat?.userProfilePic]);
@@ -32,15 +33,44 @@ const ChatConversation = ({
     setMessages(chat?.messages || []);
   }, [chat?.messages]);
 
-  // Scroll to bottom on new messages
+  // Track whether the user is near the bottom
+  const checkAtBottom = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return true;
+    const threshold = 100; // px
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+  }, []);
+
+  const scrollToBottom = useCallback((behavior = 'auto') => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+  }, []);
+
+  // Auto-scroll: only if user is at (or near) bottom OR if the last message is mine
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    const el = messagesContainerRef.current;
+    if (!el) return;
+
+    const last = messages[messages.length - 1];
+    const lastFromMe = last?.isMine || last?.sender === 'sent' || last?.senderId === userId;
+
+    const userIsAtBottom = checkAtBottom();
+    setAtBottom(userIsAtBottom);
+
+    if (userIsAtBottom || lastFromMe) {
+      scrollToBottom(messages.length > 1 ? 'smooth' : 'auto');
+    }
+  }, [messages, userId, checkAtBottom, scrollToBottom]);
+
+  const handleScroll = useCallback(() => {
+    setAtBottom(checkAtBottom());
+  }, [checkAtBottom]);
 
   const handleSend = useCallback(() => {
     if (!messageInput && !selectedFile) return;
 
-    // optimistic local UI (simple)
+    // local optimistic UI
     const filePayload =
       selectedFile && {
         name: selectedFile.name,
@@ -56,11 +86,12 @@ const ChatConversation = ({
       sender: 'sent',
       createdAt: new Date().toISOString(),
       isMine: true,
+      senderId: userId,
     };
 
     setMessages((prev) => [...prev, newMessage]);
 
-    // Trigger parent send (handles actual network and replacement of temp)
+    // Trigger parent send (network + cache update)
     onSendMessage?.({
       text: messageInput,
       file: selectedFile || null,
@@ -71,14 +102,14 @@ const ChatConversation = ({
     setMessageInput('');
     setSelectedFile(null);
     setEditingMessageId(null);
-  }, [messageInput, selectedFile, editingMessageId, onSendMessage]);
+  }, [messageInput, selectedFile, editingMessageId, onSendMessage, userId]);
 
   const handleFileChange = useCallback((e) => {
     const file = e.target.files?.[0];
     if (file) setSelectedFile(file);
   }, []);
 
-  const handleKeyPress = useCallback(
+  const handleKeyDown = useCallback(
     (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -102,7 +133,7 @@ const ChatConversation = ({
   );
 
   return (
-    <div className="relative flex flex-col h-full">
+    <div className="relative flex flex-col h-full min-h-0">
       {/* Header */}
       <div className="flex items-center p-4 border-b border-gray-200 bg-white flex-shrink-0 rounded-t-lg">
         <div className="flex items-center flex-1">
@@ -164,7 +195,11 @@ const ChatConversation = ({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto scrollbar-custom p-4 space-y-4 bg-white">
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 min-h-0 overflow-y-auto scrollbar-custom p-4 space-y-4 bg-white"
+      >
         {messages.map((msg) => (
           <ChatMessage
             key={msg.id}
@@ -177,8 +212,19 @@ const ChatConversation = ({
             onDelete={handleDeleteMessage}
           />
         ))}
-        <div ref={messagesEndRef} />
       </div>
+
+      {/* Scroll to latest (when user is NOT at bottom) */}
+      {!atBottom && (
+        <button
+          type="button"
+          onClick={() => scrollToBottom('smooth')}
+          className="absolute bottom-24 right-4 bg-gray-900 text-white rounded-full p-2 shadow-md hover:bg-gray-800"
+          aria-label="Jump to latest"
+        >
+          <ArrowDown size={18} />
+        </button>
+      )}
 
       {/* Input */}
       <div className="flex flex-col p-4 border-t border-gray-200 bg-white flex-shrink-0 rounded-b-lg">
@@ -211,7 +257,8 @@ const ChatConversation = ({
             placeholder="Type a message"
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
+            rows={1}
             style={{ width: '100%' }}
           />
           <button
