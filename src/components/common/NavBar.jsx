@@ -1,5 +1,6 @@
+// src/components/NavBar/NavBar.jsx
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { ShoppingCart, Search, Camera, User, Menu, X, Bell, BellOff } from 'lucide-react';
+import { ShoppingCart, Search, Camera, User, Menu, X } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useStoreProfile } from '../../services/queries/storeProfileQuery';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -8,13 +9,6 @@ import CartDropdown from './CartDropdown';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 import { openModal } from '../../redux/modalSlice';
-import { useToast } from '../../components/ui/ToastProvider';
-import {
-  isPushSupported,
-  getCurrentSubscription,
-  subscribeToPush,
-  unsubscribeFromPush,
-} from '../../utils/pushNotifications';
 
 const linkPaths = {
   Home: '/',
@@ -33,16 +27,10 @@ function NavBar({ onSearchChange, onSearchSubmit, onCameraClick, onAccountClick 
   const userIdForCart = userId ?? 'guest';
   const navigate = useNavigate();
   const location = useLocation();
-  const { push } = useToast();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
-
-  // Push notifications state
-  const [pushSupported, setPushSupported] = useState(true);
-  const [pushSubscribed, setPushSubscribed] = useState(false);
-  const [pushLoading, setPushLoading] = useState(false);
 
   // Cart selectors
   const selectMemoizedCartItems = useMemo(
@@ -65,45 +53,6 @@ function NavBar({ onSearchChange, onSearchSubmit, onCameraClick, onAccountClick 
   const storeProfile = isLoggedIn ? storeProfileData || {} : guestProfile;
   const brandColor = storeProfile?.brandColor || '#EF4444';
   const contrastTextColor = '#fff';
-
-  // Initialize push supported + current subscription
-  useEffect(() => {
-    (async () => {
-      try {
-        const supported = await isPushSupported();
-        setPushSupported(supported);
-        if (!supported) return;
-        const sub = await getCurrentSubscription();
-        setPushSubscribed(!!sub);
-      } catch {
-        setPushSupported(false);
-      }
-    })();
-  }, []);
-
-  const handleToggleNotifications = async () => {
-    if (!pushSupported) {
-      push('Notifications are not supported on this browser.', { type: 'warning' });
-      return;
-    }
-    try {
-      setPushLoading(true);
-      if (pushSubscribed) {
-        await unsubscribeFromPush();
-        setPushSubscribed(false);
-        push('Notifications disabled.', { type: 'success' });
-      } else {
-        await subscribeToPush();
-        setPushSubscribed(true);
-        push('Notifications enabled.', { type: 'success' });
-      }
-    } catch (e) {
-      console.error(e);
-      push(e?.message || 'Unable to update notification subscription.', { type: 'error' });
-    } finally {
-      setPushLoading(false);
-    }
-  };
 
   // Handlers
   const handleSearchChangeInternal = useCallback(
@@ -211,22 +160,6 @@ function NavBar({ onSearchChange, onSearchSubmit, onCameraClick, onAccountClick 
 
           {/* Right group (Desktop) */}
           <div className="hidden sm:flex items-center justify-end gap-6 w-auto flex-shrink-0 relative">
-            {/* Notifications Button (Desktop) */}
-            {pushSupported && (
-              <button
-                className="flex items-center gap-2 cursor-pointer disabled:opacity-60"
-                onClick={handleToggleNotifications}
-                disabled={pushLoading}
-                aria-label={pushSubscribed ? 'Disable notifications' : 'Enable notifications'}
-                title={pushSubscribed ? 'Disable notifications' : 'Enable notifications'}
-              >
-                {pushSubscribed ? <Bell size={24} /> : <BellOff size={24} />}
-                <span className="hidden lg:inline">
-                  {pushLoading ? 'Please wait...' : pushSubscribed ? 'Notifications On' : 'Enable Notifications'}
-                </span>
-              </button>
-            )}
-
             {!isLoggedIn ? (
               <button
                 className="flex items-center gap-2 cursor-pointer"
@@ -293,19 +226,6 @@ function NavBar({ onSearchChange, onSearchSubmit, onCameraClick, onAccountClick 
 
           {/* Right icons (Mobile) */}
           <div className="flex sm:hidden items-center gap-3 ml-auto">
-            {/* Notifications (Mobile) */}
-            {pushSupported && (
-              <button
-                aria-label={pushSubscribed ? 'Disable notifications' : 'Enable notifications'}
-                title={pushSubscribed ? 'Disable notifications' : 'Enable notifications'}
-                onClick={handleToggleNotifications}
-                disabled={pushLoading}
-                className="p-1 disabled:opacity-60"
-              >
-                {pushSubscribed ? <Bell size={24} /> : <BellOff size={24} />}
-              </button>
-            )}
-
             {!isLoggedIn ? (
               <button
                 aria-label="Sign in or Register"

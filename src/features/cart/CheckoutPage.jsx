@@ -1,5 +1,5 @@
 // src/pages/CheckoutPage.jsx
-import React, { useMemo } from "react";
+import React, { useMemo, useReducer } from "react";
 import { useSelector } from "react-redux";
 import { createSelector } from "reselect";
 import { Link, useNavigate } from "react-router-dom";
@@ -12,7 +12,12 @@ import { selectCartItemsByUser } from "../../features/cart/cartSlice";
 const makeSelectTotalCostByUser = (userId) =>
   createSelector([selectCartItemsByUser(userId)], (items) =>
     Array.isArray(items)
-      ? items.reduce((total, item) => total + (parseFloat(item.price) || 0) * (parseFloat(item.quantity) || 0), 0)
+      ? items.reduce(
+        (total, item) =>
+          total +
+          (parseFloat(item.price) || 0) * (parseFloat(item.quantity) || 0),
+        0
+      )
       : 0
   );
 
@@ -27,11 +32,42 @@ const formatPrice = (price) => {
   });
 };
 
+// ----- Form Reducer -----
+const initialForm = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  address: "",
+  city: "",
+  state: "",
+  zip: "",
+  errors: {},
+};
+
+function formReducer(state, action) {
+  switch (action.type) {
+    case "SET_FIELD":
+      return { ...state, [action.field]: action.value };
+    case "SET_ERROR":
+      return {
+        ...state,
+        errors: { ...state.errors, [action.field]: action.error },
+      };
+    case "RESET":
+      return initialForm;
+    default:
+      return state;
+  }
+}
+
 export default function CheckoutPage({ userId = "default_user_id" }) {
   const navigate = useNavigate();
 
   // Memoized selector
-  const totalCostSelector = useMemo(() => makeSelectTotalCostByUser(userId), [userId]);
+  const totalCostSelector = useMemo(
+    () => makeSelectTotalCostByUser(userId),
+    [userId]
+  );
 
   // Per-user cart
   const cartItems = useSelector(selectCartItemsByUser(userId));
@@ -40,30 +76,66 @@ export default function CheckoutPage({ userId = "default_user_id" }) {
   // Fetch store profile for dynamic branding
   const { data: storeProfile, error, isLoading } = useStoreProfile(userId);
 
-  if (isLoading) return <div className="p-8 text-center text-gray-600">Loading...</div>;
-  if (error) return <div className="p-8 text-center text-red-600">Error: {error.message}</div>;
+  // Form State with useReducer
+  const [formState, dispatch] = useReducer(formReducer, initialForm);
 
-  const brandColor = storeProfile?.brandColor || "#EF4444";
-  const contrastTextColor = getContrastTextColor(brandColor);
+  const handleChange = (e) => {
+    dispatch({
+      type: "SET_FIELD",
+      field: e.target.name,
+      value: e.target.value,
+    });
+  };
 
   const handlePlaceOrder = (e) => {
     e.preventDefault();
-    // TODO: Validate form, process payment, clear cart, navigate to confirmation
-    console.log("Placing order for user:", userId);
+
+    // Simple Validation
+    if (!formState.email.includes("@")) {
+      dispatch({
+        type: "SET_ERROR",
+        field: "email",
+        error: "Invalid email address",
+      });
+      return;
+    }
+
+    console.log("Placing order for user:", userId, formState);
+
+    // TODO: API call to place order
+    dispatch({ type: "RESET" });
     // navigate("/order-confirmation");
   };
+
+  if (isLoading)
+    return <div className="p-8 text-center text-gray-600">Loading...</div>;
+  if (error)
+    return (
+      <div className="p-8 text-center text-red-600">
+        Error: {error.message}
+      </div>
+    );
+
+  const brandColor = storeProfile?.brandColor || "#EF4444";
+  const contrastTextColor = getContrastTextColor(brandColor);
 
   return (
     <div className="container mx-auto p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center mb-6">
-          <Link to="/" className="hover:text-gray-800 transition" style={{ color: brandColor }}>
+          <Link
+            to="/"
+            className="hover:text-gray-800 transition"
+            style={{ color: brandColor }}
+          >
             <ArrowLeftIcon className="h-5 w-5 inline-block mr-2" />
             Back to shopping
           </Link>
         </div>
 
-        <h2 className="text-3xl font-bold text-gray-800 mb-8 text-center">Checkout</h2>
+        <h2 className="text-3xl font-bold text-gray-800 mb-8 text-center">
+          Checkout
+        </h2>
 
         {cartItems.length === 0 ? (
           <div className="text-center text-gray-500">
@@ -79,26 +151,39 @@ export default function CheckoutPage({ userId = "default_user_id" }) {
               <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
               <div className="space-y-4">
                 {cartItems.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between">
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between"
+                  >
                     <div className="flex items-center space-x-3">
                       {item.image && (
-                        <img src={item.image} alt={item.name} className="w-12 h-12 object-cover rounded" />
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-12 h-12 object-cover rounded"
+                        />
                       )}
                       <div>
-                        <h3 className="font-medium text-gray-800">{item.name}</h3>
+                        <h3 className="font-medium text-gray-800">
+                          {item.name}
+                        </h3>
                         <p className="text-sm text-gray-500">
                           {item.quantity} × {formatPrice(item.price)}
                         </p>
                       </div>
                     </div>
-                    <span className="font-bold text-gray-800">{formatPrice(item.price * item.quantity)}</span>
+                    <span className="font-bold text-gray-800">
+                      {formatPrice(item.price * item.quantity)}
+                    </span>
                   </div>
                 ))}
               </div>
               <div className="border-t mt-4 pt-4">
                 <div className="flex justify-between items-center text-xl font-bold">
                   <span>Total:</span>
-                  <span style={{ color: brandColor }}>{formatPrice(totalCost)}</span>
+                  <span style={{ color: brandColor }}>
+                    {formatPrice(totalCost)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -109,25 +194,35 @@ export default function CheckoutPage({ userId = "default_user_id" }) {
               <form onSubmit={handlePlaceOrder}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor="firstName"
+                      className="block text-sm font-medium text-gray-700"
+                    >
                       First Name
                     </label>
                     <input
                       type="text"
                       id="firstName"
                       name="firstName"
+                      value={formState.firstName}
+                      onChange={handleChange}
                       required
                       className="mt-1 p-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                     />
                   </div>
                   <div>
-                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor="lastName"
+                      className="block text-sm font-medium text-gray-700"
+                    >
                       Last Name
                     </label>
                     <input
                       type="text"
                       id="lastName"
                       name="lastName"
+                      value={formState.lastName}
+                      onChange={handleChange}
                       required
                       className="mt-1 p-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                     />
@@ -135,26 +230,42 @@ export default function CheckoutPage({ userId = "default_user_id" }) {
                 </div>
 
                 <div className="mt-4">
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-gray-700"
+                  >
                     Email
                   </label>
                   <input
                     type="email"
                     id="email"
                     name="email"
+                    value={formState.email}
+                    onChange={handleChange}
                     required
-                    className="mt-1 block w-full p-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    className={`mt-1 block w-full p-1 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${formState.errors.email ? "border-red-500" : "border-gray-300"
+                      }`}
                   />
+                  {formState.errors.email && (
+                    <p className="text-red-500 text-sm">
+                      {formState.errors.email}
+                    </p>
+                  )}
                 </div>
 
                 <div className="mt-4">
-                  <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="address"
+                    className="block text-sm font-medium text-gray-700"
+                  >
                     Address
                   </label>
                   <input
                     type="text"
                     id="address"
                     name="address"
+                    value={formState.address}
+                    onChange={handleChange}
                     required
                     className="mt-1 p-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                   />
@@ -162,44 +273,61 @@ export default function CheckoutPage({ userId = "default_user_id" }) {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                   <div>
-                    <label htmlFor="city" className="block text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor="city"
+                      className="block text-sm font-medium text-gray-700"
+                    >
                       City
                     </label>
                     <input
                       type="text"
                       id="city"
                       name="city"
+                      value={formState.city}
+                      onChange={handleChange}
                       required
                       className="mt-1 p-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                     />
                   </div>
                   <div>
-                    <label htmlFor="state" className="block text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor="state"
+                      className="block text-sm font-medium text-gray-700"
+                    >
                       State
                     </label>
                     <input
                       type="text"
                       id="state"
                       name="state"
+                      value={formState.state}
+                      onChange={handleChange}
                       required
                       className="mt-1 p-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                     />
                   </div>
                   <div>
-                    <label htmlFor="zip" className="block text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor="zip"
+                      className="block text-sm font-medium text-gray-700"
+                    >
                       ZIP
                     </label>
                     <input
                       type="text"
                       id="zip"
                       name="zip"
+                      value={formState.zip}
+                      onChange={handleChange}
                       required
                       className="mt-1 p-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                     />
                   </div>
                 </div>
 
-                <h2 className="text-xl font-semibold mt-8 mb-4">Payment Information</h2>
+                <h2 className="text-xl font-semibold mt-8 mb-4">
+                  Payment Information
+                </h2>
                 <div className="bg-gray-100 p-4 rounded-md text-gray-500">
                   <p>Payment form integration (e.g., Stripe, PayPal) would go here.</p>
                 </div>
@@ -208,7 +336,10 @@ export default function CheckoutPage({ userId = "default_user_id" }) {
                   <button
                     type="submit"
                     className="w-full py-3 px-4 font-semibold rounded-md transition"
-                    style={{ backgroundColor: brandColor, color: contrastTextColor }}
+                    style={{
+                      backgroundColor: brandColor,
+                      color: contrastTextColor,
+                    }}
                   >
                     Place Order
                   </button>

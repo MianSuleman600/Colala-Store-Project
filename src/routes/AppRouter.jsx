@@ -8,6 +8,7 @@ import NavBar from '../components/common/NavBar';
 import ProtectedRoute from './ProtectedRoute';
 import AuthModal from '../components/models/AuthModal.jsx';
 import { openModal, closeModal, switchMode } from '../redux/modalSlice.js';
+import NotificationPermissionPrompt from '../components/common/NotificationPermissionPrompt.jsx';
 
 // Lazy-loaded pages
 const HomePage = lazy(() => import('../pages/Home'));
@@ -61,6 +62,8 @@ const MainLayout = () => {
         onLoginClick={() => dispatch(openModal('login'))}
         onRegisterClick={() => dispatch(openModal('register'))}
       />
+    
+      <NotificationPermissionPrompt delayMs={10000} debugForceShow={false} debugLog />
 
       <main className="flex-grow p-4 md:p-8">
         <Suspense fallback={<div className="text-center py-10">Loading...</div>}>

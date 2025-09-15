@@ -10,23 +10,45 @@ function urlBase64ToUint8Array(base64String) {
   return output;
 }
 
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
 export async function getSWRegistration() {
   if (!('serviceWorker' in navigator)) return null;
+
+  // 1) Use existing registration if present
+  const existing = await navigator.serviceWorker.getRegistration();
+  if (existing) return existing;
+
+  // 2) Wait up to 3s for .ready (in case SW is activating)
   try {
-    return await navigator.serviceWorker.ready;
+    const reg = await Promise.race([
+      navigator.serviceWorker.ready,
+      wait(3000).then(() => null),
+    ]);
+    return reg || null;
   } catch {
     return null;
   }
 }
 
 export async function isPushSupported() {
-  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  // Note: localhost and 127.0.0.1 are treated as secure by Chrome.
+  return (
+    typeof window !== 'undefined' &&
+    'serviceWorker' in navigator &&
+    'PushManager' in window &&
+    'Notification' in window
+  );
 }
 
 export async function getCurrentSubscription() {
   const reg = await getSWRegistration();
   if (!reg) return null;
-  return reg.pushManager.getSubscription();
+  try {
+    return await reg.pushManager.getSubscription();
+  } catch {
+    return null;
+  }
 }
 
 export async function requestNotificationPermission() {
@@ -37,23 +59,30 @@ export async function requestNotificationPermission() {
 }
 
 export async function subscribeToPush() {
-  if (!(await isPushSupported())) throw new Error('Push not supported.');
-  const permission = await requestNotificationPermission();
-  if (permission !== 'granted') throw new Error('Notifications permission denied.');
-
-  const reg = await getSWRegistration();
-  if (!reg) throw new Error('Service Worker not ready.');
+  if (!(await isPushSupported())) {
+    throw new Error('Push not supported on this browser or context.');
+  }
 
   if (!VAPID_PUBLIC_KEY) {
-    console.warn('VITE_VAPID_PUBLIC_KEY is not set. Subscription will be created but your server must match the same key to send pushes.');
+    throw new Error('VAPID public key is missing. Set VITE_VAPID_PUBLIC_KEY.');
+  }
+
+  const permission = await requestNotificationPermission();
+  if (permission !== 'granted') {
+    throw new Error('Notifications permission denied.');
+  }
+
+  const reg = await getSWRegistration();
+  if (!reg) {
+    throw new Error('Service Worker not ready. Please reload and try again.');
   }
 
   const sub = await reg.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: VAPID_PUBLIC_KEY ? urlBase64ToUint8Array(VAPID_PUBLIC_KEY) : undefined,
+    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
   });
 
-  // TODO: send `sub` to your API to store it
+  // TODO: send `sub` to your API
   localStorage.setItem('pushSubscription', JSON.stringify(sub)); // temporary
   return sub;
 }
@@ -63,7 +92,7 @@ export async function unsubscribeFromPush() {
   if (existing) {
     await existing.unsubscribe();
     localStorage.removeItem('pushSubscription');
-    // TODO: also inform your API to remove subscription
+    // TODO: inform your API
     return true;
   }
   return false;

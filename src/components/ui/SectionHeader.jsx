@@ -11,7 +11,7 @@ import React from 'react';
  */
 const SectionHeader = ({ title, className = '' }) => {
     return (
-        <h2 className={`text-xl font-bold text-gray-800 mb-4 ${className}`}>
+        <h2 className={`text-xl font-bold text-gray-800 mb-4 ₦{className}`}>
             {title}
         </h2>
     );
