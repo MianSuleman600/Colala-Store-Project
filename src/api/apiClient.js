@@ -10,10 +10,10 @@ const safeStorage = {
     try { return typeof localStorage !== 'undefined' ? localStorage.getItem(k) : null; } catch { return null; }
   },
   set: (k, v) => {
-    try { if (typeof localStorage !== 'undefined') localStorage.setItem(k, v); } catch {}
+    try { if (typeof localStorage !== 'undefined') localStorage.setItem(k, v); } catch { }
   },
   remove: (k) => {
-    try { if (typeof localStorage !== 'undefined') localStorage.removeItem(k); } catch {}
+    try { if (typeof localStorage !== 'undefined') localStorage.removeItem(k); } catch { }
   },
 };
 

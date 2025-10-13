@@ -18,7 +18,7 @@ const rawBase =
   viteEnv.VITE_API_BASE_URL ||
   nodeEnv.VITE_API_BASE_URL ||
   runtimeBase ||
-  'http://localhost';
+  'https://colala.hmstech.xyz/api';
 
 // Normalize URLs
 const stripTrailingSlashes = (s) => (s ? String(s).replace(/\/+$/, '') : '');
