@@ -6,6 +6,7 @@ import userReducer from "../features/auth/userSlice";
 import cartReducer from "../features/cart/cartSlice";
 import likesReducer from "../features/feed/pages/likesSlice"; // ✅ Likes slice
 import modalReducer from './modalSlice';
+import { authMiddleware } from './authMiddleware';
 
 export const store = configureStore({
   reducer: {
@@ -23,5 +24,5 @@ export const store = configureStore({
         ignoredPaths: ["registration.formData"],
         ignoredActions: ["registration/updateField"],
       },
-    }),
+    }).concat(authMiddleware),
 });

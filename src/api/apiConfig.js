@@ -138,7 +138,7 @@ export const ENDPOINTS = {
     },
   },
 
-  
+
 
   STORE_ANALYTICS: u('/seller/analytics'),
 

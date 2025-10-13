@@ -1,20 +1,20 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { ShoppingCart, Search, Camera, User, Menu, X } from 'lucide-react';
-import { useSelector, useDispatch, shallowEqual } from 'react-redux';
-import { useNavigate, useLocation } from 'react-router-dom';
-import Skeleton from 'react-loading-skeleton';
-import 'react-loading-skeleton/dist/skeleton.css';
+import React, { useState, useMemo, useCallback, useEffect } from "react";
+import { ShoppingCart, Search, Camera, User, Menu, X } from "lucide-react";
+import { useSelector, useDispatch, shallowEqual } from "react-redux";
+import { useNavigate, useLocation } from "react-router-dom";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
-import { openModal } from '../../redux/modalSlice';
-import { selectCartItemsByUser } from '../../features/cart/cartSlice';
-import CartDropdown from './CartDropdown';
+import { openModal } from "../../redux/modalSlice";
+import { selectCartItemsByUser } from "../../features/cart/cartSlice";
+import CartDropdown from "./CartDropdown";
 
 const linkPaths = {
-  Home: '/',
-  Feed: '/feed',
-  Chat: '/chat',
-  Orders: '/orders',
-  Settings: '/settings',
+  Home: "/",
+  Feed: "/feed",
+  Chat: "/chat",
+  Orders: "/orders",
+  Settings: "/settings",
 };
 
 const getActiveNavLinkFromPath = (pathname) =>
@@ -26,27 +26,36 @@ function NavBar({ onCameraClick }) {
   const location = useLocation();
 
   const { isAuthenticated, user, status } = useSelector((state) => state.auth);
-  const userIdForCart = user?.id ?? 'guest';
+  const userIdForCart = user?.id ?? "guest";
 
   // Use URL search params to keep search term in sync
-  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
-  
+  const searchParams = useMemo(
+    () => new URLSearchParams(location.search),
+    [location.search]
+  );
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   // Update search term if the URL changes (e.g., browser back/forward)
   useEffect(() => {
-    setSearchTerm(searchParams.get('q') || '');
+    setSearchTerm(searchParams.get("q") || "");
   }, [searchParams]);
 
-  const selectMemoizedCartItems = useMemo(() => selectCartItemsByUser(userIdForCart), [userIdForCart]);
+  const selectMemoizedCartItems = useMemo(
+    () => selectCartItemsByUser(userIdForCart),
+    [userIdForCart]
+  );
   const cartItems = useSelector(selectMemoizedCartItems, shallowEqual);
-  
-  const totalItems = useMemo(() => cartItems.reduce((t, item) => t + (item.quantity || 0), 0), [cartItems]);
 
-  const brandColor = user?.store?.theme_color || '#EF4444';
-  const contrastTextColor = '#fff';
+  const totalItems = useMemo(
+    () => cartItems.reduce((t, item) => t + (item.quantity || 0), 0),
+    [cartItems]
+  );
+
+  const brandColor = user?.store?.theme_color || "#EF4444";
+  const contrastTextColor = "#fff";
 
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
@@ -54,23 +63,42 @@ function NavBar({ onCameraClick }) {
 
   const handleSearchSubmit = () => {
     if (searchTerm.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchTerm.trim())}&type=product`);
+      navigate(
+        `/search?q=${encodeURIComponent(searchTerm.trim())}&type=product`
+      );
     }
   };
 
   const handleSearchKeyDown = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handleSearchSubmit();
     }
   };
 
-  const handleNavLinkClick = useCallback((k) => {
-    navigate(linkPaths[k] || '/');
-    setMobileMenuOpen(false);
-  }, [navigate]);
-  
+  const handleNavLinkClick = useCallback(
+    (k) => {
+      // Check if the route requires authentication
+      const protectedRoutes = ["Feed", "Chat", "Orders", "Settings"];
+
+      if (protectedRoutes.includes(k) && !isAuthenticated) {
+        // Open login modal for protected routes when not authenticated
+        dispatch(openModal("login"));
+        setMobileMenuOpen(false);
+        return;
+      }
+
+      navigate(linkPaths[k] || "/");
+      setMobileMenuOpen(false);
+    },
+    [navigate, isAuthenticated, dispatch]
+  );
+
   const handleAccountClick = () => {
-    navigate('/settings');
+    if (!isAuthenticated) {
+      dispatch(openModal("login"));
+    } else {
+      navigate("/settings");
+    }
   };
 
   const handleCartToggle = () => setIsCartOpen((prev) => !prev);
@@ -81,9 +109,15 @@ function NavBar({ onCameraClick }) {
     setIsCartOpen(false);
   }, [location.pathname]);
 
-  const displayedStoreName = isAuthenticated
-    ? (status === 'loading' ? <Skeleton width={80} baseColor="#ffffff50" highlightColor="#ffffff80" /> : user?.full_name || 'My Store')
-    : 'Guest';
+  const displayedStoreName = isAuthenticated ? (
+    status === "loading" ? (
+      <Skeleton width={80} baseColor="#ffffff50" highlightColor="#ffffff80" />
+    ) : (
+      user?.full_name || "My Store"
+    )
+  ) : (
+    "Guest"
+  );
 
   return (
     <div className="w-full sticky top-0 z-50">
@@ -94,36 +128,72 @@ function NavBar({ onCameraClick }) {
         >
           <div className="flex sm:hidden items-center">
             {mobileMenuOpen ? (
-              <X size={28} className="cursor-pointer" onClick={() => setMobileMenuOpen(false)} />
+              <X
+                size={28}
+                className="cursor-pointer"
+                onClick={() => setMobileMenuOpen(false)}
+              />
             ) : (
-              <Menu size={28} className="cursor-pointer" onClick={() => setMobileMenuOpen(true)} />
+              <Menu
+                size={28}
+                className="cursor-pointer"
+                onClick={() => setMobileMenuOpen(true)}
+              />
             )}
           </div>
-          <div className="flex-shrink-0 flex items-center justify-start w-[120px] sm:w-[150px] h-[40px] sm:h-[50px]">
-            <img src="/logo.png" onClick={() => navigate('/')} alt="Logo" className="w-full h-full object-contain cursor-pointer" />
+          <div className="flex-shrink-0 flex items-center justify-start w-[120px] sm:w-[150px] h-[40px] sm:h-[50px] ms-[102px]">
+            <img
+              src="/logo.png"
+              onClick={() => navigate("/")}
+              alt="Logo"
+              className="w-full h-full object-contain cursor-pointer"
+            />
           </div>
           <div className="hidden sm:block flex-grow mx-2 sm:mx-4 max-w-lg">
-            <div className="relative flex items-center w-full">
-              <button onClick={handleSearchSubmit} className="absolute left-3 text-gray-500" aria-label="Search">
+            <div className="relative flex items-center w-[650px] ms-[-200px]">
+              <button
+                onClick={handleSearchSubmit}
+                className="absolute left-3 text-gray-500"
+                aria-label="Search"
+              >
                 <Search size={20} />
               </button>
-              <input type="text" placeholder="Search products, shop or category" className="w-full py-2.5 pl-10 pr-10 rounded-lg bg-white text-gray-800" value={searchTerm} onChange={handleSearchChange} onKeyDown={handleSearchKeyDown} />
-              <button className="absolute right-3 text-gray-500 cursor-pointer" onClick={onCameraClick} aria-label="Search by image">
+              <input
+                type="text"
+                placeholder="Search products, shop or category"
+                className="w-full py-2.5 pl-10 pr-10 rounded-lg bg-white text-gray-800"
+                value={searchTerm}
+                onChange={handleSearchChange}
+                onKeyDown={handleSearchKeyDown}
+              />
+              <button
+                className="absolute right-3 text-gray-500 cursor-pointer"
+                onClick={onCameraClick}
+                aria-label="Search by image"
+              >
                 <Camera size={24} />
               </button>
             </div>
           </div>
           <div className="hidden sm:flex items-center justify-end gap-6 w-auto flex-shrink-0 relative">
             {!isAuthenticated ? (
-              <button className="flex items-center gap-2 cursor-pointer" onClick={() => dispatch(openModal('login'))}>
+              <button
+                className="flex items-center gap-2 cursor-pointer"
+                onClick={() => dispatch(openModal("login"))}
+              >
                 <User size={28} />
                 <div className="flex flex-col items-start text-white">
                   <span className="text-xs">Welcome</span>
-                  <span className="font-bold leading-tight">Sign In/Register</span>
+                  <span className="font-bold leading-tight">
+                    Sign In/Register
+                  </span>
                 </div>
               </button>
             ) : (
-              <button className="flex items-center gap-2 cursor-pointer" onClick={handleAccountClick}>
+              <button
+                className="flex items-center gap-2 cursor-pointer"
+                onClick={handleAccountClick}
+              >
                 <User size={28} />
                 <div className="flex flex-col items-start">
                   <span className="text-xs">Hi, {displayedStoreName}</span>
@@ -132,74 +202,181 @@ function NavBar({ onCameraClick }) {
               </button>
             )}
             <div className="relative flex items-center">
-              <button className="relative cursor-pointer p-2" onClick={handleCartToggle}>
+              <button
+                className="relative cursor-pointer p-2"
+                onClick={handleCartToggle}
+              >
                 <ShoppingCart size={28} />
-                {totalItems > 0 && <span className="absolute top-0 right-0 bg-white text-red-500 text-xs rounded-full px-1.5 py-0.5">{totalItems}</span>}
+                {totalItems > 0 && (
+                  <span className="absolute top-0 right-0 bg-white text-red-500 text-xs rounded-full px-1.5 py-0.5">
+                    {totalItems}
+                  </span>
+                )}
               </button>
-              {isCartOpen && <div className="hidden sm:block fixed inset-0 z-40" onClick={handleCartClose} />}
-              {isCartOpen && <div className="hidden sm:block absolute right-0 top-full mt-2 z-50"><CartDropdown onClose={handleCartClose} brandColor={brandColor} contrastTextColor={contrastTextColor} userId={userIdForCart} /></div>}
+              {isCartOpen && (
+                <div
+                  className="hidden sm:block fixed inset-0 z-40"
+                  onClick={handleCartClose}
+                />
+              )}
+              {isCartOpen && (
+                <div className="hidden sm:block absolute right-0 top-full mt-2 z-50">
+                  <CartDropdown
+                    onClose={handleCartClose}
+                    brandColor={brandColor}
+                    contrastTextColor={contrastTextColor}
+                    userId={userIdForCart}
+                  />
+                </div>
+              )}
             </div>
           </div>
           <div className="flex sm:hidden items-center gap-3 ml-auto">
             {!isAuthenticated ? (
-              <button onClick={() => dispatch(openModal('login'))} className="p-1"><User size={24} /></button>
+              <button
+                onClick={() => dispatch(openModal("login"))}
+                className="p-1"
+              >
+                <User size={24} />
+              </button>
             ) : (
-              <button onClick={handleAccountClick} className="p-1"><User size={24} /></button>
+              <button onClick={handleAccountClick} className="p-1">
+                <User size={24} />
+              </button>
             )}
             <button className="relative p-1" onClick={handleCartToggle}>
               <ShoppingCart size={24} />
-              {totalItems > 0 && <span className="absolute -top-1 -right-2 bg-white text-red-500 text-[10px] rounded-full px-1 py-0.5">{totalItems}</span>}
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-2 bg-white text-red-500 text-[10px] rounded-full px-1 py-0.5">
+                  {totalItems}
+                </span>
+              )}
             </button>
           </div>
         </div>
-        <div className="sm:hidden px-4 pt-2 pb-3 rounded-b-2xl" style={{ backgroundColor: brandColor }}>
+        <div
+          className="sm:hidden px-4 pt-2 pb-3 rounded-b-2xl"
+          style={{ backgroundColor: brandColor }}
+        >
           <div className="relative flex items-center w-full">
-             <button onClick={handleSearchSubmit} className="absolute left-3 text-gray-700" aria-label="Search">
-                <Search size={18} />
-              </button>
-            <input type="text" placeholder="Search products..." className="w-full py-2 pl-9 pr-9 rounded-lg bg-white text-gray-800" value={searchTerm} onChange={handleSearchChange} onKeyDown={handleSearchKeyDown} />
-            <button className="absolute right-3 text-gray-700 cursor-pointer" onClick={onCameraClick} aria-label="Search by image">
-                <Camera size={20} />
+            <button
+              onClick={handleSearchSubmit}
+              className="absolute left-3 text-gray-700"
+              aria-label="Search"
+            >
+              <Search size={18} />
+            </button>
+            <input
+              type="text"
+              placeholder="Search products..."
+              className="w-full py-2 pl-9 pr-9 rounded-lg bg-white text-gray-800"
+              value={searchTerm}
+              onChange={handleSearchChange}
+              onKeyDown={handleSearchKeyDown}
+            />
+            <button
+              className="absolute right-3 text-gray-700 cursor-pointer"
+              onClick={onCameraClick}
+              aria-label="Search by image"
+            >
+              <Camera size={20} />
             </button>
           </div>
           {isAuthenticated && (
             <div className="mt-2 text-center">
-              <span className="text-lg font-bold" style={{ color: contrastTextColor, fontFamily: 'Oleo Script' }}>{displayedStoreName}</span>
+              <span
+                className="text-lg font-bold"
+                style={{ color: contrastTextColor, fontFamily: "Oleo Script" }}
+              >
+                {displayedStoreName}
+              </span>
             </div>
           )}
         </div>
-        <div className="hidden sm:flex w-full h-[70px] rounded-b-2xl items-center justify-start px-4 lg:px-8" style={{ backgroundColor: brandColor, color: contrastTextColor }}>
+        <div
+          className="hidden sm:flex w-full h-[70px] rounded-b-2xl items-center justify-start px-4 lg:px-8"
+          style={{ backgroundColor: brandColor, color: contrastTextColor }}
+        >
           {isAuthenticated && (
-            <div className="text-2xl sm:text-3xl font-bold mr-6" style={{ fontFamily: 'Oleo Script' }}>{displayedStoreName}</div>
+            <div
+              className="text-2xl sm:text-3xl font-bold mr-6 ms-[125px]"
+              style={{ fontFamily: "Oleo Script" }}
+            >
+              {displayedStoreName}
+            </div>
           )}
-          <div className="flex flex-grow justify-center gap-10 text-base">
+          <div className="flex flex-grow justify-center gap-24 text-base me-[450px]">
             {Object.keys(linkPaths).map((link) => (
-              <button key={link} className="flex flex-col items-center cursor-pointer group" onClick={() => handleNavLinkClick(link)}>
+              <button
+                key={link}
+                className="flex flex-col items-center cursor-pointer group"
+                onClick={() => handleNavLinkClick(link)}
+              >
                 <span>{link}</span>
-                <div className={`h-1 mt-1 bg-white transition-transform ${getActiveNavLinkFromPath(location.pathname) === link ? 'scale-x-100' : 'scale-x-0'} group-hover:scale-x-100 w-8 rounded-full`} />
+                <div
+                  className={`h-1 mt-1 bg-white transition-transform ${
+                    getActiveNavLinkFromPath(location.pathname) === link
+                      ? "scale-x-100"
+                      : "scale-x-0"
+                  } group-hover:scale-x-100 w-8 rounded-full`}
+                />
               </button>
             ))}
           </div>
         </div>
         {mobileMenuOpen && (
           <div className="sm:hidden relative">
-            <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setMobileMenuOpen(false)} />
+            <div
+              className="fixed inset-0 bg-black/40 z-40"
+              onClick={() => setMobileMenuOpen(false)}
+            />
             <div className="fixed top-[64px] left-0 right-0 z-50 bg-white rounded-b-2xl shadow-lg overflow-hidden">
               <div className="grid grid-cols-2 gap-2 p-4">
                 {Object.keys(linkPaths).map((link) => (
-                  <button key={link} className="py-3 px-4 rounded-lg bg-gray-100 font-medium" onClick={() => handleNavLinkClick(link)}>{link}</button>
+                  <button
+                    key={link}
+                    className="py-3 px-4 rounded-lg bg-gray-100 font-medium"
+                    onClick={() => handleNavLinkClick(link)}
+                  >
+                    {link}
+                  </button>
                 ))}
                 {!isAuthenticated ? (
                   <>
-                    <button className="py-3 px-4 rounded-lg bg-red-500 text-white font-semibold" onClick={() => { setMobileMenuOpen(false); dispatch(openModal('login')); }}>Sign In</button>
-                    <button className="py-3 px-4 rounded-lg bg-white border font-semibold text-red-500" onClick={() => { setMobileMenuOpen(false); dispatch(openModal('register')); }}>Register</button>
+                    <button
+                      className="py-3 px-4 rounded-lg bg-red-500 text-white font-semibold"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        dispatch(openModal("login"));
+                      }}
+                    >
+                      Sign In
+                    </button>
+                    <button
+                      className="py-3 px-4 rounded-lg bg-white border font-semibold text-red-500"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        dispatch(openModal("register"));
+                      }}
+                    >
+                      Register
+                    </button>
                   </>
                 ) : null}
               </div>
             </div>
           </div>
         )}
-        {isCartOpen && <div className="sm:hidden"><CartDropdown onClose={handleCartClose} brandColor={brandColor} contrastTextColor={contrastTextColor} userId={userIdForCart} /></div>}
+        {isCartOpen && (
+          <div className="sm:hidden">
+            <CartDropdown
+              onClose={handleCartClose}
+              brandColor={brandColor}
+              contrastTextColor={contrastTextColor}
+              userId={userIdForCart}
+            />
+          </div>
+        )}
       </nav>
     </div>
   );

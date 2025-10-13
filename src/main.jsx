@@ -9,6 +9,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { ToastProvider, useToast } from './components/ui/ToastProvider.jsx';
 import { loadFormData } from './features/auth/registrationSlice.js';
 import { loadFromIndexedDB } from './utils/indexedDB.js';
+import { restoreAuthState } from './redux/authMiddleware.js';
 
 const SWManager = () => {
   const { push } = useToast();
@@ -57,14 +58,21 @@ const SWManager = () => {
   return null;
 };
 
-// Initialize offline data (unchanged)
+// Initialize offline data and auth state
 const OfflineInitializer = ({ children }) => {
   const dispatch = useDispatch();
   const { push } = useToast();
 
   useEffect(() => {
-    const loadOfflineData = async () => {
+    const initializeApp = async () => {
       try {
+        // First, try to restore authentication state
+        const authRestored = restoreAuthState(store);
+        if (authRestored) {
+          console.log('Authentication state restored from localStorage');
+        }
+
+        // Then load offline registration data
         const storedData = await loadFromIndexedDB();
         if (storedData) {
           dispatch(loadFormData(storedData));
@@ -75,7 +83,8 @@ const OfflineInitializer = ({ children }) => {
         push('Could not load saved data. You can continue.', { type: 'error' });
       }
     };
-    loadOfflineData();
+    
+    initializeApp();
   }, [dispatch, push]);
 
   return children;

@@ -11,54 +11,103 @@ import ProtectedRoute from './ProtectedRoute';
 import AuthModal from '../components/models/AuthModal.jsx';
 import { openModal, closeModal, switchMode } from '../redux/modalSlice.js';
 import NotificationPermissionPrompt from '../components/common/NotificationPermissionPrompt.jsx';
+import AuthDebugger from '../components/debug/AuthDebugger.jsx';
 
 // --- Session Hydrator ---
 const SessionHydrator = ({ children }) => {
   const dispatch = useDispatch();
   const [isSessionChecked, setIsSessionChecked] = useState(false);
+  const { isAuthenticated } = useSelector((state) => state.auth);
 
   useEffect(() => {
     const checkUserSession = async () => {
       try {
+        // If already authenticated (from middleware restoration), skip API call
+        if (isAuthenticated) {
+          console.log('User already authenticated, skipping session check');
+          setIsSessionChecked(true);
+          return;
+        }
+
         const { accessToken } = getAuthTokens();
         const storedUserId = localStorage.getItem('userId');
 
-        if (accessToken && storedUserId) {
-          const overviewData = await apiRequest({
-            url: ENDPOINTS.SELLER_ONBOARDING.STORE.OVERVIEW,
-            method: 'GET',
-          });
+        console.log('Session check - Token exists:', !!accessToken, 'User ID exists:', !!storedUserId);
 
-          if (overviewData && overviewData.store) {
-            const storeData = overviewData.store;
-            const userPayload = {
-              id: parseInt(storedUserId, 10),
-              full_name: storeData.name,
-              email: storeData.email,
-              phone: storeData.phone,
-              store: storeData,
-            };
-            dispatch(loginSuccess({ user: userPayload, token: accessToken }));
-          } else {
-            console.warn('Session check failed (invalid overview data). Logging out.');
-            dispatch(logout());
+        if (accessToken && storedUserId) {
+          console.log('Found stored tokens, attempting to restore session...');
+          
+          try {
+            // Try to get user data from the API
+            const overviewData = await apiRequest({
+              url: ENDPOINTS.SELLER_ONBOARDING.STORE.OVERVIEW,
+              method: 'GET',
+            });
+
+            if (overviewData && overviewData.store) {
+              const storeData = overviewData.store;
+              const userPayload = {
+                id: parseInt(storedUserId, 10),
+                full_name: storeData.name,
+                email: storeData.email,
+                phone: storeData.phone,
+                store: storeData,
+              };
+              console.log('Session restored successfully:', userPayload);
+              dispatch(loginSuccess({ user: userPayload, token: accessToken }));
+            } else {
+              console.warn('Session check failed (invalid overview data). Logging out.');
+              dispatch(logout());
+            }
+          } catch (apiError) {
+            console.error('API call failed during session restoration:', apiError);
+            // If it's a 401, the token is invalid, so logout
+            if (apiError.statusCode === 401) {
+              console.log('Token is invalid, logging out...');
+              dispatch(logout());
+            } else {
+              // For other errors, try to restore with minimal data
+              console.log('API error but token exists, attempting minimal restoration...');
+              const userPayload = {
+                id: parseInt(storedUserId, 10),
+                full_name: 'User', // Fallback name
+                email: '', // Will be empty until API is available
+                phone: '',
+                store: null,
+              };
+              dispatch(loginSuccess({ user: userPayload, token: accessToken }));
+            }
+          }
+        } else {
+          console.log('No stored tokens found, user not logged in');
+          // Clear any stale data
+          if (storedUserId && !accessToken) {
+            localStorage.removeItem('userId');
           }
         }
       } catch (error) {
         console.error('Session check failed:', error);
-        dispatch(logout());
+        // Only logout if we had tokens but something went wrong
+        const { accessToken } = getAuthTokens();
+        if (accessToken) {
+          dispatch(logout());
+        }
       } finally {
         setIsSessionChecked(true);
       }
     };
 
     checkUserSession();
-  }, [dispatch]);
+  }, [dispatch, isAuthenticated]);
 
   if (!isSessionChecked) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
-        <p className="text-lg font-semibold text-gray-600">Loading Application...</p>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500 mx-auto mb-4"></div>
+          <p className="text-lg font-semibold text-gray-600">Loading Application...</p>
+          <p className="text-sm text-gray-500 mt-2">Restoring your session...</p>
+        </div>
       </div>
     );
   }
@@ -116,12 +165,13 @@ const MainLayout = () => {
         </Suspense>
       </main>
 
+      <AuthDebugger />
+
       {open && (
         <AuthModal
           mode={mode}
           onClose={() => dispatch(closeModal())}
-          onSwitchToRegister={() => dispatch(switchMode('register'))}
-          onSwitchToLogin={() => dispatch(switchMode('login'))}
+          onSwitchMode={(newMode) => dispatch(switchMode(newMode))}
         />
       )}
     </div>
@@ -138,10 +188,10 @@ function AppRouter() {
           <Routes>
             <Route path="/" element={<MainLayout />}>
               <Route index element={<HomePage />} />
-              <Route path="feed" element={<FeedPage />} />
+              <Route path="feed" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
               <Route path="checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
               <Route path="store-upgrade" element={<ProtectedRoute><UpgradeStorePage /></ProtectedRoute>} />
-              <Route path="search" element={<SearchPage />} />
+              <Route path="search" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
               {/* Products */}
               <Route path="add-product" element={<ProtectedRoute><AddProductPage /></ProtectedRoute>} />
               <Route path="my-products" element={<ProtectedRoute><MyProductsPage /></ProtectedRoute>} />
