@@ -1,9 +1,17 @@
-// src/features/products/hooks/useProductForm.js
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { getContrastTextColor } from '../../utils/colorUtils';
-import { useAddProduct, useUpdateProduct } from '../../services/mutations/useProductMutation';
+// src/hooks/Products/useProductForm.js
+
+import { useEffect, useState, useRef } from 'react';
 import { useToast } from '../../components/ui/ToastProvider';
 import { useSelector } from 'react-redux';
+import {
+  useAddProductMutation,
+  useUpdateProductMutation,
+  useCreateVariantMutation,
+  useUpdateVariantMutation,
+  useDeleteVariantMutation,
+  useUpdateBulkPricesMutation,
+  useUpdateDeliveryOptionsMutation
+} from '../../services/mutations/useProductMutation';
 
 const isVideoUrl = (url = '') => {
   if (typeof url !== 'string') return false;
@@ -11,185 +19,122 @@ const isVideoUrl = (url = '') => {
   return /^data:video\//i.test(url) || /^blob:/i.test(url) || /\.(mp4|webm|ogg|mov|m4v)$/i.test(base);
 };
 
+const initialFormData = {
+  productImages: [],
+  productVideo: null,
+  productName: '',
+  category: '',
+  brand: '',
+  shortDescription: '',
+  fullDescription: {
+    mobileType: '', mobileBrand: '', model: '', storage: '', resolution: '',
+    color: '', display: '', screenSize: '', battery: '', camera: '', generalDescription: '',
+  },
+  price: '',
+  discountPrice: '',
+  has_variants: false,
+  wholesalePrice: [],
+  variants: [],
+  couponCode: '',
+  useLoyaltyPoints: false,
+  informationTags: ['', '', ''],
+  availabilityLocations: [],
+  deliveryLocations: [],
+};
+
 export function useProductForm({ product, isEdit }) {
-  const { userId } = useSelector((s) => s.user);
+  const { userId } = useSelector((s) => s.auth);
   const { push } = useToast();
 
-  const addMutation = useAddProduct(userId);
-  const updateMutation = useUpdateProduct(userId);
+  const { mutateAsync: addProduct, isLoading: isAdding } = useAddProductMutation({ userId });
+  const { mutateAsync: updateProduct, isLoading: isUpdating } = useUpdateProductMutation({ userId });
+  const { mutateAsync: createVariant } = useCreateVariantMutation();
+  const { mutateAsync: updateVariant } = useUpdateVariantMutation();
+  const { mutateAsync: deleteVariant } = useDeleteVariantMutation();
+  const { mutateAsync: updateBulkPrices } = useUpdateBulkPricesMutation();
+  const { mutateAsync: updateDeliveryOptions } = useUpdateDeliveryOptionsMutation();
+  
+  const isSubmitting = isAdding || isUpdating;
 
-  const [formData, setFormData] = useState({
-    productImages: [],       // [{ fileObject, fileUrl }]
-    productVideo: null,      // { fileObject, fileUrl } | null
-    productName: '',
-    category: '',
-    brand: '',
-    shortDescription: '',
-    fullDescription: {
-      mobileType: '',
-      mobileBrand: '',
-      model: '',
-      storage: '',
-      resolution: '',
-      color: '',
-      display: '',
-      screenSize: '',
-      battery: '',
-      camera: '',
-      generalDescription: '',
-    },
-    price: '',
-    discountPrice: '',
-    wholesalePrice: [],
-    variants: [],
-    couponCode: '',
-    useLoyaltyPoints: false,
-    informationTags: ['', '', ''],
-    availabilityLocations: [],
-    deliveryLocations: [],
-  });
-
+  const [formData, setFormData] = useState(initialFormData);
   const [validationErrors, setValidationErrors] = useState({});
-
-  // Track created object URLs to revoke on unmount
   const createdUrls = useRef([]);
 
+  useEffect(() => () => { createdUrls.current.forEach(URL.revokeObjectURL); }, []);
+
   useEffect(() => {
-    return () => {
-      createdUrls.current.forEach((u) => {
-        try {
-          URL.revokeObjectURL(u);
-        } catch {}
+    if (isEdit && product) {
+      const dp = product.detailsPageInfo || {};
+      const thumbs = (dp.thumbnailUrls || []).filter(u => u && !isVideoUrl(u));
+      const main = (dp.mainImageUrl && !isVideoUrl(dp.mainImageUrl)) ? [dp.mainImageUrl] : [];
+      const imageUrls = Array.from(new Set([...main, ...thumbs]));
+      
+      setFormData({
+        ...initialFormData,
+        ...product,
+        productImages: imageUrls.map(u => ({ fileObject: null, fileUrl: u })),
+        productVideo: dp.productVideo ? { fileObject: null, fileUrl: dp.productVideo } : null,
+        productName: product.name || '',
+        category: product.category_id || product.category || '',
+        shortDescription: product.shortDescription || '',
+        fullDescription: { ...initialFormData.fullDescription, ...product.fullDescription, generalDescription: dp.description || '' },
+        price: product.currentPrice ?? '',
+        has_variants: !!product.has_variants,
+        wholesalePrice: product.wholesalePrice || [],
+        variants: product.variants || [],
+        deliveryLocations: product.deliveryLocations || [],
+        availabilityLocations: product.availabilityLocations || [],
       });
-      createdUrls.current = [];
-    };
-  }, []);
-
-  // Prefill in edit mode
-  useEffect(() => {
-    if (!isEdit || !product) return;
-    const dp = product.detailsPageInfo || {};
-
-    const thumbs = Array.isArray(dp.thumbnailUrls) ? dp.thumbnailUrls.filter((u) => !isVideoUrl(u)) : [];
-    const main = dp.mainImageUrl && !isVideoUrl(dp.mainImageUrl) ? [dp.mainImageUrl] : [];
-    const imageUrls = Array.from(new Set([...main, ...thumbs]));
-
-    const images = imageUrls.map((u) => ({ fileObject: null, fileUrl: u }));
-    const pVideo = dp.productVideo ? { fileObject: null, fileUrl: dp.productVideo } : null;
-
+    } else if (!isEdit) {
+      setFormData(initialFormData);
+    }
+  }, [isEdit, product]);
+  
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setValidationErrors(prev => ({...prev, [name]: undefined}));
     setFormData((prev) => ({
       ...prev,
-      productImages: images,
-      productVideo: pVideo,
-      productName: product.name || '',
-      category: product.category || '',
-      brand: product.brand || '',
-      shortDescription: product.shortDescription || '',
-      fullDescription: {
-        ...prev.fullDescription,
-        generalDescription: dp.description || '',
-      },
-      price: product.currentPrice ?? '',
-      discountPrice: product.discountPrice ?? '',
+      [name]: type === 'checkbox' ? checked : value,
     }));
-  }, [isEdit, product]);
-
-  // Handlers
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target || {};
-    setFormData((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
-    setValidationErrors((prev) => ({ ...prev, [name]: '' }));
   };
 
   const handleFileChange = (e) => {
-    const { name, files } = e.target || {};
-    if (name === 'productImages' && files && files.length) {
+    const { name, files } = e.target;
+    if (!files || files.length === 0) return;
+    if (name === 'productVideo') {
+      const file = files[0];
+      const fileUrl = URL.createObjectURL(file);
+      createdUrls.current.push(fileUrl);
+      setFormData((prev) => ({ ...prev, productVideo: { fileObject: file, fileUrl } }));
+    } else if (name === 'productImages') {
       const newImages = Array.from(files).map((file) => {
-        const url = URL.createObjectURL(file);
-        createdUrls.current.push(url);
-        return { fileObject: file, fileUrl: url };
+        const fileUrl = URL.createObjectURL(file);
+        createdUrls.current.push(fileUrl);
+        return { fileObject: file, fileUrl };
       });
-      setFormData((prev) => ({
-        ...prev,
-        productImages: [...prev.productImages, ...newImages].slice(0, 5),
-      }));
-      setValidationErrors((prev) => ({ ...prev, productImages: '' }));
-    } else if (name === 'productVideo' && files && files[0]) {
-      const f = files[0];
-      const url = URL.createObjectURL(f);
-      createdUrls.current.push(url);
-      setFormData((prev) => ({ ...prev, productVideo: { fileObject: f, fileUrl: url } }));
-      setValidationErrors((prev) => ({ ...prev, productVideo: '' }));
+      setFormData((prev) => ({ ...prev, productImages: [...prev.productImages, ...newImages] }));
     }
   };
-
-  const handleRemoveImage = (index) => {
-    setFormData((prev) => ({
-      ...prev,
-      productImages: prev.productImages.filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleRemoveVideo = () => {
-    setFormData((prev) => ({ ...prev, productVideo: null }));
-  };
-
+  
+  const handleRemoveImage = (index) => setFormData((prev) => ({ ...prev, productImages: prev.productImages.filter((_, i) => i !== index) }));
+  const handleRemoveVideo = () => setFormData((prev) => ({ ...prev, productVideo: null }));
   const handleToggleLocation = (location, type) => {
     setFormData((prev) => {
       const current = prev[type] || [];
-      const updated = current.includes(location) ? current.filter((l) => l !== location) : [...current, location];
-      return { ...prev, [type]: updated };
+      const newLocations = current.includes(location) ? current.filter((loc) => loc !== location) : [...current, location];
+      return { ...prev, [type]: newLocations };
     });
-  };
-
-  const setValidation = (name, msg) => {
-    setValidationErrors((prev) => ({ ...prev, [name]: msg }));
   };
 
   const validateForm = () => {
     const errors = {};
-    const minImages = isEdit ? 1 : 3;
-    if ((formData.productImages || []).length < minImages) {
-      errors.productImages = `Upload at least ${minImages} image${minImages > 1 ? 's' : ''}.`;
-    }
-    if (!formData.productName?.trim()) errors.productName = 'Product Name required.';
-    if (!formData.category) errors.category = 'Category required.';
-    if (!formData.brand) errors.brand = 'Brand required.';
-    if (!formData.shortDescription?.trim()) errors.shortDescription = 'Short description required.';
-    if (!formData.fullDescription?.generalDescription?.trim()) {
-      errors.fullDescription = 'Full description details required.';
-    }
-    if (!formData.price || isNaN(formData.price) || Number(formData.price) <= 0) {
-      errors.price = 'Valid price required.';
-    }
-    if (
-      formData.discountPrice &&
-      (isNaN(formData.discountPrice) ||
-        Number(formData.discountPrice) < 0 ||
-        Number(formData.discountPrice) >= Number(formData.price))
-    ) {
-      errors.discountPrice = 'Discount must be less than price.';
-    }
+    if (!formData.productName.trim()) errors.productName = "Product name is required.";
+    if (!formData.category) errors.category = "Category is required.";
+    if (!formData.price || Number(formData.price) <= 0) errors.price = "A valid price is required.";
+    if (!formData.productImages || formData.productImages.length === 0) errors.productImages = "At least one image is required.";
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
-  };
-
-  const buildPayload = () => {
-    const images = formData.productImages.map((m) => m.fileUrl).filter(Boolean);
-    return {
-      name: formData.productName,
-      category: formData.category,
-      brand: formData.brand,
-      shortDescription: formData.shortDescription,
-      currentPrice: Number(formData.price),
-      discountPrice: formData.discountPrice ? Number(formData.discountPrice) : undefined,
-      detailsPageInfo: {
-        description: formData.fullDescription.generalDescription || '',
-        mainImageUrl: images[0] || '',
-        thumbnailUrls: images.slice(1),
-        productVideo: formData.productVideo?.fileUrl || null,
-      },
-    };
   };
 
   const submit = async ({ onSuccessNavigateTo }) => {
@@ -197,33 +142,62 @@ export function useProductForm({ product, isEdit }) {
       push('Please fix the errors before submitting.', { type: 'error' });
       return;
     }
-    const payload = buildPayload();
 
     try {
-      if (isEdit) {
-        await updateMutation.mutateAsync({ id: product?.id, payload });
-        push('Product updated successfully.', { type: 'success' });
-        if (onSuccessNavigateTo) onSuccessNavigateTo();
-      } else {
-        await addMutation.mutateAsync(payload);
-        push('Product added successfully.', { type: 'success' });
-        if (onSuccessNavigateTo) onSuccessNavigateTo();
+      const corePayload = new FormData();
+      corePayload.append('name', formData.productName);
+      corePayload.append('category_id', formData.category);
+      corePayload.append('brand', formData.brand);
+      corePayload.append('short_description', formData.shortDescription);
+      corePayload.append('price', formData.price);
+      if (formData.discountPrice) corePayload.append('discount_price', formData.discountPrice);
+      corePayload.append('has_variants', formData.has_variants ? '1' : '0');
+      
+      // Filter the array to only include NEW images that have a file object.
+      const newImageFiles = formData.productImages.filter(img => img.fileObject);
+
+      // Loop over this *filtered* array to ensure the indexes are contiguous (0, 1, 2...).
+      newImageFiles.forEach((img, index) => {
+        corePayload.append(`images[${index}]`, img.fileObject);
+      });
+
+      if (formData.productVideo?.fileObject) corePayload.append('video', formData.productVideo.fileObject);
+
+      const result = isEdit 
+        ? await updateProduct({ id: product.id, payload: corePayload }) 
+        : await addProduct(corePayload);
+      
+      const savedProduct = result.data;
+      const productId = savedProduct?.id;
+      if (!productId) throw new Error("Failed to get a valid Product ID after saving.");
+
+      const subTasks = [];
+      if (formData.has_variants) {
+          const originalVariants = product?.variants || [];
+          const currentVariants = formData.variants || [];
+          
+          originalVariants.forEach(ov => { if (!currentVariants.some(cv => cv.id === ov.id)) subTasks.push(deleteVariant({ productId, variantId: ov.id })) });
+          currentVariants.forEach(cv => {
+            const p = { name: cv.name, options: cv.options };
+            if (cv.id) subTasks.push(updateVariant({ productId, variantId: cv.id, payload: p }));
+            else subTasks.push(createVariant({ productId, payload: p }));
+          });
       }
-    } catch (e) {
-      push(e?.message || 'Failed to submit product.', { type: 'error' });
+      
+      if (formData.wholesalePrice?.length > 0) subTasks.push(updateBulkPrices({ productId, payload: formData.wholesalePrice }));
+      if (formData.deliveryLocations?.length > 0) subTasks.push(updateDeliveryOptions({ productId, payload: formData.deliveryLocations }));
+      
+      await Promise.all(subTasks);
+
+      push('Product saved successfully!', { type: 'success' });
+      if (onSuccessNavigateTo) onSuccessNavigateTo();
+
+    } catch (error) {
+      console.error("Full product save failed:", error);
+      const errorMessage = error.response?.data?.message || error.message || 'An error occurred while saving.';
+      push(errorMessage, { type: 'error' });
     }
   };
 
-  return {
-    formData,
-    setFormData,
-    validationErrors,
-    setValidation,
-    handleChange,
-    handleFileChange,
-    handleRemoveImage,
-    handleRemoveVideo,
-    handleToggleLocation,
-    submit,
-  };
+  return { formData, setFormData, validationErrors, isSubmitting, handleChange, handleFileChange, handleRemoveImage, handleRemoveVideo, handleToggleLocation, submit };
 }

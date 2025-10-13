@@ -1,4 +1,4 @@
-/**
+/**D:\Project\frontend\src\utils\colorUtils.js
  * A collection of utility functions for manipulating colors.
  */
 

@@ -1,136 +1,147 @@
 // src/services/mutations/useProductMutation.js
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { productService } from '../index.js';
+// CORRECTED IMPORT: Point directly to the productService file.
+import { productService } from '../productService.js';
 
-const getToken = () =>
-  (typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : '') || '';
-
-const takeItem = (res) => res?.product || res?.data || res || null;
-
-/**
- * Add a new product with optimistic update (user-scoped)
- */
-export const useAddProduct = (userId, options = {}) => {
-  const queryClient = useQueryClient();
-  const key = ['myProducts', userId || 'anonymous'];
-
-  return useMutation({
-    mutationFn: async (payload) => productService.addProduct(payload, getToken(), { userId }),
-    onMutate: async (newProduct) => {
-      await queryClient.cancelQueries({ queryKey: key });
-      const prev = queryClient.getQueryData(key) || [];
-      const optimistic = { ownerId: userId, status: 'available', ...newProduct, id: newProduct?.id || `tmp-${Date.now()}` };
-      queryClient.setQueryData(key, (old = []) => [optimistic, ...old]);
-      return { prev };
-    },
-    onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(key, ctx.prev);
-      options.onError?.(_err);
-    },
-    onSuccess: (resp) => {
-      const item = takeItem(resp);
-      if (!item?.id) return queryClient.invalidateQueries({ queryKey: key });
-      queryClient.setQueryData(key, (old = []) => {
-        const withoutTmp = old.filter((p) => p.id !== item.id && !String(p.id).startsWith('tmp-'));
-        return [item, ...withoutTmp];
-      });
-      options.onSuccess?.(item);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+// Helper to update a product's status optimistically
+const optimisticStatusUpdate = (queryClient, userId, productId, newStatus) => {
+  const queryKey = ['myProducts', userId];
+  queryClient.setQueryData(queryKey, (oldData) => {
+    if (!oldData) return oldData;
+    return oldData.map(product => 
+      product.id === productId ? { ...product, status: newStatus } : product
+    );
   });
 };
 
-/**
- * Bulk upload multiple products (user-scoped)
- */
-export const useBulkUploadProducts = (userId, options = {}) => {
+export const useAddProductMutation = (options = {}) => {
   const queryClient = useQueryClient();
-  const key = ['myProducts', userId || 'anonymous'];
-
+  const { userId } = options;
   return useMutation({
-    mutationFn: async (fileOrList) => productService.bulkUploadProducts(fileOrList, getToken(), { userId }),
-    onSuccess: (resp) => {
-      const list = Array.isArray(resp) ? resp : resp?.products || [];
-      queryClient.setQueryData(key, (old = []) => {
-        const map = new Map((old || []).map((p) => [p.id, p]));
-        list.forEach((p) => {
-          if (p?.id) map.set(p.id, p);
-        });
-        return Array.from(map.values());
-      });
-      options.onSuccess?.(list);
+    mutationFn: (payload) => productService.addProduct(payload),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['myProducts', userId] });
+      options.onSuccess?.(data);
     },
-    onError: (error) => options.onError?.(error),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+    ...options,
   });
 };
 
-/**
- * Update a product (user-scoped) e.g. { status: 'sold' } or { status: 'unavailable' }
- */
-export const useUpdateProduct = (userId, options = {}) => {
+export const useUpdateProductMutation = (options = {}) => {
   const queryClient = useQueryClient();
-  const key = ['myProducts', userId || 'anonymous'];
-
+  const { userId } = options;
   return useMutation({
-    mutationFn: async ({ id, payload }) => {
-      if (!id) throw new Error('Missing product id.');
-      return productService.updateProduct(id, payload, getToken());
+    mutationFn: ({ id, payload }) => productService.updateProduct(id, payload),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['myProducts', userId] });
+      queryClient.invalidateQueries({ queryKey: ['productDetail', variables.id] });
+      options.onSuccess?.(data);
     },
-    onMutate: async ({ id, payload }) => {
-      await queryClient.cancelQueries({ queryKey: key });
-      const prev = queryClient.getQueryData(key) || [];
-      if (payload && typeof payload.status === 'string') {
-        const s = payload.status.toLowerCase();
-        if (['available', 'unavailable', 'sold'].includes(s)) {
-          queryClient.setQueryData(key, (old = []) =>
-            old.map((p) => (p.id === id ? { ...p, status: s } : p))
-          );
-        }
-      }
-      return { prev };
-    },
-    onError: (error, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(key, ctx.prev);
-      options.onError?.(error);
-    },
-    onSuccess: (resp) => {
-      const item = takeItem(resp);
-      if (!item?.id) return queryClient.invalidateQueries({ queryKey: key });
-      queryClient.setQueryData(key, (old = []) => old.map((p) => (p.id === item.id ? { ...p, ...item } : p)));
-      options.onSuccess?.(item);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+    ...options,
   });
 };
 
-/**
- * Delete a product (user-scoped)
- */
-export const useDeleteProduct = (userId, options = {}) => {
+export const useDeleteProductMutation = (options = {}) => {
   const queryClient = useQueryClient();
-  const key = ['myProducts', userId || 'anonymous'];
-
+  const { userId } = options;
   return useMutation({
-    mutationFn: async (id) => {
-      if (!id) throw new Error('Missing product id.');
-      return productService.deleteProduct(id, getToken());
-    },
+    mutationFn: (id) => productService.deleteProduct(id),
+    
     onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: key });
-      const prev = queryClient.getQueryData(key) || [];
-      queryClient.setQueryData(key, (old = []) => old.filter((p) => p.id !== id));
-      return { prev };
+      const queryKey = ['myProducts', userId];
+      await queryClient.cancelQueries({ queryKey });
+      const previousProducts = queryClient.getQueryData(queryKey);
+      
+      queryClient.setQueryData(queryKey, (old) => old ? old.filter(p => p.id !== id) : []);
+      
+      return { previousProducts };
     },
-    onError: (error, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(key, ctx.prev);
-      options.onError?.(error);
+
+    onError: (err, id, context) => {
+      if (context?.previousProducts) {
+        queryClient.setQueryData(['myProducts', userId], context.previousProducts);
+      }
+      options.onError?.(err);
     },
-    onSuccess: (_resp, id) => {
-      // ensure removed
-      queryClient.setQueryData(key, (old = []) => old.filter((p) => p.id !== id));
-      options.onSuccess?.();
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['myProducts', userId] });
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+    ...options,
   });
+};
+
+// --- NEW MUTATIONS FOR STATUS ---
+export const useMarkProductStatusMutation = (options = {}) => {
+  const queryClient = useQueryClient();
+  const { userId } = options;
+  return useMutation({
+    mutationFn: ({ productId, status }) => {
+      if (status === 'sold') return productService.markAsSold(productId);
+      if (status === 'unavailable') return productService.markAsUnavailable(productId);
+      if (status === 'available') return productService.markAsAvailable(productId);
+      throw new Error('Invalid status');
+    },
+    
+    onMutate: async ({ productId, status }) => {
+      const queryKey = ['myProducts', userId];
+      await queryClient.cancelQueries({ queryKey });
+      const previousProducts = queryClient.getQueryData(queryKey);
+      optimisticStatusUpdate(queryClient, userId, productId, status);
+      return { previousProducts };
+    },
+
+    onError: (err, variables, context) => {
+      if (context?.previousProducts) {
+        queryClient.setQueryData(['myProducts', userId], context.previousProducts);
+      }
+      options.onError?.(err);
+    },
+
+    onSettled: (data, error, { productId }) => {
+        // Invalidate both the list and the specific product detail to keep them in sync
+        queryClient.invalidateQueries({ queryKey: ['myProducts', userId] });
+        queryClient.invalidateQueries({ queryKey: ['productDetail', productId] });
+    },
+    ...options,
+  });
+};
+
+
+export const useCreateVariantMutation = (options = {}) => useMutation({
+  mutationFn: ({ productId, payload }) => productService.createVariant(productId, payload),
+  ...options,
+});
+
+export const useUpdateVariantMutation = (options = {}) => useMutation({
+  mutationFn: ({ productId, variantId, payload }) => productService.updateVariant(productId, variantId, payload),
+  ...options,
+});
+
+export const useDeleteVariantMutation = (options = {}) => useMutation({
+  mutationFn: ({ productId, variantId }) => productService.deleteVariant(productId, variantId),
+  ...options,
+});
+
+export const useUpdateBulkPricesMutation = (options = {}) => useMutation({
+  mutationFn: ({ productId, payload }) => productService.updateBulkPrices(productId, payload),
+  ...options,
+});
+
+export const useUpdateDeliveryOptionsMutation = (options = {}) => useMutation({
+  mutationFn: ({ productId, payload }) => productService.updateDeliveryOptions(productId, payload),
+  ...options,
+});
+
+export const useUploadBulkFileMutation = (options = {}) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (file) => productService.uploadBulkFile(file),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['myProducts'] });
+            options.onSuccess?.();
+        },
+        ...options
+    });
 };

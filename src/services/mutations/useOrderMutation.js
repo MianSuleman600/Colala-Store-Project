@@ -1,87 +1,89 @@
+// src/services/mutations/useOrderMutations.js
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { orderService } from '../index.js';
-import { normalizeOrders } from '../../utils/dataNormalizer.js';
+import { orderService } from '../orderService.js';
 
 /**
- * Create a new order
+ * Update an order's status to 'Out for delivery' with an optimistic update.
  */
-export const useCreateOrderMutation = (userId = 'default_user_id', status = null, options = {}) => {
+export const useMarkOrderOutForDeliveryMutation = (options = {}) => {
   const queryClient = useQueryClient();
-  const queryKey = ['orders', userId, status];
+  const { userId } = options; // Pass userId to the hook for correct query key
 
   return useMutation({
-    mutationFn: (newOrder) => orderService.createOrder(newOrder, userId),
-    onMutate: async (newOrder) => {
+    mutationFn: (orderId) => orderService.markAsOutForDelivery(orderId),
+
+    onMutate: async (orderId) => {
+      const queryKey = ['orders', userId];
       await queryClient.cancelQueries({ queryKey });
+      const previousOrders = queryClient.getQueryData(queryKey);
 
-      const previousData = queryClient.getQueryData(queryKey);
-      const previousOrders = previousData?.orders ?? [];
+      // Optimistically update the status of the specific order
+      queryClient.setQueryData(queryKey, (oldData) => {
+        if (!oldData) return oldData;
+        const newOrders = oldData.new.map(order => 
+          order.id === orderId ? { ...order, status: 'out_for_delivery' } : order
+        );
+        return { ...oldData, new: newOrders };
+      });
+      
+      return { previousOrders };
+    },
 
-      const optimisticOrder = normalizeOrders([newOrder])[0];
-      queryClient.setQueryData(queryKey, {
-        ...previousData,
-        orders: [optimisticOrder, ...previousOrders],
+    onError: (err, orderId, context) => {
+      if (context?.previousOrders) {
+        queryClient.setQueryData(['orders', userId], context.previousOrders);
+      }
+      options.onError?.(err, orderId);
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders', userId] });
+    },
+    ...options
+  });
+};
+
+/**
+ * Update an order's status to 'Delivered'
+ */
+export const useMarkOrderDeliveredMutation = (options = {}) => {
+  const queryClient = useQueryClient();
+  const { userId } = options;
+
+  return useMutation({
+    mutationFn: ({ orderId, payload }) => orderService.markAsDelivered(orderId, payload),
+
+    onMutate: async ({ orderId }) => {
+      const queryKey = ['orders', userId];
+      await queryClient.cancelQueries({ queryKey });
+      const previousOrders = queryClient.getQueryData(queryKey);
+      
+      // Optimistically move the order from 'new' to 'completed'
+      queryClient.setQueryData(queryKey, (oldData) => {
+        if (!oldData) return oldData;
+        const orderToMove = oldData.new.find(order => order.id === orderId);
+        if (!orderToMove) return oldData;
+
+        const newOrders = oldData.new.filter(order => order.id !== orderId);
+        const completedOrders = [{ ...orderToMove, status: 'delivered' }, ...oldData.completed];
+        
+        return { new: newOrders, completed: completedOrders };
       });
 
-      return { previousData };
+      return { previousOrders };
     },
-    onError: (_, __, context) => {
-      if (context?.previousData) {
-        queryClient.setQueryData(queryKey, context.previousData);
+    
+    onError: (err, variables, context) => {
+      if (context?.previousOrders) {
+        queryClient.setQueryData(['orders', userId], context.previousOrders);
       }
-      options.onError?.(_);
+      options.onError?.(err, variables);
     },
-    onSuccess: (data) => {
-      const normalized = normalizeOrders([data?.order ?? data])[0];
-      queryClient.setQueryData(queryKey, (oldData = { orders: [] }) => ({
-        ...oldData,
-        orders: [normalized, ...oldData.orders.filter(o => o.id !== normalized.id)],
-      }));
-      options.onSuccess?.(normalized);
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders', userId] });
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
-  });
-};
-
-/**
- * Update an existing order
- */
-export const useUpdateOrderMutation = (userId = 'default_user_id', status = null, options = {}) => {
-  const queryClient = useQueryClient();
-  const queryKey = ['orders', userId, status];
-
-  return useMutation({
-    mutationFn: ({ orderId, payload }) => orderService.updateOrder(orderId, payload, userId),
-    onSuccess: (data, variables) => {
-      const normalized = normalizeOrders([data?.order ?? data])[0];
-      queryClient.setQueryData(queryKey, (oldData = { orders: [] }) => ({
-        ...oldData,
-        orders: oldData.orders.map(o => (o.id === variables.orderId ? normalized : o)),
-      }));
-      options.onSuccess?.(normalized);
-    },
-    onError: (error) => options.onError?.(error),
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
-  });
-};
-
-/**
- * Delete an order
- */
-export const useDeleteOrderMutation = (userId = 'default_user_id', status = null, options = {}) => {
-  const queryClient = useQueryClient();
-  const queryKey = ['orders', userId, status];
-
-  return useMutation({
-    mutationFn: (orderId) => orderService.deleteOrder(orderId, userId),
-    onSuccess: (_, orderId) => {
-      queryClient.setQueryData(queryKey, (oldData = { orders: [] }) => ({
-        ...oldData,
-        orders: oldData.orders.filter(o => o.id !== orderId),
-      }));
-      options.onSuccess?.();
-    },
-    onError: (error) => options.onError?.(error),
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+    ...options
   });
 };

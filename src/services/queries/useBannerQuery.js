@@ -1,37 +1,18 @@
-import { useQuery } from '@tanstack/react-query';
-import { announcementService } from '../settings/announcementService'; // unified path
+// src/services/queries/useBannerQuery.js
 
-const KEYS = {
+import { useQuery } from '@tanstack/react-query';
+import { announcementService } from '../settings/announcementService.js';
+
+export const bannerQueryKeys = {
   banners: (params = {}) => ['banners', params],
-  bannersActive: (params = {}) => ['banners', 'active', params],
 };
 
+// This is the only hook needed. It fetches all banners.
+// The component will be responsible for deciding which one to display.
 export const useBannersQuery = (params = {}, options = {}) =>
   useQuery({
-    queryKey: KEYS.banners(params),
-    queryFn: async () => {
-      const res = await announcementService.getBanners(params);
-      return res.banners || [];
-    },
-    staleTime: 0, // optional: force fresh
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: 'always',
-    refetchOnReconnect: 'always',
+    queryKey: bannerQueryKeys.banners(params),
+    queryFn: () => announcementService.getBanners(params),
+    staleTime: 60 * 1000, // 1 minute
     ...options,
   });
-
-export const useActiveBannersQuery = (params = {}, options = {}) =>
-  useQuery({
-    queryKey: KEYS.bannersActive(params),
-    queryFn: async () => {
-      const res = await announcementService.getActiveBanners(params);
-      return res.banners || [];
-    },
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: 'always',
-    refetchOnReconnect: 'always',
-    ...options,
-  });
-
-export const bannerQueryKeys = KEYS;

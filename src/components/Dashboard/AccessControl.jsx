@@ -1,108 +1,84 @@
-// src/components/AccessControl.jsx
 import React, { useMemo, useState } from 'react';
-import { X } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { X, UserPlus, Crown } from 'lucide-react';
 import Button from '../ui/Button';
 import ScrollToTop from '../ui/ScrollToTop';
-import EditIcon from '../../assets/icons/edit.png';
 import TrashIcon from '../../assets/icons/delete.png';
 
-import { useAclUsersQuery, useAclRolesQuery } from '../../services/queries/useAccessControlQuery.js';
+// Hooks for fetching data and performing actions
+import { useAclUsersQuery } from '../../services/queries/useAccessControlQuery.js';
 import {
-  useAclAssignRoleMutation,
-  useAclCreateUserMutation,
-  useAclInviteUserMutation,
-  useAclDeleteUserMutation,
+  useAclAddUserMutation,
+  useAclRemoveUserMutation,
 } from '../../services/mutations/useAccessControlMutation.js';
 
-const toast = (type, message) => {
-  try {
-    window.dispatchEvent(new CustomEvent('SHOW_ALERT', { detail: { type, message } }));
-  } catch {}
-};
+// Utility for calculating text color based on background
+import { getContrastTextColor } from '../../utils/colorUtils';
 
 const isValidEmail = (e) => /\S+@\S+\.\S+/.test(String(e || ''));
 
-const AccessControl = ({ brandColor = '#EF4444', contrastTextColor = '#FFFFFF' }) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedRole, setSelectedRole] = useState(null);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+const AccessControl = () => {
+  // --- OPTIMIZATION: Get user and brand color directly from Redux state ---
+  const user = useSelector((state) => state.auth.user);
+  const brandColor = useMemo(() => user?.store?.brandColor || user?.store?.theme_color || '#EF4444', [user]);
+  const contrastTextColor = useMemo(() => getContrastTextColor(brandColor), [brandColor]);
+  // --- END OPTIMIZATION ---
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // State for the "Add User" modal
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [editingUser, setEditingUser] = useState(null); // when not null, modal operates as role assignment
 
-  // Data
+  // Data fetching and mutations
   const { data: users = [], isLoading: loadingUsers } = useAclUsersQuery();
-  const { data: roles = [] } = useAclRolesQuery();
+  const { mutateAsync: addUser, isLoading: isAddingUser } = useAclAddUserMutation();
+  const { mutateAsync: removeUser } = useAclRemoveUserMutation();
 
-  // Mutations
-  const createUser = useAclCreateUserMutation();
-  const inviteUser = useAclInviteUserMutation();
-  const assignRole = useAclAssignRoleMutation();
-  const deleteUser = useAclDeleteUserMutation();
-
-  const roleNames = useMemo(() => roles.map((r) => r.name), [roles]);
-
-  // Open modal to add or edit user
   const openCreateModal = () => {
-    setEditingUser(null);
+    setName('');
     setEmail('');
     setPassword('');
-    setSelectedRole(null);
-    setIsDropdownOpen(false);
     setIsModalOpen(true);
   };
-  const openEditModal = (user) => {
-    setEditingUser(user);
-    setEmail(user.email || '');
-    setPassword('');
-    setSelectedRole(user.role || null);
-    setIsDropdownOpen(false);
-    setIsModalOpen(true);
-  };
-
+  
   const handleCloseModal = () => {
     setIsModalOpen(false);
-    setEditingUser(null);
-    setSelectedRole(null);
-    setIsDropdownOpen(false);
-    setEmail('');
-    setPassword('');
   };
 
   const handleSaveUser = async (e) => {
     e.preventDefault();
     try {
-      if (!isValidEmail(email)) throw new Error('Please enter a valid email address');
-      if (!selectedRole) throw new Error('Please select a role');
-
-      // If editing, only assign role (we could also support updating email/password)
-      if (editingUser?.id) {
-        await assignRole.mutateAsync({ userId: editingUser.id, role: selectedRole });
-        toast('success', 'Role updated');
-        handleCloseModal();
+      if (!isValidEmail(email)) {
+        alert('Please enter a valid email address');
+        return;
+      }
+      if (!name.trim()) {
+        alert('Please enter a name');
+        return;
+      }
+      if (password.length < 8) {
+        alert('Password must be at least 8 characters');
         return;
       }
 
-      // Creating
-      if (password && password.trim().length >= 6) {
-        await createUser.mutateAsync({ email, password, role: selectedRole });
-      } else {
-        await inviteUser.mutateAsync({ email, role: selectedRole });
-      }
-      handleCloseModal();
+      await addUser({ name, email, password });
+      handleCloseModal(); // The mutation hook will show a toast on success
     } catch (err) {
-      toast('error', err?.message || 'Failed to save user');
+      // The mutation hook already shows a toast on error, but we can log it.
+      console.error("Failed to add user:", err);
     }
   };
 
-  const handleDeleteUser = async (userId) => {
-    if (!userId) return;
-    if (!window.confirm('Delete this user?')) return;
-    try {
-      await deleteUser.mutateAsync(userId);
-    } catch (err) {
-      // toast fired in mutation
+  const handleDeleteUser = async (userToDelete) => {
+    if (!userToDelete || !userToDelete.id) return;
+    if (userToDelete.is_owner) {
+      alert("Cannot remove the store owner.");
+      return;
+    }
+    if (window.confirm(`Are you sure you want to remove user ${userToDelete.name}?`)) {
+      await removeUser(userToDelete.id);
     }
   };
 
@@ -112,161 +88,69 @@ const AccessControl = ({ brandColor = '#EF4444', contrastTextColor = '#FFFFFF' }
       <div className="max-w-4xl mx-auto">
         <h2 className="text-2xl font-semibold mb-1">Access Control</h2>
         <p className="text-gray-500 mb-6">
-          Grant users access to manage parts of your account. Input the user's email and you can add a unique password for each user.
+          Add or remove users who can help manage your store.
         </p>
 
-        {/* Users */}
-        <h2 className="text-xl font-semibold mb-4">Users</h2>
+        <h2 className="text-xl font-semibold mb-4">Store Users</h2>
 
         {loadingUsers ? (
           <div className="p-4 text-gray-500">Loading users...</div>
-        ) : users.length === 0 ? (
-          <div className="p-4 bg-white rounded-lg shadow-sm text-gray-500">No users found.</div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {users.map((user) => (
               <div key={user.id} className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
                 <div className="flex items-center gap-4">
                   <img
-                    src={user.avatar || 'https://placehold.co/80x80/cccccc/000000?text=U'}
-                    alt="User Avatar"
+                    src={user.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`}
+                    alt={user.name}
                     className="w-10 h-10 rounded-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.onerror = null;
-                      e.currentTarget.src = 'https://placehold.co/80x80/cccccc/000000?text=U';
-                    }}
                   />
                   <div>
-                    <p className="font-medium">{user.email}</p>
-                    <p className="text-sm text-gray-500">{user.role}</p>
+                    <div className="flex items-center gap-2">
+                       <p className="font-medium">{user.name}</p>
+                       {user.is_owner && <Crown size={16} className="text-yellow-500" title="Store Owner" />}
+                    </div>
+                    <p className="text-sm text-gray-500">{user.email}</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <button className="p-2 text-gray-400 hover:text-blue-500 transition-colors" onClick={() => openEditModal(user)} aria-label="Edit user">
-                    <img src={EditIcon} alt="Edit" className="w-4 h-4" />
+                {!user.is_owner && (
+                  <button className="p-2 text-gray-400 hover:text-red-500 transition-colors" onClick={() => handleDeleteUser(user)} aria-label={`Remove ${user.name}`}>
+                    <img src={TrashIcon} alt="Remove" className="w-4 h-4" />
                   </button>
-                  <button className="p-2 text-gray-400 hover:text-red-500 transition-colors" onClick={() => handleDeleteUser(user.id)} aria-label="Delete user">
-                    <img src={TrashIcon} alt="Delete" className="w-4 h-4" />
-                  </button>
-                </div>
+                )}
               </div>
             ))}
+            {users.length === 0 && <div className="p-4 bg-white rounded-lg shadow-sm text-gray-500">No users found.</div>}
           </div>
         )}
 
-        {/* Add New User Button */}
         <div className="mt-8">
           <Button
-            className="w-full rounded-2xl font-semibold py-4"
+            className="w-full rounded-2xl font-semibold py-4 flex items-center justify-center gap-2"
             style={{ backgroundColor: brandColor, color: contrastTextColor }}
             onClick={openCreateModal}
           >
+            <UserPlus size={20} />
             Add New User
           </Button>
         </div>
       </div>
 
-      {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 backdrop-blur-2xl bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar shadow-lg">
-            <div className="sticky top-0 bg-white p-6 border-b border-gray-200 flex justify-between items-center z-10">
-              <h2 className="text-xl font-semibold">{editingUser ? 'Edit User' : 'Add User'}</h2>
-              <button onClick={handleCloseModal} className="text-gray-400 hover:text-gray-600" aria-label="Close modal">
+        <div className="fixed inset-0 backdrop-blur-lg flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-lg">
+            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Add New User</h2>
+              <button onClick={handleCloseModal} className="text-gray-400 hover:text-gray-600">
                 <X size={24} />
               </button>
             </div>
-
-            <form onSubmit={handleSaveUser} className="p-6 space-y-6">
-              <div className="space-y-4">
-                {/* Email */}
-                <input
-                  type="email"
-                  placeholder="User Email Address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                  disabled={!!editingUser}
-                />
-
-                {/* Password (optional; use to create user directly; leave blank to send invite) */}
-                {!editingUser && (
-                  <input
-                    type="password"
-                    placeholder="User Password (leave blank to send invite)"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                )}
-
-                {/* Role Dropdown */}
-                <div className="relative">
-                  <div
-                    className="p-4 bg-gray-50 border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between"
-                    onClick={() => setIsDropdownOpen((prev) => !prev)}
-                  >
-                    <span className={selectedRole ? 'text-gray-900' : 'text-gray-500'}>
-                      {selectedRole || 'Select Role'}
-                    </span>
-                    <span className="text-gray-500">&#9662;</span>
-                  </div>
-
-                  {isDropdownOpen && (
-                    <div className="absolute w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-56 overflow-auto">
-                      {roleNames.map((r) => (
-                        <div
-                          key={r}
-                          onClick={() => {
-                            setSelectedRole(r);
-                            setIsDropdownOpen(false);
-                          }}
-                          className="px-4 py-2 hover:bg-blue-50 cursor-pointer"
-                        >
-                          {r}
-                        </div>
-                      ))}
-                      {roleNames.length === 0 && <div className="px-4 py-2 text-gray-500">No roles available</div>}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Role Details */}
-              {selectedRole && Array.isArray(roles) && roles.length > 0 && (
-                <div className="mt-4">
-                  {roles
-                    .filter((role) => role.name === selectedRole)
-                    .map((role) => (
-                      <div key={role.name}>
-                        <h3 className="font-semibold text-lg mb-2">{role.name}</h3>
-                        <p className="text-gray-500 text-sm mb-3">
-                          Anyone with the {role.name} role has access to:
-                        </p>
-                        <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
-                          {Array.isArray(role.features) && role.features.length > 0 ? (
-                            role.features.map((feature) => (
-                              <li key={feature} className="text-sm">
-                                {feature}
-                              </li>
-                            ))
-                          ) : (
-                            <li className="text-sm text-gray-500">No features listed</li>
-                          )}
-                        </ul>
-                      </div>
-                    ))}
-                </div>
-              )}
-
-              {/* Save Button */}
-              <Button
-                type="submit"
-                className="w-full rounded-2xl font-semibold py-4"
-                style={{ backgroundColor: brandColor, color: contrastTextColor }}
-              >
-                {editingUser ? 'Save Changes' : 'Save User'}
+            <form onSubmit={handleSaveUser} className="p-6 space-y-4">
+              <input type="text" placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} required className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2" style={{"--tw-ring-color": brandColor}} />
+              <input type="email" placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2" style={{"--tw-ring-color": brandColor}} />
+              <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2" style={{"--tw-ring-color": brandColor}} />
+              <Button type="submit" disabled={isAddingUser} className="w-full rounded-xl font-semibold py-3" style={{ backgroundColor: brandColor, color: contrastTextColor }}>
+                {isAddingUser ? 'Adding User...' : 'Add User'}
               </Button>
             </form>
           </div>

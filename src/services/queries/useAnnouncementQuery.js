@@ -1,32 +1,28 @@
-// src/hooks/useAnnouncementQuery.js
+// src/services/queries/useAnnouncementQuery.js
 import { useQuery } from '@tanstack/react-query';
-import { announcementService } from '../settings/announcementService';
+import { announcementService } from '../settings/announcementService.js';
 
-const KEYS = {
+export const announcementQueryKeys = {
   announcements: ['announcements'],
   announcementsActive: ['announcements', 'active'],
 };
 
 export const useAnnouncementsQuery = (options = {}) =>
   useQuery({
-    queryKey: KEYS.announcements,
-    queryFn: async () => {
-      const res = await announcementService.getAnnouncements();
-      return res.announcements || [];
-    },
+    queryKey: announcementQueryKeys.announcements,
+    queryFn: () => announcementService.getAnnouncements(),
     staleTime: 60_000,
     ...options,
   });
 
-export const useActiveAnnouncementsQuery = (params = {}, options = {}) =>
+// This hook now filters client-side, as the backend doesn't have a dedicated endpoint for it.
+export const useActiveAnnouncementsQuery = (options = {}) =>
   useQuery({
-    queryKey: [...KEYS.announcementsActive, params],
+    queryKey: announcementQueryKeys.announcementsActive,
     queryFn: async () => {
-      const res = await announcementService.getActiveAnnouncements(params);
-      return res.announcements || [];
+      const allAnnouncements = await announcementService.getAnnouncements();
+      return allAnnouncements.filter(a => a.active);
     },
     staleTime: 30_000,
     ...options,
   });
-
-export const announcementQueryKeys = KEYS;

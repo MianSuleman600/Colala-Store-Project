@@ -4,36 +4,36 @@ import { chatService } from '../index.js';
 import { normalizeChats, normalizeChatThread } from '../../utils/dataNormalizer.js';
 
 /**
- * Fetch all chats for the user/store
+ * Fetch all chat conversations for the user/store.
  */
-export const useChatsQuery = (options = {}) => {
+export const useChatsQuery = (userId, options = {}) => {
   return useQuery({
-    queryKey: ['chats'],
+    // MODIFICATION: Add userId to the queryKey to ensure it's user-specific
+    queryKey: ['chats', userId],
     queryFn: async () => {
       const data = await chatService.getChats();
-      return normalizeChats(data?.data || data); // Normalize before returning
+      return normalizeChats(data?.chats || data?.data || data);
     },
+    enabled: !!userId, // Ensure query only runs when logged in
     staleTime: 60 * 1000, // 1 minute
-    retry: 1,
     ...options,
   });
 };
 
 /**
- * Fetch a single chat thread by conversation ID
- * @param {string} conversationId
+ * Fetch all messages for a single chat thread.
  */
-export const useGetChatByConversationIdQuery = (conversationId, options = {}) => {
+export const useChatMessagesQuery = (chatId, options = {}) => {
   return useQuery({
-    queryKey: ['chat', conversationId],
+    queryKey: ['chatMessages', chatId],
     queryFn: async () => {
-      if (!conversationId) throw new Error('Conversation ID is required');
-      const data = await chatService.getChatByConversationId(conversationId);
-      return normalizeChatThread(data?.data || data); // Normalize messages
+      if (!chatId) return [];
+      const data = await chatService.getChatMessages(chatId);
+      return normalizeChatThread(data?.messages || data?.data || data);
     },
-    enabled: !!conversationId,
-    staleTime: Infinity, // Chat messages are real-time
-    retry: 1,
+    enabled: !!chatId,
+    staleTime: 10 * 1000,
+    refetchInterval: 15000,
     ...options,
   });
 };

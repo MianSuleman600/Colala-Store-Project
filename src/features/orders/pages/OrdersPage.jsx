@@ -1,71 +1,78 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import OrderListItem from '../../../components/order/OrderListItem';
 import OrderDetailsPanel from '../../../components/order/OrderDetailsPanel';
 import Button from '../../../components/ui/Button';
 import { getContrastTextColor } from '../../../utils/colorUtils';
-import { useStoreProfile } from '../../../services/queries/storeProfileQuery';
 import { useGetOrdersQuery } from '../../../services/queries/useOrderQuery';
 import { useToast } from '../../../components/ui/ToastProvider';
 
 const OrdersPage = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { push } = useToast();
 
-  // Extract userId from URL or fallback
-  const queryParams = new URLSearchParams(location.search);
-  const userId = queryParams.get('userId') || 'default_user_id';
-  const isLoggedIn = Boolean(userId);
+  // ✅ STEP 1: All hook calls are now at the top level.
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const userId = user?.id;
 
-  // Brand color
-  const { data: storeProfile, isLoading: isProfileLoading, error: profileError } = useStoreProfile(userId, {
-    enabled: isLoggedIn && !!userId,
-  });
-  const brandColor = useMemo(() => storeProfile?.brandColor || '#EF4444', [storeProfile]);
-  const contrastTextColor = useMemo(() => getContrastTextColor(brandColor), [brandColor]);
-
-  // Tabs: New | Completed
   const [activeOrderTab, setActiveOrderTab] = useState('New');
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [showOrderDetails, setShowOrderDetails] = useState(false); // For mobile view
 
-  // Orders for current tab
   const {
     data: ordersResponse,
     isLoading: isOrdersLoading,
     error: ordersError,
-  } = useGetOrdersQuery(activeOrderTab, userId, { enabled: isLoggedIn && !!userId });
+  } = useGetOrdersQuery(userId, { enabled: isAuthenticated && !!userId });
 
-  const ordersData = Array.isArray(ordersResponse?.orders) ? ordersResponse.orders : [];
+  const brandColor = useMemo(() => user?.store?.theme_color || '#EF4444', [user]);
+  const contrastTextColor = useMemo(() => getContrastTextColor(brandColor), [brandColor]);
 
-  // Selection + mobile toggle
-  const [selectedOrderId, setSelectedOrderId] = useState(null);
-  const [showOrderList, setShowOrderList] = useState(true);
-  const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const ordersData = useMemo(() => {
+    if (!ordersResponse) return [];
+    return activeOrderTab === 'New' ? ordersResponse.new : ordersResponse.completed;
+  }, [ordersResponse, activeOrderTab]);
 
-  // Toast errors
+  const selectedOrder = useMemo(() => {
+    if (!ordersResponse || !selectedOrderId) return null;
+    return [...(ordersResponse.new || []), ...(ordersResponse.completed || [])].find(
+      (order) => order.id === selectedOrderId
+    );
+  }, [ordersResponse, selectedOrderId]);
+
+  // --- Effects ---
   useEffect(() => {
-    if (profileError) push('Failed to load store profile.', { type: 'error' });
     if (ordersError) push('Failed to load orders.', { type: 'error' });
-  }, [profileError, ordersError, push]);
+  }, [ordersError, push]);
 
-  // Keep selection stable; auto-select when needed
   useEffect(() => {
-    if (ordersData.length === 0) {
+    if (ordersData.length > 0 && !ordersData.some(o => o.id === selectedOrderId)) {
+      setSelectedOrderId(ordersData[0].id);
+    } else if (ordersData.length === 0) {
       setSelectedOrderId(null);
-      setShowOrderDetails(false);
-      setShowOrderList(true);
-      return;
     }
-    const exists = ordersData.some((o) => o.id === selectedOrderId);
-    if (!exists) setSelectedOrderId(ordersData[0].id);
   }, [ordersData, selectedOrderId]);
 
-  if (!isLoggedIn) {
+  // --- Handlers ---
+  const handleOrderListItemClick = (orderId) => {
+    setSelectedOrderId(orderId);
+    if (window.innerWidth < 1024) {
+      setShowOrderDetails(true);
+    }
+  };
+
+  const handleBackToList = () => {
+    setShowOrderDetails(false);
+  };
+
+  // ✅ STEP 2: Conditional returns are now AFTER all hooks have been called.
+  if (!isAuthenticated) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-100px)] text-gray-600">
         <p className="text-lg mb-4">Please log in to view your orders.</p>
         <Button
-          onClick={() => navigate('/login')}
+          onClick={() => navigate('/login')} // Assuming you want to navigate, or use dispatch(openModal('login'))
           style={{ backgroundColor: brandColor, color: contrastTextColor }}
           className="py-2 px-6 rounded-lg font-semibold"
         >
@@ -75,28 +82,16 @@ const OrdersPage = () => {
     );
   }
 
-  if (isProfileLoading || isOrdersLoading) {
-    return <div className="text-center py-8 text-gray-600">Loading...</div>;
+  if (isOrdersLoading) {
+    return <div className="text-center py-8 text-gray-600">Loading your orders...</div>;
   }
-
-  const handleOrderListItemClick = (orderId) => {
-    setSelectedOrderId(orderId);
-    setShowOrderList(false);
-    setShowOrderDetails(true);
-  };
-
-  const handleBackToList = () => {
-    setShowOrderDetails(false);
-    setShowOrderList(true);
-  };
-
-  const selectedOrder = ordersData.find((order) => order.id === selectedOrderId) || null;
-
+  
+  // ✅ STEP 3: The main render logic is at the end.
   return (
     <div className="container mx-auto p-4 md:p-8">
-      <div className="grid grid-cols-1 lg:grid-cols-[30%_70%] lg:gap-8">
-        {/* Tabs & List */}
-        <div className={`lg:col-span-1 space-y-4 ${showOrderDetails ? 'hidden lg:block' : ''}`}>
+      <div className="grid grid-cols-1 lg:grid-cols-[30%_1fr] lg:gap-8">
+        {/* Left Panel: Tabs & List */}
+        <div className={`lg:col-span-1 space-y-4 ${showOrderDetails ? 'hidden lg:block' : 'block'}`}>
           <div className="flex space-x-4 mb-6">
             {['New', 'Completed'].map((tab) => (
               <button
@@ -121,18 +116,18 @@ const OrdersPage = () => {
           ) : (
             ordersData.map((order) => (
               <OrderListItem
-                key={order.id || `order-${order.customerName}-${order.totalPrice}`}
+                key={order.id}
                 order={order}
                 isActive={order.id === selectedOrderId}
-                onClick={handleOrderListItemClick}
+                onClick={() => handleOrderListItemClick(order.id)}
                 brandColor={brandColor}
               />
             ))
           )}
         </div>
 
-        {/* Details */}
-        <div className={`lg:col-span-1 ${showOrderList ? 'hidden lg:block' : ''}`}>
+        {/* Right Panel: Details */}
+        <div className={`lg:col-span-1 ${!showOrderDetails && window.innerWidth < 1024 ? 'hidden' : 'block'} lg:block`}>
           {selectedOrder ? (
             <OrderDetailsPanel
               customerOrder={selectedOrder}
@@ -142,7 +137,7 @@ const OrdersPage = () => {
             />
           ) : (
             <div className="p-6 bg-white rounded-xl shadow-md flex items-center justify-center h-full text-gray-500">
-              Select an order to view details.
+              {ordersData.length > 0 ? 'Select an order to view details.' : 'No orders to display.'}
             </div>
           )}
         </div>

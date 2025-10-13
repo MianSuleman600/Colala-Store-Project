@@ -1,6 +1,6 @@
 // src/services/mutations/useCouponsMutation.js
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { couponService } from '../index.js';
+import { couponService } from '../settings/couponService.js';
 import { keys } from '../queries/useCouponsQuery.js';
 
 /* ---------------- Mutations ---------------- */
@@ -35,6 +35,13 @@ export const useDeleteCouponMutation = (options = {}) => {
     },
     ...options,
   });
+};
+
+export const useApplyCouponMutation = (options = {}) => {
+    return useMutation({
+        mutationFn: (code) => couponService.applyCoupon(code),
+        ...options,
+    });
 };
 
 export const useUpdatePointsSettingsMutation = (options = {}) => {

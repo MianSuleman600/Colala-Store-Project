@@ -1,67 +1,43 @@
 // src/services/mutations/useChatMutations.js
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { chatService } from '../index.js';
-import { normalizeChatThread } from '../../utils/dataNormalizer.js';
-
-const updateCache = (queryClient, chatId, data) => {
-  queryClient.setQueryData(['chat', chatId], normalizeChatThread(data));
-  queryClient.invalidateQueries({ queryKey: ['chats'] }); // Optionally refresh chat list
-};
 
 /**
- * Send a new message in a chat
+ * Send a new message in a chat with an optimistic update.
  */
 export const useSendMessageMutation = (options = {}) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ chatId, message }) => chatService.sendMessage(chatId, message),
-    onSuccess: (data, variables) => {
-      updateCache(queryClient, variables.chatId, data);
-      options.onSuccess?.(data);
-    },
-    onError: (error) => {
-      console.error('Failed to send message:', error);
-      options.onError?.(error);
-    },
-  });
-};
+    mutationFn: ({ chatId, payload }) => chatService.sendMessage(chatId, payload),
 
-/**
- * Edit an existing message
- */
-export const useEditMessageMutation = (options = {}) => {
-  const queryClient = useQueryClient();
+    onMutate: async ({ chatId, tempMessage }) => {
+      const messagesQueryKey = ['chatMessages', chatId];
+      
+      await queryClient.cancelQueries({ queryKey: messagesQueryKey });
+      const previousMessages = queryClient.getQueryData(messagesQueryKey);
 
-  return useMutation({
-    mutationFn: ({ chatId, messageId, updatedMessage }) =>
-      chatService.updateMessage(chatId, messageId, updatedMessage),
-    onSuccess: (data, variables) => {
-      updateCache(queryClient, variables.chatId, data);
-      options.onSuccess?.(data);
-    },
-    onError: (error) => {
-      console.error('Failed to edit message:', error);
-      options.onError?.(error);
-    },
-  });
-};
+      // Optimistically add the temporary message to the UI.
+      queryClient.setQueryData(messagesQueryKey, (old = []) => [...old, tempMessage]);
 
-/**
- * Delete a message
- */
-export const useDeleteMessageMutation = (options = {}) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ chatId, messageId }) => chatService.deleteMessage(chatId, messageId),
-    onSuccess: (data, variables) => {
-      updateCache(queryClient, variables.chatId, data);
-      options.onSuccess?.(data);
+      return { previousMessages };
     },
-    onError: (error) => {
-      console.error('Failed to delete message:', error);
-      options.onError?.(error);
+
+    // If the mutation fails, roll back to the previous state.
+    onError: (err, { chatId }, context) => {
+      console.error("Failed to send message:", err);
+      if (context?.previousMessages) {
+        queryClient.setQueryData(['chatMessages', chatId], context.previousMessages);
+      }
+      options.onError?.(err);
+    },
+
+    // Always refetch after error or success to ensure the UI has the real data from the server.
+    onSettled: (data, error, { chatId, userId }) => {
+      queryClient.invalidateQueries({ queryKey: ['chatMessages', chatId] });
+      queryClient.invalidateQueries({ queryKey: ['chats', userId] });
+      options.onSettled?.(data, error);
     },
   });
 };

@@ -1,49 +1,67 @@
-// src/services/leaderboardService.js
-import { apiRequest } from '../../api/apiClient.js';
-import { ENDPOINTS } from '../../api/apiConfig.js';
-import { USE_DUMMY_DATA } from '../../utils/config.js';
-import { DUMMY_LEADERBOARD_SELLERS, DUMMY_LEADERBOARD_FAQS } from '../../utils/data/dummyLeaderboard.js';
-import { normalizeLeaderboardSellers, normalizeLeaderboardFaqs } from '../../utils/dataNormalizer.js';
+// src/services/settings/leaderboardService.js
 
-/* ---------------- Helpers ---------------- */
-const takeList = (res) => (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []);
-const toPeriod = (label) => {
-  const l = String(label || '').toLowerCase();
-  if (l.includes('today')) return 'today';
-  if (l.includes('week')) return 'week';
-  if (l.includes('month')) return 'month';
-  return 'all';
+import { apiRequest } from '../../api/apiClient';
+import { ENDPOINTS } from '../../api/apiConfig';
+
+// A simple normalizer for sellers
+const normalizeLeaderboardSellers = (sellers = []) => {
+  return sellers.map(seller => ({
+    id: seller.store_id,
+    name: seller.store_name,
+    score: seller.total_points,
+    avatarUrl: seller.profile_image,
+    followers: seller.followers_count,
+    rating: seller.average_rating,
+  }));
 };
 
-/* ---------------- Dummy ---------------- */
-const dummyLeaderboard = {
-  getSellers: async ({ period = 'all' } = {}) => {
-    // For realism, you might shuffle or slice by period
-    const sellers = normalizeLeaderboardSellers(DUMMY_LEADERBOARD_SELLERS);
-    // Sort desc by score
-    sellers.sort((a, b) => b.score - a.score);
-    return { success: true, sellers };
+// A simple normalizer for FAQs
+const normalizeLeaderboardFaqs = (faqs = []) => {
+    return faqs.map(faq => ({
+        question: faq.question,
+        answer: faq.answer,
+    }));
+};
+
+
+export const leaderboardService = {
+  /**
+   * Fetches sellers for all leaderboard periods.
+   */
+  getSellers: async () => {
+    const response = await apiRequest({
+      url: ENDPOINTS.LEADERBOARD.SELLERS,
+      method: 'GET',
+    });
+    const allPeriodsData = response.data || {};
+    return {
+      today: normalizeLeaderboardSellers(allPeriodsData.today || []),
+      weekly: normalizeLeaderboardSellers(allPeriodsData.weekly || []),
+      monthly: normalizeLeaderboardSellers(allPeriodsData.monthly || []),
+      all: normalizeLeaderboardSellers(allPeriodsData.all || []),
+    };
   },
+
+  /**
+   * Fetches FAQs. The backend returns categories with nested FAQs.
+   * We will flatten them into a single list for the UI.
+   * @returns {Promise<Array>}
+   */
   getFaqs: async () => {
-    const faqs = normalizeLeaderboardFaqs(DUMMY_LEADERBOARD_FAQS);
-    return { success: true, faqs };
+    const response = await apiRequest({
+      url: ENDPOINTS.FAQS.LIST, // Use the correct endpoint
+      method: 'GET',
+    });
+    const categories = response.data || [];
+    
+    // Flatten the array: go through each category and collect all its faqs
+    const allFaqs = categories.reduce((accumulator, currentCategory) => {
+      if (Array.isArray(currentCategory.faqs)) {
+        return accumulator.concat(currentCategory.faqs);
+      }
+      return accumulator;
+    }, []);
+
+    return normalizeLeaderboardFaqs(allFaqs);
   },
 };
-
-/* ---------------- API ---------------- */
-const apiLeaderboard = {
-  getSellers: async ({ period = 'all' } = {}) => {
-    const params = { period: toPeriod(period) };
-    const res = await apiRequest({ url: ENDPOINTS.LEADERBOARD.SELLERS(params), method: 'GET' });
-    const sellers = normalizeLeaderboardSellers(takeList(res));
-    sellers.sort((a, b) => b.score - a.score);
-    return { success: true, sellers };
-  },
-  getFaqs: async () => {
-    const res = await apiRequest({ url: ENDPOINTS.LEADERBOARD.FAQS, method: 'GET' });
-    const faqs = normalizeLeaderboardFaqs(Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []);
-    return { success: true, faqs };
-  },
-};
-
-export const leaderboardService = USE_DUMMY_DATA ? dummyLeaderboard : apiLeaderboard;

@@ -1,32 +1,21 @@
-// src/hooks/useReviewQuery.js
+// src/services/queries/useReviewQuery.js
 import { useQuery } from '@tanstack/react-query';
 import { reviewService } from '../settings/reviewService';
 
 export const reviewQueryKeys = {
-  store: (params = {}) => ['reviews', 'store', params],
-  storeById: (id) => ['reviews', 'store', 'detail', id],
-  product: (params = {}) => ['reviews', 'product', params],
-  productById: (id) => ['reviews', 'product', 'detail', id],
+  myReviews: ['reviews', 'myReviews'],
 };
 
-export const useStoreReviewsQuery = (params = {}, options = {}) =>
+// A single query to fetch all reviews
+export const useMyReviewsQuery = (options = {}) =>
   useQuery({
-    queryKey: reviewQueryKeys.store(params),
-    queryFn: async () => {
-      const res = await reviewService.getStoreReviews(params);
-      return res.reviews || [];
-    },
-    staleTime: 60_000,
-    ...options,
-  });
-
-export const useProductReviewsQuery = (params = {}, options = {}) =>
-  useQuery({
-    queryKey: reviewQueryKeys.product(params),
-    queryFn: async () => {
-      const res = await reviewService.getProductReviews(params);
-      return res.reviews || [];
-    },
-    staleTime: 60_000,
+    queryKey: reviewQueryKeys.myReviews,
+    queryFn: () => reviewService.getMyReviews(),
+    // Selectors to split the data for components that need specific lists
+    select: (data) => ({
+      storeReviews: data?.store_reviews || [],
+      productReviews: data?.product_reviews || [],
+    }),
+    staleTime: 60 * 1000, // 1 minute
     ...options,
   });

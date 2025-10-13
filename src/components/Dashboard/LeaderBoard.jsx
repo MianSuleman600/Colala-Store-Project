@@ -1,41 +1,55 @@
-// src/pages/LeaderBoard.jsx
 import React, { useMemo, useState } from 'react';
-import ScrollToTop from '../ui/ScrollToTop';
+import { useSelector } from 'react-redux';
+import ScrollToTop from '../../components/ui/ScrollToTop';
 import { useLeaderboardSellersQuery, useLeaderboardFaqsQuery } from '../../services/queries/useLeaderboardQuery';
+import { useStoreProfile } from '../../services/queries/storeProfileQuery';
 
-const toPeriodParam = (label) => {
+// Helper function to map the UI tab label to the backend data object key
+const toPeriodKey = (label) => {
   const l = String(label).toLowerCase();
   if (l.includes('today')) return 'today';
-  if (l.includes('weekly') || l.includes('week')) return 'week';
-  if (l.includes('monthly') || l.includes('month')) return 'month';
-  return 'all';
+  if (l.includes('weekly')) return 'weekly';
+  if (l.includes('monthly')) return 'monthly';
+  return 'all'; // Corresponds to the 'All Time' tab
 };
 
 export default function LeaderBoard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('Today');
 
-  const periodParam = toPeriodParam(activeTab);
-  const { data: sellers = [], isLoading } = useLeaderboardSellersQuery(periodParam);
+  // Get user's store profile to derive the brand color
+  const { user } = useSelector((state) => state.auth);
+  const storeId = user?.store?.id;
+  const { data: storeProfile } = useStoreProfile(storeId, { enabled: !!storeId });
+  const brandColor = useMemo(() => storeProfile?.brandColor || '#EF4444', [storeProfile]);
+
+  // Fetch all leaderboard data at once
+  const { data: allSellersData, isLoading } = useLeaderboardSellersQuery();
   const { data: faqs = [] } = useLeaderboardFaqsQuery();
 
-  // Ensure sorted descending by score just in case
-  const sorted = useMemo(() => {
-    const arr = Array.isArray(sellers) ? [...sellers] : [];
-    arr.sort((a, b) => b.score - a.score);
-    return arr;
-  }, [sellers]);
+  // Memoized logic to select and sort the correct list of sellers based on the active tab
+  const sortedSellers = useMemo(() => {
+    const periodKey = toPeriodKey(activeTab);
+    const sellersForPeriod = allSellersData?.[periodKey] || [];
+    // Create a new array to sort, preventing mutation of cached data
+    return [...sellersForPeriod].sort((a, b) => (b.score || 0) - (a.score || 0));
+  }, [activeTab, allSellersData]);
 
-  const topSellers = useMemo(() => sorted.slice(0, 3), [sorted]);
-  const rankedSellers = useMemo(() => sorted.slice(3), [sorted]);
+  const topSellers = useMemo(() => sortedSellers.slice(0, 3), [sortedSellers]);
+  const rankedSellers = useMemo(() => sortedSellers.slice(3), [sortedSellers]);
 
   const tabs = ['Today', 'Weekly', 'Monthly', 'All Time'];
+
+  // Dynamic gradient style using the user's brand color
+  const gradientStyle = {
+    background: `linear-gradient(to bottom right, ${brandColor}, #EC4899)`, // Using pink-500 as the second color
+  };
 
   return (
     <div className="min-h-screen p-4 sm:p-8 flex items-center justify-center bg-gray-100 font-sans">
       <ScrollToTop />
       <div className="w-full max-w-4xl h-full flex flex-col rounded-3xl overflow-hidden shadow-xl">
-        <div className="flex-1 p-6 md:p-8 bg-gradient-to-br from-red-500 to-pink-500 flex flex-col relative">
+        <div className="flex-1 p-6 md:p-8 flex flex-col relative" style={gradientStyle}>
           <header className="flex justify-between items-center text-white mb-6">
             <h2 className="text-3xl font-bold">Seller Leaderboard</h2>
             <button
@@ -73,7 +87,7 @@ export default function LeaderBoard() {
           )}
         </div>
 
-        <LeaderboardList rankedSellers={rankedSellers} />
+        <LeaderboardList rankedSellers={rankedSellers} brandColor={brandColor} />
 
         <HowItWorksModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} faqs={faqs} />
       </div>
@@ -81,9 +95,9 @@ export default function LeaderBoard() {
   );
 }
 
-// Podium
+// Sub-component for the top 3 sellers
 const Podium = ({ topSellers }) => {
-  const emptySeller = { name: '', score: null, avatarUrl: null };
+  const emptySeller = { name: '...', score: null, avatarUrl: null };
   const [second, first, third] = [topSellers[1] || emptySeller, topSellers[0] || emptySeller, topSellers[2] || emptySeller];
 
   return (
@@ -97,9 +111,9 @@ const Podium = ({ topSellers }) => {
 
 const PodiumSeller = ({ seller, rank, positionClass, heightClass }) => {
   const isFirst = rank === 1;
-  const blockColor = isFirst ? 'bg-[#da4587]' : 'bg-white bg-opacity-80';
+  const blockColor = isFirst ? 'bg-yellow-400' : 'bg-white bg-opacity-80';
   const textColor = isFirst ? 'text-gray-900' : 'text-gray-800';
-  const avatarSrc = seller?.avatarUrl || 'https://placehold.co/80x80/cccccc/000000?text=?';
+  const avatarSrc = seller?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(seller.name || '?')}&background=random`;
 
   return (
     <div className={`flex flex-col items-center transition-all duration-300 ${positionClass}`}>
@@ -117,30 +131,33 @@ const PodiumSeller = ({ seller, rank, positionClass, heightClass }) => {
   );
 };
 
-// Ranked list
-const LeaderboardList = ({ rankedSellers }) => {
+// Sub-component for the ranked list of sellers below the podium
+const LeaderboardList = ({ rankedSellers, brandColor }) => {
   return (
     <div className="flex-1 bg-white p-4 md:p-6 rounded-b-3xl overflow-y-auto">
       <ul className="space-y-4">
-        {(rankedSellers || []).map((seller, index) => (
-          <li key={seller.id || index} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl shadow-sm">
-            <div className="flex items-center space-x-4">
-              <span className="font-bold text-lg text-gray-700">{index + 4}</span>
-              <div className="w-12 h-12 rounded-full overflow-hidden">
-                <img src={seller.avatarUrl || 'https://placehold.co/80x80/cccccc/000000?text=?'} alt={seller.name} className="w-full h-full object-cover" />
+        {rankedSellers.length > 0 ? (
+          rankedSellers.map((seller, index) => (
+            <li key={seller.id || index} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl shadow-sm">
+              <div className="flex items-center space-x-4">
+                <span className="font-bold text-lg text-gray-700 w-6 text-center">{index + 4}</span>
+                <div className="w-12 h-12 rounded-full overflow-hidden">
+                  <img src={seller.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(seller.name || '?')}`} alt={seller.name} className="w-full h-full object-cover" />
+                </div>
+                <p className="font-medium text-gray-800">{seller.name}</p>
               </div>
-              <p className="font-medium text-gray-800">{seller.name}</p>
-            </div>
-            <span className="font-bold text-lg text-red-500">{seller.score}</span>
-          </li>
-        ))}
-        {(rankedSellers || []).length === 0 && <li className="text-center text-gray-500 p-4">No ranked sellers to display.</li>}
+              <span className="font-bold text-lg" style={{ color: brandColor }}>{seller.score}</span>
+            </li>
+          ))
+        ) : (
+          <li className="text-center text-gray-500 p-4">No other ranked sellers to display for this period.</li>
+        )}
       </ul>
     </div>
   );
 };
 
-// Modal — pulls FAQs from props
+// Sub-component for the "How it works" modal
 const HowItWorksModal = ({ isOpen, onClose, faqs = [] }) => {
   const [openIndex, setOpenIndex] = useState(null);
   if (!isOpen) return null;
@@ -156,9 +173,8 @@ const HowItWorksModal = ({ isOpen, onClose, faqs = [] }) => {
             </svg>
           </button>
         </div>
-
-        <div className="space-y-4">
-          {Array.isArray(faqs) && faqs.length > 0 ? (
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+          {faqs.length > 0 ? (
             faqs.map((faq, index) => (
               <div key={index} className="bg-gray-50 rounded-2xl p-4 shadow-sm">
                 <button
@@ -166,19 +182,19 @@ const HowItWorksModal = ({ isOpen, onClose, faqs = [] }) => {
                   onClick={() => setOpenIndex(openIndex === index ? null : index)}
                 >
                   <span className="text-lg font-medium text-gray-900">{faq.question}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 transition-transform" style={{ transform: openIndex === index ? 'rotate(45deg)' : 'rotate(0deg)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 transition-transform flex-shrink-0" style={{ transform: openIndex === index ? 'rotate(45deg)' : 'rotate(0deg)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                 </button>
                 {openIndex === index && (
-                  <div className="mt-4 text-gray-600">
+                  <div className="mt-4 text-gray-600 prose prose-sm max-w-none">
                     <p>{faq.answer}</p>
                   </div>
                 )}
               </div>
             ))
           ) : (
-            <div className="text-gray-500">No FAQs available.</div>
+            <div className="text-gray-500 p-4 text-center">No FAQs available at the moment.</div>
           )}
         </div>
       </div>

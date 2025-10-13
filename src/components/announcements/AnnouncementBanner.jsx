@@ -1,70 +1,73 @@
-// src/components/announcements/AnnouncementBanner.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {  useMemo, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { useActiveAnnouncementsQuery } from '../../services/queries/useAnnouncementQuery.js';
-import { announcementService } from '../../services/settings/announcementService.js';
+import { getContrastTextColor } from '../../utils/colorUtils';
 
-const STORAGE_KEY = 'ACTIVE_ANNOUNCEMENT_CACHE';
-const DISMISS_KEY = 'DISMISS_ANNOUNCEMENT_IDS_SESSION';
+const DISMISS_KEY = 'DISMISSED_ANNOUNCEMENT_IDS_SESSION';
 
-const saveCache = (a) => {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(a)); } catch {}
-};
-const loadCache = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-};
-
-const wasDismissed = (id) => {
+// Helper to check if an announcement was dismissed in the current session
+const wasDismissedInSession = (id) => {
   try {
     const raw = sessionStorage.getItem(DISMISS_KEY);
-    const set = raw ? new Set(JSON.parse(raw)) : new Set();
-    return set.has(id);
-  } catch { return false; }
+    const dismissedIds = raw ? new Set(JSON.parse(raw)) : new Set();
+    return dismissedIds.has(id);
+  } catch {
+    return false;
+  }
 };
-const markDismissed = (id) => {
+
+// Helper to mark an announcement as dismissed for the current session
+const markDismissedInSession = (id) => {
   try {
     const raw = sessionStorage.getItem(DISMISS_KEY);
     const arr = raw ? JSON.parse(raw) : [];
-    if (!arr.includes(id)) arr.push(id);
-    sessionStorage.setItem(DISMISS_KEY, JSON.stringify(arr));
+    if (!arr.includes(id)) {
+      arr.push(id);
+      sessionStorage.setItem(DISMISS_KEY, JSON.stringify(arr));
+    }
   } catch {}
 };
 
-const AnnouncementBanner = ({ brandColor = '#111827', contrastTextColor = '#ffffff', className = '' }) => {
-  const { data, isError } = useActiveAnnouncementsQuery();
-  const [fallback, setFallback] = useState(() => loadCache());
+const AnnouncementBanner = ({ className = '' }) => {
+  // --- DYNAMIC BRAND COLOR INTEGRATION ---
+  const { user } = useSelector((state) => state.auth);
+  const brandColor = useMemo(() => user?.store?.brandColor || user?.store?.theme_color || '#111827', [user]);
+  const contrastTextColor = useMemo(() => getContrastTextColor(brandColor), [brandColor]);
+  // --- END BRAND COLOR INTEGRATION ---
 
+  // State to force a re-render when an item is dismissed
+  const [dismissed, setDismissed] = useState(false);
+
+  // Fetch only active announcements
+  const { data: activeAnnouncements = [] } = useActiveAnnouncementsQuery();
+
+  // Find the single announcement to display (highest priority or the first one)
   const announcement = useMemo(() => {
-    const list = Array.isArray(data) && data.length ? data : (fallback ? [fallback] : []);
-    if (!list.length) return null;
-    // pick highest priority, or latest
-    const sorted = [...list].sort((a, b) => (b.priority || 0) - (a.priority || 0));
-    return sorted.find((a) => a.active) || sorted[0];
-  }, [data, fallback]);
+    if (!activeAnnouncements.length) return null;
+    
+    // Sort by priority (higher number is higher priority) and then by creation date (newer first)
+    const sorted = [...activeAnnouncements].sort((a, b) => {
+      const priorityDiff = (b.priority || 0) - (a.priority || 0);
+      if (priorityDiff !== 0) return priorityDiff;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+    
+    // Find the first one that has not been dismissed in this session
+    return sorted.find(a => !wasDismissedInSession(a.id)) || null;
+  }, [activeAnnouncements, dismissed]);
 
-  useEffect(() => {
-    if (Array.isArray(data) && data.length) {
-      // cache first active
-      const first = data.find((a) => a.active) || data[0];
-      saveCache(first);
-    } else if (isError && !fallback) {
-      setFallback(loadCache());
+  // Handler for the dismiss button
+  const handleDismiss = () => {
+    if (announcement) {
+      markDismissedInSession(announcement.id);
+      setDismissed(true); // Trigger a re-render to hide the banner
     }
-  }, [data, isError, fallback]);
+  };
 
-  useEffect(() => {
-    if (!announcement || wasDismissed(announcement.id)) return;
-    // Avoid double counting within a session
-    const IMP_KEY = `IMP_ANNOUNCEMENT_${announcement.id}`;
-    const already = sessionStorage.getItem(IMP_KEY);
-    if (already) return;
-    sessionStorage.setItem(IMP_KEY, '1');
-    announcementService.trackAnnouncementImpression(announcement.id).catch(() => {});
-  }, [announcement]);
-
-  if (!announcement || wasDismissed(announcement.id)) return null;
+  // If there's no announcement to show (either none exist, or all have been dismissed), render nothing.
+  if (!announcement) {
+    return null;
+  }
 
   return (
     <div
@@ -76,8 +79,8 @@ const AnnouncementBanner = ({ brandColor = '#111827', contrastTextColor = '#ffff
       <div className="max-w-7xl mx-auto flex items-center justify-center gap-3">
         <span className="text-sm md:text-base">{announcement.text}</span>
         <button
-          onClick={() => markDismissed(announcement.id)}
-          className="ml-2 text-xs underline opacity-80 hover:opacity-100"
+          onClick={handleDismiss}
+          className="ml-2 text-xs underline opacity-80 hover:opacity-100 flex-shrink-0"
         >
           Dismiss
         </button>

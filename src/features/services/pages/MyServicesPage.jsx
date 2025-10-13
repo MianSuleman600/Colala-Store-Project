@@ -1,83 +1,54 @@
 // src/features/services/pages/MyServicesPage.jsx
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 
 import ProductDisplayCard from '../../../components/products/ProductDisplayCard';
 import ServiceStatModal from '../../../components/services/ServiceStatModal';
-
-import { getContrastTextColor, getLightBrandColor } from '../../../utils/colorUtils';
-import { useStoreProfile } from '../../../services/queries/storeProfileQuery';
+import Button from '../../../components/ui/Button';
+import { PlusIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../components/ui/ToastProvider';
+
 import { useServices } from '../../../services/queries/useServiceQuery';
+import { getContrastTextColor } from '../../../utils/colorUtils';
 
-const MyServicesPage = ({
-  // Optional theme props (will fall back to store profile if not provided)
-  brandColor: brandColorProp,
-  contrastTextColor: contrastTextColorProp,
-  lightBrandColor: lightBrandColorProp,
-  // Controls the grid (sidebar = 1–3 cols, home = 1–5 cols)
-  gridVariant = 'home',
-}) => {
+
+const MyServicesPage = ({ gridVariant = 'home' }) => {
   const { push } = useToast();
-  const { userId, isLoggedIn } = useSelector((state) => state.user || {});
-
-  // Only fetch store profile if we don't already have theme from props
-  const {
-    data: storeProfile,
-    isLoading: isProfileLoading,
-    error: profileError,
-  } = useStoreProfile(userId, {
-    enabled: isLoggedIn && !!userId && !brandColorProp,
-  });
+  const navigate = useNavigate();
+  
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const userId = user?.id;
 
   const {
     data: services = [],
     isLoading: isServicesLoading,
     error: servicesError,
-  } = useServices({
-    enabled: isLoggedIn && !!userId,
+  } = useServices(userId, {
+    enabled: isAuthenticated && !!userId,
   });
 
   useEffect(() => {
-    if (profileError) push('Failed to load store profile for services.', { type: 'error' });
-    if (servicesError) push('Failed to load services.', { type: 'error' });
-  }, [profileError, servicesError, push]);
+    if (servicesError) push('Failed to load your services.', { type: 'error' });
+  }, [servicesError, push]);
 
-  // Theme (prefer props, fall back to store profile)
-  const brandColor = useMemo(
-    () => brandColorProp || storeProfile?.brandColor || '#EF4444',
-    [brandColorProp, storeProfile]
-  );
-  const contrastTextColor = useMemo(
-    () => contrastTextColorProp || getContrastTextColor(brandColor),
-    [contrastTextColorProp, brandColor]
-  );
-  const lightBrandColor = useMemo(
-    () => lightBrandColorProp || getLightBrandColor(brandColor, 30),
-    [lightBrandColorProp, brandColor]
-  );
-
-  // Grid classes (matches MyProductsPage)
-  const gridClasses =
-    gridVariant === 'sidebar'
+  const brandColor = useMemo(() => user?.store?.theme_color || '#EF4444', [user]);
+  const contrastTextColor = useMemo(() => getContrastTextColor(brandColor), [brandColor]);
+  
+  const gridClasses = gridVariant === 'sidebar'
       ? 'grid items-stretch grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3'
       : 'grid items-stretch grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
 
-  // Stats modal
   const [showServiceStatModal, setShowServiceStatModal] = useState(false);
-  const [selectedServiceStats, setSelectedServiceStats] = useState(null);
+  const [selectedServiceId, setSelectedServiceId] = useState(null);
 
   const handleViewServiceStats = (serviceId) => {
-    const service = services.find((s) => s.id === serviceId);
-    if (service) {
-      setSelectedServiceStats(service);
-      setShowServiceStatModal(true);
-    } else {
-      push('Service not found.', { type: 'error' });
-    }
+    setSelectedServiceId(serviceId);
+    setShowServiceStatModal(true);
   };
 
-  if (!isLoggedIn) {
+  if (!isAuthenticated) {
     return (
       <div className="flex min-h-[calc(100vh-100px)] flex-col items-center justify-center text-gray-600">
         <p className="mb-4 text-lg">Please log in to view your services.</p>
@@ -85,17 +56,25 @@ const MyServicesPage = ({
     );
   }
 
-  if (isProfileLoading || isServicesLoading) {
+  if (isServicesLoading) {
     return <div className="py-12 text-center text-gray-500">Loading services...</div>;
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-8">
-      <h2 className="mb-6 text-2xl font-bold text-gray-800">My Services</h2>
+    <>
+      <div className="mb-6 flex w-full justify-end">
+        <Button
+            onClick={() => navigate('/add-service')}
+            style={{ backgroundColor: brandColor, color: contrastTextColor }}
+            className="flex w-full items-center rounded-lg py-2 px-6 font-semibold shadow-md transition-shadow hover:shadow-lg sm:w-auto"
+        >
+            <PlusIcon className="mr-2 h-5 w-5" /> Add New Service
+        </Button>
+      </div>
 
       {services.length === 0 ? (
         <div className="rounded-lg bg-white py-12 text-center shadow-md">
-          <p className="mb-4 text-lg text-gray-600">You have no services yet.</p>
+          <p className="mb-4 text-lg text-gray-600">You have no services yet. Click "Add New Service" to get started!</p>
         </div>
       ) : (
         <div className={gridClasses}>
@@ -106,25 +85,24 @@ const MyServicesPage = ({
               mode="service"
               brandColor={brandColor}
               contrastTextColor={contrastTextColor}
-              // Support either prop name depending on your card implementation
-              onViewDetailsClick={() => handleViewServiceStats(service.id)}
-              onViewStatsClick={() => handleViewServiceStats(service.id)}
+              onEdit={() => navigate(`/my-services/${service.id}/edit`)}
+              onViewDetailsClick={() => navigate(`/my-services/${service.id}/details`)}
+              onMoreOptionsClick={(e) => { /* Logic for a MoreOptionsPopover for services would go here */ }}
             />
           ))}
         </div>
       )}
-
-      {showServiceStatModal && selectedServiceStats && (
+      
+      {showServiceStatModal && selectedServiceId && (
         <ServiceStatModal
           isOpen={showServiceStatModal}
           onClose={() => setShowServiceStatModal(false)}
-          serviceStats={selectedServiceStats}
+          serviceId={selectedServiceId}
           brandColor={brandColor}
           contrastTextColor={contrastTextColor}
-          lightBrandColor={lightBrandColor}
         />
       )}
-    </div>
+    </>
   );
 };
 

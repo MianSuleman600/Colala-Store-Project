@@ -6,6 +6,8 @@ import FullOrderDetailsPanel from './FullOrderDetailsPanel';
 import { getContrastTextColor } from '../../utils/colorUtils';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../ui/ToastProvider';
+// ✅ THE FIX: Import and use the mutation hooks.
+import { useMarkOrderOutForDeliveryMutation, useMarkOrderDeliveredMutation } from '../../services/mutations/useOrderMutation';
 
 const OrderTrackerPanel = ({
   customerName,
@@ -14,64 +16,81 @@ const OrderTrackerPanel = ({
   onBackToOrderDetails,
   brandColor,
   fullOrderData,
+  userId, // Receive userId as a prop
 }) => {
   const { push } = useToast();
   const contrastTextColor = useMemo(() => getContrastTextColor(brandColor), [brandColor]);
 
-  const [currentTrackingStep, setCurrentTrackingStep] = useState(1);
+  const getInitialStep = (status) => {
+    const s = (status || '').toLowerCase();
+    if (s.includes('delivered')) return 3;
+    if (s.includes('out_for_delivery')) return 2;
+    return 1; // Default is 'Order placed'
+  };
+
+  const [currentTrackingStep, setCurrentTrackingStep] = useState(() => getInitialStep(fullOrderData?.status));
   const [showCodeInputModal, setShowCodeInputModal] = useState(false);
   const [showFullDetails, setShowFullDetails] = useState(false);
 
+  // ✅ THE FIX: Initialize the mutation hooks, passing the userId for query invalidation.
+  const { mutate: markOutForDelivery, isLoading: isMarkingOut } = useMarkOrderOutForDeliveryMutation({
+    userId,
+    onSuccess: () => {
+      push('Order marked as Out for Delivery.', { type: 'success' });
+      setCurrentTrackingStep(2);
+    },
+    onError: (err) => {
+      push(err.data?.message || 'Failed to update status.', { type: 'error' });
+    },
+  });
+
+  const { mutate: markDelivered, isLoading: isMarkingDelivered } = useMarkOrderDeliveredMutation({
+    userId,
+    onSuccess: () => {
+      push('Code verified! Order marked as Delivered.', { type: 'success' });
+      setCurrentTrackingStep(3); // Move UI to "Delivered" state
+      setShowCodeInputModal(false);
+    },
+    onError: (err) => {
+      push(err.data?.message || 'Invalid code or failed to update status.', { type: 'error' });
+    },
+  });
+  
   useEffect(() => {
-    return () => setShowCodeInputModal(false);
-  }, [itemToTrack]);
+    setCurrentTrackingStep(getInitialStep(fullOrderData?.status));
+  }, [fullOrderData?.status]);
 
   const handleMarkAsOutForDelivery = () => {
-    push('Item marked as out for delivery.', { type: 'success' });
-    setCurrentTrackingStep(2);
-  };
-
-  const handleMarkAsDelivered = () => {
-    push('Preparing to mark as delivered. Please request code.', { type: 'info' });
-    setCurrentTrackingStep(3);
-  };
-
-  const handleRequestCode = () => setShowCodeInputModal(true);
-
-  const handleCodeProceed = (code) => {
-    if (code === '1234') {
-      push('Code verified! Funds will be released.', { type: 'success' });
-      setCurrentTrackingStep(4);
-      setShowCodeInputModal(false);
-    } else {
-      push('Invalid code. Please try again.', { type: 'error' });
+    // ✅ THE FIX: Call the mutation with the correct store order ID.
+    if (fullOrderData?.id && !isMarkingOut) {
+      markOutForDelivery(fullOrderData.id);
     }
   };
 
-  const handleDispute = () => push('Dispute initiated.', { type: 'info' });
-
-  const handleViewWallet = () => {
-    push('Navigating to Wallet and completing order.', { type: 'success' });
-    setCurrentTrackingStep(5);
+  const handleMarkAsDelivered = () => {
+    // This button is now purely for display/UI flow if needed, but the main action is requesting the code.
+    setShowCodeInputModal(true);
+  };
+  
+  const handleCodeProceed = (code) => {
+    // ✅ THE FIX: Call the mutation with the order ID and the code payload.
+    if (fullOrderData?.id && code.trim() && !isMarkingDelivered) {
+      markDelivered({ orderId: fullOrderData.id, payload: { code } });
+    }
   };
 
+  const handleDispute = () => push('Dispute functionality not yet implemented.', { type: 'info' });
+  const handleViewWallet = () => push('Wallet functionality not yet implemented.', { type: 'info' });
   const handleShowFullDetails = () => setShowFullDetails(true);
   const handleBackToTracker = () => setShowFullDetails(false);
 
-  const getStatusDate = (step) => {
-    const date = new Date();
-    if (step === 1) date.setHours(date.getHours() - 24);
-    if (step === 2) date.setHours(date.getHours() - 12);
-    if (step === 3) date.setHours(date.getHours() - 6);
-    if (step === 4) date.setHours(date.getHours() - 1);
-    return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()} - ${date
-      .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      .toUpperCase()}`;
+  const getStatusDate = () => {
+    // Use the real date from the API, with a fallback.
+    return fullOrderData?.updatedAt ? new Date(fullOrderData.updatedAt).toLocaleString() : 'Just now';
   };
 
   return (
     <div className="space-y-6">
-      {/* Mobile header (OrderDetailsPanel hides its mobile header when tracker is shown) */}
       <div className="flex items-center gap-2 lg:hidden mb-2">
         <button
           onClick={showFullDetails ? handleBackToTracker : onBackToOrderDetails}
@@ -86,7 +105,6 @@ const OrderTrackerPanel = ({
         </h2>
       </div>
 
-      {/* Desktop header */}
       <h2 className="hidden lg:block text-2xl font-bold text-gray-800">
         {customerName} • Order Tracker {showFullDetails && ' / Full Details'}
       </h2>
@@ -106,7 +124,6 @@ const OrderTrackerPanel = ({
         )
       ) : (
         <>
-          {/* Action Buttons */}
           <div className="flex space-x-4 mb-6">
             <Button
               onClick={handleShowFullDetails}
@@ -123,15 +140,17 @@ const OrderTrackerPanel = ({
             </Button>
           </div>
 
-          {/* Tracking Steps */}
           <div className="relative">
             <OrderTrackingStep
               stepNumber={1}
               title="Order Placed"
               item={itemToTrack}
-              statusDate={getStatusDate(1)}
+              statusDate={getStatusDate()}
               isActive={currentTrackingStep >= 1}
               isCurrentStep={currentTrackingStep === 1}
+              isNextActionableStep={currentTrackingStep === 1}
+              onMarkAsOutForDelivery={handleMarkAsOutForDelivery}
+              isLoading={isMarkingOut}
               brandColor={brandColor}
               contrastTextColor={contrastTextColor}
             />
@@ -139,11 +158,10 @@ const OrderTrackerPanel = ({
               stepNumber={2}
               title="Out for Delivery"
               item={itemToTrack}
-              statusDate={getStatusDate(2)}
-              isActive={currentTrackingStep >= 2 || currentTrackingStep === 1}
+              statusDate={getStatusDate()}
+              isActive={currentTrackingStep >= 2}
               isCurrentStep={currentTrackingStep === 2}
-              isNextActionableStep={currentTrackingStep === 1}
-              onMarkAsOutForDelivery={handleMarkAsOutForDelivery}
+              isNextActionableStep={false} // Action is now on the "Delivered" step
               onMarkAsDelivered={handleMarkAsDelivered}
               brandColor={brandColor}
               contrastTextColor={contrastTextColor}
@@ -152,45 +170,26 @@ const OrderTrackerPanel = ({
               stepNumber={3}
               title="Delivered"
               item={itemToTrack}
-              statusDate={getStatusDate(3)}
-              isActive={currentTrackingStep >= 3 || currentTrackingStep === 2}
+              statusDate={getStatusDate()}
+              isActive={currentTrackingStep >= 3}
               isCurrentStep={currentTrackingStep === 3}
-              onRequestCode={handleRequestCode}
+              isNextActionableStep={currentTrackingStep === 2}
+              onRequestCode={handleMarkAsDelivered} // This button opens the code modal
               onDispute={handleDispute}
               brandColor={brandColor}
               contrastTextColor={contrastTextColor}
             />
-            <OrderTrackingStep
-              stepNumber={4}
-              title="Funds Released"
-              item={itemToTrack}
-              statusDate={getStatusDate(4)}
-              isActive={currentTrackingStep >= 4}
-              isCurrentStep={currentTrackingStep === 4}
-              onViewWallet={handleViewWallet}
-              brandColor={brandColor}
-              contrastTextColor={contrastTextColor}
-            />
-            <OrderTrackingStep
-              stepNumber={5}
-              title="Order Completed"
-              item={itemToTrack}
-              statusDate={getStatusDate(5)}
-              isActive={currentTrackingStep >= 5}
-              isCurrentStep={currentTrackingStep === 5}
-              brandColor={brandColor}
-              contrastTextColor={contrastTextColor}
-            />
+            {/* The backend handles the final steps automatically after delivery confirmation */}
           </div>
         </>
       )}
 
-      {/* Code Input Modal */}
       {showCodeInputModal && (
         <CodeInputModal
           isOpen={showCodeInputModal}
           onClose={() => setShowCodeInputModal(false)}
           onProceed={handleCodeProceed}
+          isLoading={isMarkingDelivered}
           brandColor={brandColor}
           contrastTextColor={contrastTextColor}
         />

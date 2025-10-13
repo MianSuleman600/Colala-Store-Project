@@ -4,7 +4,7 @@ import Card from '../../ui/Card';
 import Button from '../../ui/Button';
 import PencilIcon from '../../../assets/icons/Pencil.png';
 import TrashIcon from '../../../assets/icons/delete.png';
-import EditCouponModal from '../../models/EditCouponModal';
+import EditCouponModal from '../../coupons_points/EditCouponModal';
 
 const ManageCouponsTab = ({
   coupons = [],

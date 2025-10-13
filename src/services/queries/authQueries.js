@@ -1,18 +1,30 @@
-// src/services/queries/authQueries.js
 import { useMutation } from '@tanstack/react-query';
 import { authService } from '../authService';
-
-// Auth-only mutations (store profile moved to storeProfile hooks)
-export const useRegisterUserMutation = (options = {}) => {
-  return useMutation({
-    mutationFn: (formData) => authService.register(formData),
-    ...options,
-  });
-};
 
 export const useLoginUserMutation = (options = {}) => {
   return useMutation({
     mutationFn: (credentials) => authService.login(credentials),
+    ...options,
+  });
+};
+
+export const useSendResetCodeMutation = (options = {}) => {
+  return useMutation({
+    mutationFn: (data) => authService.sendResetCode(data),
+    ...options,
+  });
+};
+
+export const useVerifyResetCodeMutation = (options = {}) => {
+  return useMutation({
+    mutationFn: (data) => authService.verifyResetCode(data),
+    ...options,
+  });
+};
+
+export const useResetPasswordMutation = (options = {}) => {
+  return useMutation({
+    mutationFn: (data) => authService.resetPassword(data),
     ...options,
   });
 };

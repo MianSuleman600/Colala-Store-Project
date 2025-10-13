@@ -1,7 +1,9 @@
-// src/routes/AppRouter.jsx
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { Routes, Route, Outlet, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
+import { getAuthTokens, apiRequest } from '../api/apiClient';
+import { loginSuccess, logout } from '../features/auth/authSlice';
+import { ENDPOINTS } from '../api/apiConfig';
 
 import ScrollToTop from '../components/ui/ScrollToTop';
 import NavBar from '../components/common/NavBar';
@@ -10,24 +12,70 @@ import AuthModal from '../components/models/AuthModal.jsx';
 import { openModal, closeModal, switchMode } from '../redux/modalSlice.js';
 import NotificationPermissionPrompt from '../components/common/NotificationPermissionPrompt.jsx';
 
-// Lazy-loaded pages
-const HomePage = lazy(() => import('../pages/Home'));
+// --- Session Hydrator ---
+const SessionHydrator = ({ children }) => {
+  const dispatch = useDispatch();
+  const [isSessionChecked, setIsSessionChecked] = useState(false);
 
-// Products (new pages folder)
+  useEffect(() => {
+    const checkUserSession = async () => {
+      try {
+        const { accessToken } = getAuthTokens();
+        const storedUserId = localStorage.getItem('userId');
+
+        if (accessToken && storedUserId) {
+          const overviewData = await apiRequest({
+            url: ENDPOINTS.SELLER_ONBOARDING.STORE.OVERVIEW,
+            method: 'GET',
+          });
+
+          if (overviewData && overviewData.store) {
+            const storeData = overviewData.store;
+            const userPayload = {
+              id: parseInt(storedUserId, 10),
+              full_name: storeData.name,
+              email: storeData.email,
+              phone: storeData.phone,
+              store: storeData,
+            };
+            dispatch(loginSuccess({ user: userPayload, token: accessToken }));
+          } else {
+            console.warn('Session check failed (invalid overview data). Logging out.');
+            dispatch(logout());
+          }
+        }
+      } catch (error) {
+        console.error('Session check failed:', error);
+        dispatch(logout());
+      } finally {
+        setIsSessionChecked(true);
+      }
+    };
+
+    checkUserSession();
+  }, [dispatch]);
+
+  if (!isSessionChecked) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <p className="text-lg font-semibold text-gray-600">Loading Application...</p>
+      </div>
+    );
+  }
+
+  return children;
+};
+
+// --- Lazy Imports ---
+const HomePage = lazy(() => import('../pages/Home'));
 const AddProductPage = lazy(() => import('../features/products/pages/AddProductPage.jsx'));
 const MyProductsPage = lazy(() => import('../features/products/pages/MyProduct.jsx'));
 const ProductDetailsPage = lazy(() => import('../features/products/pages/ProductDetailsPage.jsx'));
-
-// Product boost (kept in features)
 const BoostProductSetupPage = lazy(() => import('../features/products/pages/BoostProductSetupPage.jsx'));
 const BoostAdPreviewPage = lazy(() => import('../features/products/pages/BoostAdPreviewPage.jsx'));
-
-// Services
 const AddServicePage = lazy(() => import('../features/services/pages/AddServices.jsx'));
 const MyServicesPage = lazy(() => import('../features/services/pages/MyServicesPage.jsx'));
 const ServiceDetailsPage = lazy(() => import('../features/services/pages/ServiceDetailsPage'));
-
-// Other features
 const FeedPage = lazy(() => import('../features/feed/pages/FeedPage'));
 const ChatPage = lazy(() => import('../features/chat/ChatPage.jsx'));
 const OrdersPage = lazy(() => import('../features/orders/pages/OrdersPage.jsx'));
@@ -38,31 +86,27 @@ const WalletDashboard = lazy(() => import('../components/Dashboard/WalletDashboa
 const CheckoutPage = lazy(() => import('../features/cart/CheckoutPage'));
 const UpgradeStorePage = lazy(() => import('../features/Upgradestore/Upgradestore.jsx'));
 
+// --- Layout ---
 const MainLayout = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { isLoggedIn } = useSelector((state) => state.user);
+  const { isAuthenticated } = useSelector((state) => state.auth);
   const { open, mode } = useSelector((state) => state.modal);
 
   const handleAccountClick = () => {
-    if (!isLoggedIn) {
-      dispatch(openModal('register'));
-    } else {
-      navigate('/store-upgrade');
-    }
+    if (!isAuthenticated) dispatch(openModal('register'));
+    else navigate('/settings');
   };
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <NavBar
-        onSearchChange={(term) => console.log('Search term changed:', term)}
+        onSearchChange={(term) => console.log('Search changed:', term)}
         onSearchSubmit={(term) => console.log('Search submitted:', term)}
         onAccountClick={handleAccountClick}
-        onCameraClick={() => console.log('Camera clicked!')}
-        onLoginClick={() => dispatch(openModal('login'))}
-        onRegisterClick={() => dispatch(openModal('register'))}
+        onCameraClick={() => console.log('Camera clicked')}
       />
-    
+
       <NotificationPermissionPrompt delayMs={10000} debugForceShow={false} debugLog />
 
       <main className="flex-grow p-4 md:p-8">
@@ -75,67 +119,72 @@ const MainLayout = () => {
         <AuthModal
           mode={mode}
           onClose={() => dispatch(closeModal())}
-          onSwitchMode={(newMode) => dispatch(switchMode(newMode))}
+          onSwitchToRegister={() => dispatch(switchMode('register'))}
+          onSwitchToLogin={() => dispatch(switchMode('login'))}
         />
       )}
     </div>
   );
 };
 
+// --- Router ---
 function AppRouter() {
   return (
     <>
       <ScrollToTop />
-      <Suspense fallback={<div className="text-center py-10">Loading...</div>}>
-        <Routes>
-          <Route path="/" element={<MainLayout />}>
-            {/* Public */}
-            <Route index element={<HomePage />} />
-            <Route path="feed" element={<FeedPage />} />
+      <SessionHydrator>
+        <Suspense fallback={<div className="text-center py-10">Loading...</div>}>
+          <Routes>
+            <Route path="/" element={<MainLayout />}>
+              <Route index element={<HomePage />} />
+              <Route path="feed" element={<FeedPage />} />
+              <Route path="checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
+              <Route path="store-upgrade" element={<ProtectedRoute><UpgradeStorePage /></ProtectedRoute>} />
 
-            {/* Protected */}
-            <Route path="checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
-            <Route path="store-upgrade" element={<ProtectedRoute><UpgradeStorePage /></ProtectedRoute>} />
+              {/* Products */}
+              <Route path="add-product" element={<ProtectedRoute><AddProductPage /></ProtectedRoute>} />
+              <Route path="my-products" element={<ProtectedRoute><MyProductsPage /></ProtectedRoute>} />
+              <Route path="my-products/:productId/details" element={<ProtectedRoute><ProductDetailsPage /></ProtectedRoute>} />
+              <Route path="my-products/:productId/edit" element={<ProtectedRoute><AddProductPage /></ProtectedRoute>} />
+              <Route path="my-products/:productId/stats" element={<ProtectedRoute><StatCard /></ProtectedRoute>} />
+              <Route path="my-products/:productId/boost-setup" element={<ProtectedRoute><BoostProductSetupPage /></ProtectedRoute>} />
+              <Route path="my-products/:productId/boost-preview" element={<ProtectedRoute><BoostAdPreviewPage /></ProtectedRoute>} />
 
-            {/* Products */}
-            <Route path="add-product" element={<ProtectedRoute><AddProductPage /></ProtectedRoute>} />
-            <Route path="my-products" element={<ProtectedRoute><MyProductsPage /></ProtectedRoute>} />
-            <Route path="my-products/:productId/details" element={<ProtectedRoute><ProductDetailsPage /></ProtectedRoute>} />
-            {/* Edit reuses AddProductPage in edit mode (detected via :productId) */}
-            <Route path="my-products/:productId/edit" element={<ProtectedRoute><AddProductPage /></ProtectedRoute>} />
-            {/* Optional: product stats page (placeholder uses StatCard) */}
-            <Route path="my-products/:productId/stats" element={<ProtectedRoute><StatCard /></ProtectedRoute>} />
+              {/* Services */}
+              <Route path="add-service" element={<ProtectedRoute><AddServicePage /></ProtectedRoute>} />
+              <Route path="my-services" element={<ProtectedRoute><MyServicesPage /></ProtectedRoute>} />
+              <Route path="my-services/:serviceId/details" element={<ProtectedRoute><ServiceDetailsPage /></ProtectedRoute>} />
+              <Route path="my-services/:serviceId/edit" element={<ProtectedRoute><AddServicePage /></ProtectedRoute>} />
 
-            {/* Product boost */}
-            <Route path="my-products/:productId/boost-setup" element={<ProtectedRoute><BoostProductSetupPage /></ProtectedRoute>} />
-            <Route path="my-products/:productId/boost-preview" element={<ProtectedRoute><BoostAdPreviewPage /></ProtectedRoute>} />
-            <Route path="my-services/:serviceId/edit" element={<ProtectedRoute><AddServicePage /></ProtectedRoute>} />
+              {/* Chat & Orders */}
+              <Route path="chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+              <Route path="chat/:conversationId" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+              <Route path="orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
 
-            {/* Services */}
-            <Route path="add-service" element={<ProtectedRoute><AddServicePage /></ProtectedRoute>} />
-            <Route path="my-services" element={<ProtectedRoute><MyServicesPage /></ProtectedRoute>} />
-            <Route path="my-services/:serviceId/details" element={<ProtectedRoute><ServiceDetailsPage /></ProtectedRoute>} />
+              {/* Statistics / Subscription */}
+              <Route path="statistics" element={<ProtectedRoute><StatCard /></ProtectedRoute>} />
+              <Route path="subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
 
-            {/* Chat/Orders */}
-            <Route path="chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
-            <Route path="chat/:conversationId" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
-            <Route path="orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
-
-            {/* Analytics / Subscription */}
-            <Route path="statistics" element={<ProtectedRoute><StatCard /></ProtectedRoute>} />
-            <Route path="subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
-
-            {/* Settings (Seller Dashboard) with nested routes */}
-            <Route path="settings" element={<ProtectedRoute><SellerDashboardPage /></ProtectedRoute>}>
-              <Route path="wallet">
-                <Route path="escrow" element={<WalletDashboard type="escrow" />} />
-                <Route path="shopping" element={<WalletDashboard type="shopping" />} />
+              {/* ✅ Nested Settings Routes */}
+              <Route
+                path="settings"
+                element={
+                  <ProtectedRoute>
+                    <SellerDashboardPage />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="wallet">
+                  <Route index element={<WalletDashboard type="overview" />} />
+                  <Route path="escrow" element={<WalletDashboard type="escrow" />} />
+                  <Route path="shopping" element={<WalletDashboard type="shopping" />} />
+                </Route>
+                <Route path="store-upgrade" element={<UpgradeStorePage />} />
               </Route>
-              <Route path="store-upgrade" element={<UpgradeStorePage />} />
             </Route>
-          </Route>
-        </Routes>
-      </Suspense>
+          </Routes>
+        </Suspense>
+      </SessionHydrator>
     </>
   );
 }

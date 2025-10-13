@@ -1,14 +1,19 @@
 // src/api/apiConfig.js
 
-// Safe env accessors
+// ---------------------------
+// Safe Environment Accessors
+// ---------------------------
+
 const viteEnv = (typeof import.meta !== 'undefined' && import.meta.env) || {};
 const nodeEnv = (typeof process !== 'undefined' && process.env) ? process.env : {};
 const isBrowser = typeof window !== 'undefined';
 
-// Optional runtime override
-const runtimeBase = isBrowser && typeof window.__API_BASE__ === 'string' ? window.__API_BASE__ : '';
+// Optional runtime override (for browser global)
+const runtimeBase = isBrowser && typeof window.API_BASE === 'string' ? window.API_BASE : '';
 
-// Resolve API base URL
+// ---------------------------
+// Resolve API Base URL
+// ---------------------------
 const rawBase =
   viteEnv.VITE_API_BASE_URL ||
   nodeEnv.VITE_API_BASE_URL ||
@@ -22,22 +27,19 @@ const ensureLeadingSlash = (s) => (s?.startsWith('/') ? s : `/${s}`);
 export const API_BASE = stripTrailingSlashes(rawBase);
 export const SITE_BASE = API_BASE.replace(/\/api$/i, '');
 
-// Auth strategy: 'token' (JWT/Passport) or 'sanctum'
-const envAuth =
-  viteEnv.VITE_AUTH_STRATEGY ||
-  nodeEnv.VITE_AUTH_STRATEGY ||
-  '';
+export const ASSETS_BASE = API_BASE.replace(/\/api$/, '');
 
-export const AUTH_STRATEGY =
-  envAuth ||
-  (isBrowser && window.location && window.location.hostname === 'localhost'
-    ? 'token'
-    : 'sanctum');
+// ---------------------------
+// Auth Strategy: token only
+// ---------------------------
+export const AUTH_STRATEGY = 'token';
 
-// Helpers
+// ---------------------------
+// Helper Functions
+// ---------------------------
 const encodeSeg = (v) => encodeURIComponent(String(v));
-const u = (path) => `${API_BASE}${ensureLeadingSlash(path)}`;
-const buildQuery = (params = {}) => {
+export const u = (path) => `${API_BASE}${ensureLeadingSlash(path)}`;
+export const buildQuery = (params = {}) => {
   const pairs = Object.entries(params).filter(
     ([, v]) => v !== undefined && v !== null && v !== ''
   );
@@ -47,36 +49,221 @@ const buildQuery = (params = {}) => {
     .join('&')}`;
 };
 
-// Endpoints
+// ---------------------------
+// API Endpoints
+// ---------------------------
 export const ENDPOINTS = {
-  AUTH: {
+
+   AUTH: {
     LOGIN: u('/auth/login'),
-    SIGNUP: u('/auth/signup'),
+    SIGNUP: u('/auth/register'), 
     LOGOUT: u('/auth/logout'),
-    REFRESH: u('/auth/refresh'),
-    CSRF_COOKIE: `${SITE_BASE}/sanctum/csrf-cookie`,
-    USER: u('/user'),
+    DELETE_ACCOUNT: u('/users/delete-account'), 
+    EDIT_PROFILE: u('/auth/edit-profile'), // ✅ Added
     PASSWORD: {
-      RESET_REQUEST: u('/auth/password/reset/request'),
-      RESET_VERIFY: u('/auth/password/reset/verify'),
-      RESET_CONFIRM: u('/auth/password/reset/confirm'),
+      RESET_REQUEST: u('/auth/forget-password'), // ✅ Corrected
+      RESET_VERIFY: u('/auth/verify-otp'),      // ✅ Corrected
+      RESET_CONFIRM: u('/auth/reset-password'), // ✅ Corrected
+    },
+  },
+ 
+
+  SELLER_ONBOARDING: {
+    START: u('/auth/seller/start'),
+    LEVEL1: {
+      PROFILE_MEDIA: u('/seller/onboarding/level1/profile-media'),
+      CATEGORIES_SOCIAL: u('/seller/onboarding/level1/categories-social'),
+    },
+    LEVEL2: {
+      BUSINESS_DETAILS: u('/seller/onboarding/level2/business-details'),
+      DOCUMENTS: u('/seller/onboarding/level2/documents'),
+    },
+    LEVEL3: {
+      PHYSICAL_STORE: u('/seller/onboarding/level3/physical-store'),
+      UTILITY_BILL: u('/seller/onboarding/level3/utility-bill'),
+      ADDRESS: u('/seller/onboarding/level3/address'),
+      DELIVERY: u('/seller/onboarding/level3/delivery'),
+      THEME: u('/seller/onboarding/level3/theme'),
+    },
+    STORE: {
+      ADDRESSES: u('/seller/onboarding/store/addresses'),
+      DELIVERY: u('/seller/onboarding/store/delivery'),
+      SOCIAL_LINKS: u('/seller/onboarding/store/social-links'),
+      CATEGORIES: u('/seller/onboarding/store/categories'),
+      OVERVIEW: u('/seller/onboarding/store/overview'),
+    },
+    PROGRESS: u('/seller/onboarding/progress'),
+    SUBMIT: u('/seller/onboarding/submit'),
+    LEVEL_STATUS: (n) => u(`/seller/onboarding/onboarding/level/${encodeSeg(n)}`),
+    CATALOG: {
+      CATEGORIES: u('/seller/onboarding/catalog/categories'),
     },
   },
 
-  PRODUCTS: {
-    LIST: u('/products'),
-    DETAIL: (id) => u(`/products/${encodeSeg(id)}`),
-    CREATE: u('/products'),
-    UPDATE: (id) => u(`/products/${encodeSeg(id)}`),
-    DELETE: (id) => u(`/products/${encodeSeg(id)}`),
+  STORE_BUILDER: u('/seller/store/builder'),
+
+    SELLER_PRODUCTS: {
+    MY_PRODUCTS: u('/seller/products/my-products'), 
+    LIST: u('/seller/products'),
+    DETAIL: (id) => u(`/seller/products/${encodeSeg(id)}`), // Generic detail endpoint
+    CREATE: u('/seller/products/create'),
+    UPDATE: (id) => u(`/seller/products/update/${encodeSeg(id)}`),
+    DELETE: (id) => u(`/seller/products/delete/${encodeSeg(id)}`),
+    STATS: (id) => u(`/seller/products/${id}/stats`),
+    STATS_TOTALS: (id) => u(`/seller/products/${id}/stats/totals`),
+    MARK_SOLD: (id) => u(`/seller/products/${id}/mark-sold`),
+    MARK_UNAVAILABLE: (id) => u(`/seller/products/${id}/mark-unavailable`),
+    MARK_AVAILABLE: (id) => u(`/seller/products/${id}/mark-available`),
+
+    // --- NEW: Granular Endpoints ---
+    VARIANTS: {
+      CREATE: (productId) => u(`/seller/products/${encodeSeg(productId)}/variants/create`),
+      UPDATE: (productId, variantId) => u(`/seller/products/${encodeSeg(productId)}/variants/update/${encodeSeg(variantId)}`),
+      DELETE: (productId, variantId) => u(`/seller/products/${encodeSeg(productId)}/variants/delete/${encodeSeg(variantId)}`),
+    },
+    BULK_PRICES: {
+      STORE: (productId) => u(`/seller/products/${encodeSeg(productId)}/bulk-prices`),
+    },
+    DELIVERY_OPTIONS: {
+      ATTACH: (productId) => u(`/seller/products/${encodeSeg(productId)}/delivery-options`),
+    },
+    BULK_UPLOAD: {
+      TEMPLATE: u('/seller/products/bulk-upload/template'),
+      CATEGORIES: u('/seller/products/bulk-upload/categories'),
+      UPLOAD_FILE: u('/seller/products/bulk-upload/file'),
+      JOBS: u('/seller/products/bulk-upload/jobs'),
+      JOB_STATUS: (jobId) => u(`/seller/products/bulk-upload/jobs/${encodeSeg(jobId)}/status`),
+    },
   },
 
-  USERS: {
-    PROFILE: u('/users/profile'),
-    UPDATE_PROFILE: u('/users/profile/update'),
-    UPLOAD_AVATAR: u('/users/profile/avatar'),
-    DELETE_ACCOUNT: u('/users/delete-account'),
+   STORE_ANALYTICS: u('/seller/analytics'),
+
+     SUPPORT: {
+    // Add the 'buyer' prefix to match the backend routes.
+    TICKETS: {
+      LIST: u('/buyer/support/tickets'),
+      CREATE: u('/buyer/support/tickets'),
+      DETAIL: (id) => u(`/buyer/support/tickets/${encodeSeg(id)}`),
+    },
+    // This route is also under the buyer prefix.
+    MESSAGES: {
+      SEND: u('/buyer/support/messages'),
+    },
   },
+   
+   CATALOG: {
+    CATEGORIES: u('/seller/onboarding/catalog/categories'),
+    BRANDS: u('/brands'),
+    // This endpoint returns the seller's registered addresses
+    LOCATIONS: u('/seller/onboarding/store/addresses'),
+    // --- NEW: Added endpoint for delivery options ---
+    DELIVERY_LOCATIONS: u('/seller/onboarding/store/delivery'), 
+  },
+
+  BOOSTS: {
+    LIST: u('/seller/boosts'),
+    PREVIEW: u('/seller/boosts/preview'),
+    CREATE: u('/seller/boosts'),
+    DETAIL: (id) => u(`/seller/boosts/${encodeSeg(id)}`),
+    UPDATE_STATUS: (id) => u(`/seller/boosts/${encodeSeg(id)}/status`),
+    GET_METRICS: (id) => u(`/seller/boosts/${encodeSeg(id)}/metrics`),
+  },
+
+
+  SELLER_SERVICES: {
+    MY_SERVICES: u('/seller/services/my-services'),
+    LIST: u('/seller/service'),
+    CREATE: u('/seller/service/create'),
+    UPDATE: (id) => u(`/seller/service/update/${encodeSeg(id)}`),
+    DELETE: (id) => u(`/seller/service/delete/${encodeSeg(id)}`),
+    // --- MODIFICATION START ---
+    STATS: (id) => u(`/seller/services/${id}/stats`),
+    STATS_TOTALS: (id) => u(`/seller/services/${id}/stats/totals`), // <-- ADD THIS
+    // --- MODIFICATION END ---
+    MARK_SOLD: (id) => u(`/seller/services/${id}/mark-sold`),
+    MARK_UNAVAILABLE: (id) => u(`/seller/services/${id}/mark-unavailable`),
+    MARK_AVAILABLE: (id) => u(`/seller/services/${id}/mark-available`),
+  },
+
+
+    SELLER_CHAT: {
+    LIST_CHATS: u('/seller/chat'),
+    GET_MESSAGES: (chatId) => u(`/seller/chat/${encodeSeg(chatId)}/messages`),
+    SEND_MESSAGE: (chatId) => u(`/seller/chat/${encodeSeg(chatId)}/send`),
+  },
+
+  
+  SERVICE_CATEGORIES: {
+    LIST: u('/service-categories'),
+    DETAIL: (id) => u(`/service-categories/${encodeSeg(id)}`),
+    UPDATE: (id) => u(`/service-categories/${encodeSeg(id)}`), // Assuming PUT for update
+  },
+
+  SELLER_ORDERS: {
+    LIST: u('/seller/orders'),
+    DETAIL: (id) => u(`/seller/orders/${encodeSeg(id)}`),
+    MARK_OUT_FOR_DELIVERY: (id) => u(`/seller/orders/${encodeSeg(id)}/out-for-deliver`),
+    MARK_DELIVERED: (id) => u(`/seller/orders/${encodeSeg(id)}/delivered`),
+  },
+
+
+   POSTS: {
+    LIST: u('/posts'),
+    DETAIL: (id) => u(`/posts/${encodeSeg(id)}`),
+    CREATE: u('/posts'),
+    UPDATE: (id) => u(`/posts/${encodeSeg(id)}`), // Using POST for updates as per your spec
+    DELETE: (id) => u(`/posts/${encodeSeg(id)}`), // Assuming DELETE method
+    LIKE: (id) => u(`/posts/${encodeSeg(id)}/like`),
+    SHARE: (id) => u(`/posts/${encodeSeg(id)}/share`),
+    COMMENTS: {
+      LIST: (postId) => u(`/posts/${encodeSeg(postId)}/comments`),
+      CREATE: (postId) => u(`/posts/${encodeSeg(postId)}/comments`),
+    },
+  },
+
+
+  SELLER_ANNOUNCEMENTS: {
+    LIST: u('/seller/announcements'),
+    CREATE: u('/seller/announcements'),
+    // FIX: Changed to PUT and includes the ID in the URL
+    UPDATE: (id) => u(`/seller/announcements/${encodeSeg(id)}`),
+    DELETE: (id) => u(`/seller/announcements/${encodeSeg(id)}`),
+  },
+  
+  SELLER_BANNERS: {
+    LIST: u('/seller/banners'),
+    CREATE: u('/seller/banners'),
+    // FIX: Changed to POST and includes the ID in the URL for FormData updates
+    UPDATE: (id) => u(`/seller/banners/${encodeSeg(id)}`),
+    DELETE: (id) => u(`/seller/banners/${encodeSeg(id)}`),
+  },
+
+ SELLER_COUPONS: {
+    LIST: u('/seller/coupons'),
+    CREATE: u('/seller/coupons'),
+    UPDATE: (id) => u(`/seller/coupons/${encodeSeg(id)}`),
+    DELETE: (id) => u(`/seller/coupons/${encodeSeg(id)}`),
+    APPLY: (code) => u(`/seller/coupons/apply/${encodeSeg(code)}`),
+  },
+  
+  // The old POINTS endpoints remain if they are still correct
+  POINTS: {
+    SUMMARY: u('/points/summary'),
+    CUSTOMERS: u('/points/customers'),
+    UPDATE_SETTINGS: u('/points/settings'),
+  },
+
+   PLANS: {
+    LIST: u('/seller/plans'),
+  },
+  
+  SUBSCRIPTIONS: {
+    LIST: u('/seller/subscriptions'), // For the current user's subscription
+    CREATE: u('/seller/subscriptions'),
+    CANCEL: (id) => u(`/seller/subscriptions/${encodeSeg(id)}/cancel`),
+  },
+  // --- END MODIFICATION ---
+
 
   PROMOTIONS: {
     LIST: u('/promotions'),
@@ -89,143 +276,77 @@ export const ENDPOINTS = {
     RESUME: (id) => u(`/promotions/${encodeSeg(id)}/resume`),
   },
 
-  CHAT: {
-    GET_ALL: u('/chats'),
-    GET_BY_ID: (id) => u(`/chats/${encodeSeg(id)}`),
-    SEND: (chatId) => u(`/chats/${encodeSeg(chatId)}/messages`),
-    UPDATE: (chatId, messageId) =>
-      u(`/chats/${encodeSeg(chatId)}/messages/${encodeSeg(messageId)}`),
-    DELETE: (chatId, messageId) =>
-      u(`/chats/${encodeSeg(chatId)}/messages/${encodeSeg(messageId)}`),
-  },
+ 
+ 
 
-  FEED: {
-    GET_ALL: u('/posts'),
-    DETAIL: (id) => u(`/posts/${encodeSeg(id)}`),
-    CREATE: u('/posts'),
-    UPDATE: (id) => u(`/posts/${encodeSeg(id)}`),
-    DELETE: (id) => u(`/posts/${encodeSeg(id)}`),
-    CREATE_COMMENT: (postId) => u(`/posts/${encodeSeg(postId)}/comments`),
-    UPDATE_COMMENT: (postId, commentId) =>
-      u(`/posts/${encodeSeg(postId)}/comments/${encodeSeg(commentId)}`),
-    DELETE_COMMENT: (postId, commentId) =>
-      u(`/posts/${encodeSeg(postId)}/comments/${encodeSeg(commentId)}`),
-  },
-
-  ORDERS: {
-    GET_ALL: (status) => `${u('/orders')}${buildQuery({ status })}`,
-    DETAIL: (id) => u(`/orders/${encodeSeg(id)}`),
-    CREATE: u('/orders'),
-    UPDATE: (id) => u(`/orders/${encodeSeg(id)}`),
-    DELETE: (id) => u(`/orders/${encodeSeg(id)}`),
-  },
-
-  COUPONS: {
-    GET_ALL: u('/coupons'),
-    DETAIL: (id) => u(`/coupons/${encodeSeg(id)}`),
-    CREATE: u('/coupons'),
-    UPDATE: (id) => u(`/coupons/${encodeSeg(id)}`),
-    DELETE: (id) => u(`/coupons/${encodeSeg(id)}`),
-  },
-
-  POINTS: {
-    SUMMARY: u('/points/summary'),
-    CUSTOMERS: u('/points/customers'),
-    UPDATE_SETTINGS: u('/points/settings'),
-  },
-
-  ANNOUNCEMENTS: {
-    LIST: u('/announcements'),
-    DETAIL: (id) => u(`/announcements/${encodeSeg(id)}`),
-    CREATE: u('/announcements'),
-    UPDATE: (id) => u(`/announcements/${encodeSeg(id)}`),
-    DELETE: (id) => u(`/announcements/${encodeSeg(id)}`),
-    ACTIVE: (params = {}) => `${u('/announcements/active')}${buildQuery(params)}`,
-    TRACK_IMPRESSION: (id) => u(`/announcements/${encodeSeg(id)}/impression`),
-  },
-
-  BANNERS: {
-    LIST: (params = {}) => `${u('/banners')}${buildQuery(params)}`,
-    DETAIL: (id) => u(`/banners/${encodeSeg(id)}`),
-    CREATE: u('/banners'),
-    UPDATE: (id) => u(`/banners/${encodeSeg(id)}`),
-    DELETE: (id) => u(`/banners/${encodeSeg(id)}`),
-    ACTIVE: (params = {}) => `${u('/banners/active')}${buildQuery(params)}`,
-    TRACK_IMPRESSION: (id) => u(`/banners/${encodeSeg(id)}/impression`),
-  },
 
   REVIEWS: {
+
+    MY_REVIEWS: u('/user-reveiws'),
+
+
+    // The following endpoints for updating/deleting specific reviews
+    // are not in your main api.php, but are in the buyer group. Let's align them.
     STORE: {
-      LIST: (params = {}) => `${u('/reviews/store')}${buildQuery(params)}`,
-      DETAIL: (id) => u(`/reviews/store/${encodeSeg(id)}`),
-      CREATE: u('/reviews/store'),
-      UPDATE: (id) => u(`/reviews/store/${encodeSeg(id)}`),
-      DELETE: (id) => u(`/reviews/store/${encodeSeg(id)}`),
+      UPDATE: (storeId, reviewId) => u(`/buyer/stores/${storeId}/reviews/${reviewId}`),
+      DELETE: (storeId, reviewId) => u(`/buyer/stores/${storeId}/reviews/${reviewId}`),
     },
     PRODUCT: {
-      LIST: (params = {}) => `${u('/reviews/product')}${buildQuery(params)}`,
-      DETAIL: (id) => u(`/reviews/product/${encodeSeg(id)}`),
-      CREATE: u('/reviews/product'),
-      UPDATE: (id) => u(`/reviews/product/${encodeSeg(id)}`),
-      DELETE: (id) => u(`/reviews/product/${encodeSeg(id)}`),
-    },
+        // The backend doesn't seem to have update/delete for product reviews,
+        // so we'll comment these out for now.
+        // UPDATE: (orderItemId) => u(`/buyer/order-items/${orderItemId}/review`),
+        // DELETE: (reviewId) => u(`/buyer/product-reviews/${reviewId}`),
+    }
+   
   },
-
+ ESCROW: {
+    // Maps to GET /escrow
+    SUMMARY: u('/escrow'),
+  },
   REFERRALS: {
     WALLET: u('/referrals/wallet'),
+    WALLET_SUMMARY: u('/wallet/refferal-balance'), // GET
     CODE: u('/referrals/code'),
-    WITHDRAW: u('/referrals/withdraw'),
-    TRANSFER: u('/referrals/transfer'),
+    WITHDRAW: u('/wallet/withdraw/referral'),   // POST
+    TRANSFER: u('/wallet/transfer'),            // POST
     TRANSACTIONS: (params = {}) => `${u('/referrals/transactions')}${buildQuery(params)}`,
-    FAQS: u('/referrals/faqs'),
+
+    FAQS: u('/faqs/category/name/general'),
+    
     PRODUCTS: (params = {}) => `${u('/referrals/products')}${buildQuery(params)}`,
   },
-   ADS_WALLET: {
+
+  ADS_WALLET: {
     WALLET: u('/ads/wallet'),
     TOPUP: u('/ads/wallet/topup'),
     TRANSACTIONS: (params = {}) => `${u('/ads/wallet/transactions')}${buildQuery(params)}`,
   },
 
-  SUPPORT: {
-    CHATS: {
-      LIST: u('/chats'),
-      DETAIL: (id) => u(`/chats/${encodeSeg(id)}`),
-      SEND: (id) => u(`/chats/${encodeSeg(id)}/messages`),
-      UPDATE: (id, msgId) => u(`/chats/${encodeSeg(id)}/messages/${encodeSeg(msgId)}`),
-      DELETE: (id, msgId) => u(`/chats/${encodeSeg(id)}/messages/${encodeSeg(msgId)}`),
-    },
-    TICKETS: {
-      CREATE: u('/support/tickets'),
-    },
+  TRANSACTIONS: {
+    LIST: u('/user/transactions'), // GET
   },
 
-  LEADERBOARD: {
-    SELLERS: (params = {}) => `${u('/leaderboard/sellers')}${buildQuery(params)}`,
-    FAQS: u('/leaderboard/faqs'),
+ LEADERBOARD: {
+    SELLERS: u('/leaderboard/sellers'),
+  },
+
+   FAQS: {
+    LIST: u('/faqs'), // General list of all FAQ categories
+    // --- ADD THIS NEW ENDPOINT ---
+    // Maps to GET /faqs/category/name/{name}
+    BY_CATEGORY_NAME: (name) => u(`/faqs/category/name/${encodeSeg(name)}`),
   },
 
   ACCESS_CONTROL: {
-    USERS: {
-      LIST: u('/access/users'),
-      DETAIL: (id) => u(`/access/users/${encodeSeg(id)}`),
-      CREATE: u('/access/users'),
-      UPDATE: (id) => u(`/access/users/${encodeSeg(id)}`),
-      DELETE: (id) => u(`/access/users/${encodeSeg(id)}`),
-      ASSIGN_ROLE: (id) => u(`/access/users/${encodeSeg(id)}/role`),
-    },
-    ROLES: { LIST: u('/access/roles') },
-    INVITE: u('/access/invite'),
+    // Maps to: GET /seller/store/users
+    LIST_USERS: u('/seller/store/users'),
+    
+    // Maps to: POST /seller/store/users/add
+    ADD_USER: u('/seller/store/users/add'),
+    
+    // Maps to: DELETE /seller/store/users/{userId}
+    REMOVE_USER: (userId) => u(`/seller/store/users/${encodeSeg(userId)}`),
   },
+
+ 
 };
-
-// Optional: log in dev
-try {
-  const isDev =
-    (typeof viteEnv.DEV !== 'undefined' && viteEnv.DEV) ||
-    (typeof nodeEnv.NODE_ENV !== 'undefined' && nodeEnv.NODE_ENV !== 'production');
-
-  if (isDev && typeof console !== 'undefined') {
-    console.log('Loaded API Base URL:', API_BASE);
-    console.log('Auth strategy:', AUTH_STRATEGY);
-  }
-} catch {}

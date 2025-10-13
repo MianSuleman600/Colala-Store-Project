@@ -1,20 +1,21 @@
 // src/services/queries/usePromotionsQuery.js
+
 import { useQuery } from '@tanstack/react-query';
-import { promotionService } from '../index.js';
+// --- FIX: Import the specific functions you need, not the service object ---
+import { getPromotions, getPromotionDetail } from '../index.js';
 import { normalizePromotions } from '../../utils/dataNormalizer.js';
 
 const getToken = () =>
   (typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : '') || '';
 
+// This helper function is fine, no changes needed.
 const extractArray = (response) => {
   if (Array.isArray(response)) return response;
   if (!response || typeof response !== 'object') return [];
-
   const keys = ['promotions', 'data', 'items', 'results', 'rows', 'list', 'content'];
   for (const k of keys) {
     const v = response[k];
     if (Array.isArray(v)) return v;
-
     if (v && typeof v === 'object') {
       if (Array.isArray(v.items)) return v.items;
       if (Array.isArray(v.data)) return v.data;
@@ -34,7 +35,8 @@ export const useGetMyPromotionsQuery = (userId, params = {}, options = {}) =>
     queryKey: ['myPromotions', userId || 'anonymous', params],
     queryFn: async () => {
       const token = getToken();
-      const response = await promotionService.getPromotions(token, { userId, ...params });
+      // --- FIX: Call the function directly ---
+      const response = await getPromotions(token, { userId, ...params });
       const arr = extractArray(response);
       return normalizePromotions(arr);
     },
@@ -51,7 +53,9 @@ export const usePromotionDetailQuery = (promotionId, options = {}) =>
     queryFn: async () => {
       if (!promotionId) return null;
       const token = getToken();
-      const response = await promotionService.getPromotionDetail(promotionId, token);
+      // --- FIX: Call the function directly ---
+      const response = await getPromotionDetail(promotionId, token);
+      // The normalize function expects an array, so wrap the single response
       const [normalized] = normalizePromotions([response]);
       return normalized || null;
     },

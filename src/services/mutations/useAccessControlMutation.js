@@ -1,70 +1,38 @@
-// src/hooks/useAccessControlMutation.js
+// src/services/mutations/useAccessControlMutation.js
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { accessControlService } from '../settings/accessControlService.js';
 import { aclQueryKeys } from '../queries/useAccessControlQuery.js';
 
+// A simple toast helper. You can replace this with your actual toast provider.
 const toast = (type, message) => {
-  try {
-    window.dispatchEvent(new CustomEvent('SHOW_ALERT', { detail: { type, message } }));
-  } catch {}
+  console.log(`[${type.toUpperCase()}]: ${message}`);
+  // Example: window.dispatchEvent(new CustomEvent('SHOW_ALERT', { detail: { type, message } }));
 };
 
-export const useAclCreateUserMutation = () => {
-  const qc = useQueryClient();
+// Renamed for clarity, as we only add users.
+export const useAclAddUserMutation = () => {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload) => accessControlService.createUser(payload),
+    mutationFn: (payload) => accessControlService.addUser(payload),
     onSuccess: () => {
-      toast('success', 'User created');
-      qc.invalidateQueries({ queryKey: aclQueryKeys.users });
+      toast('success', 'User added successfully');
+      queryClient.invalidateQueries({ queryKey: aclQueryKeys.users });
     },
-    onError: (err) => toast('error', err?.message || 'Failed to create user'),
+    onError: (err) => toast('error', err?.message || 'Failed to add user'),
   });
 };
 
-export const useAclInviteUserMutation = () => {
-  const qc = useQueryClient();
+export const useAclRemoveUserMutation = () => {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload) => accessControlService.inviteUser(payload),
+    mutationFn: (userId) => accessControlService.removeUser(userId),
     onSuccess: () => {
-      toast('success', 'Invitation sent');
-      qc.invalidateQueries({ queryKey: aclQueryKeys.users });
+      toast('success', 'User removed successfully');
+      queryClient.invalidateQueries({ queryKey: aclQueryKeys.users });
     },
-    onError: (err) => toast('error', err?.message || 'Failed to invite user'),
+    onError: (err) => toast('error', err?.message || 'Failed to remove user'),
   });
 };
 
-export const useAclAssignRoleMutation = () => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ userId, role }) => accessControlService.assignRole(userId, { role }),
-    onSuccess: () => {
-      toast('success', 'Role updated');
-      qc.invalidateQueries({ queryKey: aclQueryKeys.users });
-    },
-    onError: (err) => toast('error', err?.message || 'Failed to update role'),
-  });
-};
-
-export const useAclUpdateUserMutation = () => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ userId, payload }) => accessControlService.updateUser(userId, payload),
-    onSuccess: () => {
-      toast('success', 'User updated');
-      qc.invalidateQueries({ queryKey: aclQueryKeys.users });
-    },
-    onError: (err) => toast('error', err?.message || 'Failed to update user'),
-  });
-};
-
-export const useAclDeleteUserMutation = () => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (userId) => accessControlService.deleteUser(userId),
-    onSuccess: () => {
-      toast('success', 'User deleted');
-      qc.invalidateQueries({ queryKey: aclQueryKeys.users });
-    },
-    onError: (err) => toast('error', err?.message || 'Failed to delete user'),
-  });
-};
+// The other mutations for roles, invites, etc., are removed.

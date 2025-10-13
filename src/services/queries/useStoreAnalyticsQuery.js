@@ -1,70 +1,68 @@
 import { useQuery } from '@tanstack/react-query';
 import { getStoreAnalytics } from '../settings/storeAnalyticsService';
 
-// Convert YYYY-MM-DD to "Aug 12"
-const shortLabel = (iso = '') => {
+// Helper to format YYYY-MM-DD into a short label like "Aug 12"
+const shortLabel = (isoDate = '') => {
   try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return iso || '';
+    const d = new Date(`${isoDate}T00:00:00`);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   } catch {
-    return iso || '';
+    return isoDate || '';
   }
 };
 
-// Shape raw analytics to what the page expects:
-// { data: { chartData, salesOrders, customerInsights, productPerformance, financialMetrics } }
+// Helper to transform a backend stat object into a structured frontend array
+const transformStatObject = (obj, keyMap) => {
+  if (!obj) return [];
+  return Object.entries(keyMap).map(([key, title]) => ({
+    title,
+    value: obj[key] ?? 0,
+  }));
+};
+
+// Transforms the raw backend data into the specific format the UI components expect
 const shapeAnalytics = (raw) => {
   if (!raw || typeof raw !== 'object') return { data: {} };
 
-  let chartData = Array.isArray(raw.chartData) ? raw.chartData : null;
+  const chartData = (raw.chart_data || []).map(item => ({
+    name: shortLabel(item.date),
+    Impressions: item.impressions,
+    Visitors: item.visitors,
+    Orders: item.orders,
+  }));
 
-  // Derive chartData from timeseries if not provided (dummy mode)
-  if (!chartData && raw.timeseries && Array.isArray(raw.timeseries.dailyVisitors)) {
-    const dailyVisitors = raw.timeseries.dailyVisitors || [];
-    const dailySales = raw.timeseries.dailySales || [];
-    const len = Math.max(dailyVisitors.length, dailySales.length);
-    chartData = Array.from({ length: len }).map((_, i) => {
-      const dv = dailyVisitors[i]?.value ?? 0;
-      const ds = dailySales[i]?.value ?? 0;
-      const date = dailyVisitors[i]?.date || dailySales[i]?.date || '';
-      return {
-        name: shortLabel(date) || `Day ${i + 1}`,
-        Impressions: dv, // use Visitors as Impressions fallback
-        Visitors: dv,
-        Orders: ds,
-      };
-    });
-  }
+  const analytics = raw.analytics || {};
 
-  const ov = raw.overview || {};
-  const topProducts = Array.isArray(raw.topProducts) ? raw.topProducts : [];
+  const salesOrders = transformStatObject(analytics.sales_orders, {
+    total_sales: 'Total Sales',
+    no_of_orders: 'Number of Orders',
+    fulfillment_rate: 'Fulfillment Rate (%)',
+    repeat_purchase_rate: 'Repeat Purchase Rate (%)',
+  });
 
-  const salesOrders = Array.isArray(raw.salesOrders)
-    ? raw.salesOrders
-    : [
-        { title: 'Total Sales', value: ov.totalSales ?? 0 },
-        { title: 'Conversion Rate', value: ov.conversionRate != null ? `${ov.conversionRate}%` : '0%' },
-      ];
+  const customerInsights = transformStatObject(analytics.customer_insights, {
+    new_customers: 'New Customers',
+    returning_customers: 'Returning Customers Rate (%)',
+    product_reviews: 'Product Reviews',
+    av_product_rating: 'Avg. Product Rating',
+    av_store_rating: 'Avg. Store Rating',
+  });
 
-  const customerInsights = Array.isArray(raw.customerInsights)
-    ? raw.customerInsights
-    : [{ title: 'Total Visitors', value: ov.totalVisitors ?? 0 }];
+  const productPerformance = transformStatObject(analytics.product_performance, {
+    total_impression: 'Total Impressions',
+    total_clicks: 'Click-Through Rate (%)',
+    orders_placed: 'Conversion Rate (%)',
+  });
 
-  const productPerformance = Array.isArray(raw.productPerformance)
-    ? raw.productPerformance
-    : [
-        { title: 'Top Product', value: topProducts[0]?.name || 'N/A' },
-        { title: 'Top Product Sales', value: topProducts[0]?.sales ?? 0 },
-      ];
-
-  const financialMetrics = Array.isArray(raw.financialMetrics)
-    ? raw.financialMetrics
-    : [{ title: 'Average Order Value', value: ov.averageOrderValue ?? 0 }];
+  const financialMetrics = transformStatObject(analytics.financial_metrics, {
+    total_revenue: 'Total Revenue',
+    loss_from: 'Refunded Amount',
+    profit_margin: 'Profit Margin (%)',
+  });
 
   return {
     data: {
-      chartData: Array.isArray(chartData) ? chartData : [],
+      chartData,
       salesOrders,
       customerInsights,
       productPerformance,
@@ -73,23 +71,27 @@ const shapeAnalytics = (raw) => {
   };
 };
 
-// Hook usage matches your page: useStoreAnalytics({ storeId, range })
-export const useStoreAnalytics = ({ storeId, range } = {}, options = {}) =>
-  useQuery({
-    queryKey: ['storeAnalytics', storeId, range || 'default'],
+/**
+ * Optimized hook to fetch and shape store analytics data.
+ * @param {string|number} storeId - The ID of the store. The query is disabled if this is falsy.
+ * @param {string} range - The date range string (e.g., '7_days').
+ * @param {object} options - Additional options for react-query's useQuery.
+ * @returns The result object from useQuery.
+ */
+export const useStoreAnalytics = (storeId, range, options = {}) => {
+  return useQuery({
+    queryKey: ['storeAnalytics', storeId, range],
     queryFn: async () => {
-      if (!storeId) return { data: {} };
-      const raw = await getStoreAnalytics(storeId, { range });
-      const payload = raw?.data ?? raw; // axios {data} or raw object
+      const rawResponse = await getStoreAnalytics({ range });
+      // The backend nests the actual data inside a 'data' key.
+      const payload = rawResponse?.data ?? rawResponse;
       return shapeAnalytics(payload);
     },
+    // The query will not run until a valid storeId is provided. This is crucial for stability.
     enabled: !!storeId,
-    staleTime: 5 * 60 * 1000,
-    keepPreviousData: true,
+    // Caching settings for performance
+    staleTime: 5 * 60 * 1000, // Data is fresh for 5 minutes
+    keepPreviousData: true,   // Show old data while new data is fetching for a smoother UX
     ...options,
   });
-
-// Backward-compatible alias
-export const useStoreAnalyticsQuery = useStoreAnalytics;
-
-export default useStoreAnalytics;
+};

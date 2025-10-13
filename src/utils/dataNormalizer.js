@@ -269,6 +269,19 @@ export const normalizeFeedPosts = (posts) =>
     }),
   });
 
+  export const normalizeComments = (comments) =>
+  normalizeData(comments, {
+    postProcess: (comment) => ({
+      id: comment.id || `temp-comment-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      userName: comment.userName || 'Unknown',
+      userProfilePic: hydrateImage(comment.userProfilePic),
+      text: comment.text || '',
+      likes: comment.likes || 0,
+      createdAt: comment.createdAt || new Date().toISOString(),
+      ...comment,
+    }),
+  });
+
 /* ---------------- Store Analytics ---------------- */
 export const normalizeAnalytics = (analytics) =>
   normalizeData(analytics, {

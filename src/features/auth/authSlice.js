@@ -1,8 +1,10 @@
-// src/features/auth/authSlice.js
 import { createSlice } from '@reduxjs/toolkit';
+import { clearAuthTokens } from '../../api/apiClient';
 
 const initialState = {
     user: null,
+    token: null, 
+    isAuthenticated: false,
     status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
     error: null,
 };
@@ -11,44 +13,29 @@ const authSlice = createSlice({
     name: 'auth',
     initialState,
     reducers: {
-        // Reducers for synchronous state updates
-        logout: (state) => {
-            state.user = null;
-            state.status = 'idle';
+        loginSuccess: (state, action) => {
+            state.status = 'succeeded';
+            state.user = action.payload.user;
+            state.token = action.payload.token;
+            state.isAuthenticated = true;
             state.error = null;
         },
-    },
-    extraReducers: (builder) => {
-        // Example for handling async thunks (like loginUser)
-        // builder
-        //     .addCase(loginUser.pending, (state) => {
-        //         state.status = 'loading';
-        //         state.error = null;
-        //     })
-        //     .addCase(loginUser.fulfilled, (state, action) => {
-        //         state.status = 'succeeded';
-        //         state.user = action.payload; // Assuming payload is the user data
-        //     })
-        //     .addCase(loginUser.rejected, (state, action) => {
-        //         state.status = 'failed';
-        //         state.error = action.error.message;
-        //     });
+        
+        logout: (state) => {
+            state.user = null;
+            state.token = null;
+            state.isAuthenticated = false;
+            state.status = 'idle';
+            state.error = null;
+            clearAuthTokens();
+
+            // ✅ THE FIX, PART 2: Remove the user ID from local storage on logout.
+            // This prevents a logged-out user from having a stale ID in their browser.
+            localStorage.removeItem('userId');
+        },
     },
 });
 
-export const { logout } = authSlice.actions;
-
-// Placeholder for an async thunk for login
-export const loginUser = (credentials) => async (dispatch) => {
-    // In a real app, this would be an API call
-    console.log('Dispatching loginUser with:', credentials);
-    // dispatch(someActionForLoading());
-    try {
-        // const response = await AuthService.login(credentials);
-        // dispatch(loginUser.fulfilled(response.data));
-    } catch (err) {
-        // dispatch(loginUser.rejected(err.message));
-    }
-};
+export const { loginSuccess, logout } = authSlice.actions;
 
 export default authSlice.reducer;

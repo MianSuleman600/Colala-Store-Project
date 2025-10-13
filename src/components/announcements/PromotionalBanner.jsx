@@ -1,26 +1,28 @@
 // src/components/announcements/PromotionalBanner.jsx
-import React, { useEffect, useMemo } from 'react';
-import { useActiveBannersQuery } from '../../hooks/useBannerQuery.js';
-import { announcementService } from '../../services/announcementService.js';
+import React, { useMemo } from 'react';
+import { useActiveBannersQuery } from '../../services/queries/useBannerQuery.js'; // Corrected import path
 
 const PromotionalBanner = ({ placement = 'home', className = '' }) => {
-  const { data } = useActiveBannersQuery({ placement });
+  // The hook now handles filtering by active status and placement.
+  // We just need to get the resulting data.
+  const { data: banners, isLoading } = useActiveBannersQuery({ placement });
 
+  // Select the single banner to display from the filtered list.
+  // In a real scenario, you might want to sort by priority or date.
   const banner = useMemo(() => {
-    if (!Array.isArray(data) || !data.length) return null;
-    return data.find((b) => b.active) || data[0];
-  }, [data]);
+    if (!Array.isArray(banners) || banners.length === 0) return null;
+    // Simply take the first banner from the already-filtered list.
+    return banners[0];
+  }, [banners]);
 
-  useEffect(() => {
-    if (!banner) return;
-    const IMP_KEY = `IMP_BANNER_${banner.id}`;
-    const already = sessionStorage.getItem(IMP_KEY);
-    if (already) return;
-    sessionStorage.setItem(IMP_KEY, '1');
-    announcementService.trackBannerImpression(banner.id).catch(() => {});
-  }, [banner]);
+  // --- REMOVED ---
+  // The useEffect for impression tracking has been removed as the function doesn't exist.
+  // --- END REMOVED ---
 
-  if (!banner) return null;
+  // Render nothing if loading or if no suitable banner is found.
+  if (isLoading || !banner) {
+    return null;
+  }
 
   return (
     <div className={`w-full ${className}`}>
@@ -29,9 +31,9 @@ const PromotionalBanner = ({ placement = 'home', className = '' }) => {
           src={banner.imageUrl}
           alt={banner.alt || 'Promotional banner'}
           className="w-full h-auto rounded-md object-cover"
+          // Add a fallback for broken image links
           onError={(e) => {
-            e.currentTarget.onerror = null;
-            e.currentTarget.src = 'https://placehold.co/1200x320/e0e0e0/000000?text=No+Banner+Image';
+            e.currentTarget.style.display = 'none'; // Hide the broken image element
           }}
         />
       </a>

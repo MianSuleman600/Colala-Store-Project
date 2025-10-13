@@ -1,6 +1,6 @@
-
+// src/services/queries/useCouponsQuery.js
 import { useQuery } from '@tanstack/react-query';
-import { couponService } from '../index.js';
+import { couponService } from '../settings/couponService.js';
 import { normalizeCoupons, normalizeCustomerPoints } from '../../utils/dataNormalizer.js';
 
 export const keys = {
@@ -19,7 +19,6 @@ export const useGetCouponsQuery = (options = {}) =>
       return normalizeCoupons(coupons);
     },
     staleTime: 5 * 60 * 1000,
-    keepPreviousData: true,
     ...options,
   });
 
@@ -43,6 +42,5 @@ export const useGetCustomerPointsQuery = (options = {}) =>
       return normalizeCustomerPoints(customers);
     },
     staleTime: 5 * 60 * 1000,
-    keepPreviousData: true,
     ...options,
   });

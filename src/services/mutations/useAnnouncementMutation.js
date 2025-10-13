@@ -1,49 +1,47 @@
-// src/hooks/useAnnouncementMutation.js
+// src/services/mutations/useAnnouncementMutation.js
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { announcementService } from '../settings/announcementService.js';
 import { announcementQueryKeys } from '../queries/useAnnouncementQuery.js';
+import { useToast } from '../../components/ui/ToastProvider';
 
-const toast = (type, message) => {
-  try {
-    window.dispatchEvent(new CustomEvent('SHOW_ALERT', { detail: { type, message } }));
-  } catch {}
-};
-
-export const useCreateAnnouncementMutation = () => {
+export const useCreateAnnouncementMutation = (options = {}) => {
   const qc = useQueryClient();
+  const { push } = useToast();
   return useMutation({
     mutationFn: (payload) => announcementService.createAnnouncement(payload),
     onSuccess: () => {
-      toast('success', 'Announcement created');
+      push('Announcement created successfully', { type: 'success' });
       qc.invalidateQueries({ queryKey: announcementQueryKeys.announcements });
-      qc.invalidateQueries({ queryKey: announcementQueryKeys.announcementsActive });
     },
-    onError: (err) => toast('error', err?.message || 'Failed to create announcement'),
+    onError: (err) => push(err?.message || 'Failed to create announcement', { type: 'error' }),
+    ...options,
   });
 };
 
-export const useUpdateAnnouncementMutation = () => {
+export const useUpdateAnnouncementMutation = (options = {}) => {
   const qc = useQueryClient();
+  const { push } = useToast();
   return useMutation({
     mutationFn: ({ id, payload }) => announcementService.updateAnnouncement(id, payload),
     onSuccess: () => {
-      toast('success', 'Announcement updated');
+      push('Announcement updated successfully', { type: 'success' });
       qc.invalidateQueries({ queryKey: announcementQueryKeys.announcements });
-      qc.invalidateQueries({ queryKey: announcementQueryKeys.announcementsActive });
     },
-    onError: (err) => toast('error', err?.message || 'Failed to update announcement'),
+    onError: (err) => push(err?.message || 'Failed to update announcement', { type: 'error' }),
+    ...options,
   });
 };
 
-export const useDeleteAnnouncementMutation = () => {
+export const useDeleteAnnouncementMutation = (options = {}) => {
   const qc = useQueryClient();
+  const { push } = useToast();
   return useMutation({
     mutationFn: (id) => announcementService.deleteAnnouncement(id),
     onSuccess: () => {
-      toast('success', 'Announcement deleted');
+      push('Announcement deleted', { type: 'success' });
       qc.invalidateQueries({ queryKey: announcementQueryKeys.announcements });
-      qc.invalidateQueries({ queryKey: announcementQueryKeys.announcementsActive });
     },
-    onError: (err) => toast('error', err?.message || 'Failed to delete announcement'),
+    onError: (err) => push(err?.message || 'Failed to delete announcement', { type: 'error' }),
+    ...options,
   });
 };

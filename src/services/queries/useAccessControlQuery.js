@@ -1,30 +1,19 @@
-// src/hooks/useAccessControlQuery.js
+// src/services/queries/useAccessControlQuery.js
+
 import { useQuery } from '@tanstack/react-query';
 import { accessControlService } from '../settings/accessControlService';
 
 export const aclQueryKeys = {
   users: ['acl', 'users'],
-  roles: ['acl', 'roles'],
 };
 
 export const useAclUsersQuery = (options = {}) =>
   useQuery({
     queryKey: aclQueryKeys.users,
-    queryFn: async () => {
-      const res = await accessControlService.getUsers();
-      return res.users || [];
-    },
-    staleTime: 30_000,
+    // The service now directly returns the array we need.
+    queryFn: () => accessControlService.getUsers(),
+    staleTime: 60 * 1000, // 1 minute
     ...options,
   });
 
-export const useAclRolesQuery = (options = {}) =>
-  useQuery({
-    queryKey: aclQueryKeys.roles,
-    queryFn: async () => {
-      const res = await accessControlService.getRoles();
-      return res.roles || [];
-    },
-    staleTime: 300_000,
-    ...options,
-  });
+// We no longer need useAclRolesQuery as the backend doesn't support it.

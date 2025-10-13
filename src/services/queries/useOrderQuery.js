@@ -1,69 +1,48 @@
 // src/services/queries/useOrderQuery.js
+
 import { useQuery } from '@tanstack/react-query';
 import { orderService } from '../orderService.js';
 import { normalizeOrders } from '../../utils/dataNormalizer.js';
 
 /**
- * Fetch all orders for a specific store/user, optionally filtered by status.
- * Returns an object { orders: [...] } to make callers simpler.
+ * Fetches all orders (new and completed) for the logged-in seller
+ * and structures them for the UI.
  */
-export const useGetOrdersQuery = (status = null, userId = 'default_user_id', options = {}) => {
+export const useGetOrdersQuery = (userId, options = {}) => {
   return useQuery({
-    queryKey: ['orders', userId, status],
+    // The query key is now simpler, as we fetch everything at once.
+    queryKey: ['orders', userId],
     queryFn: async () => {
-      console.debug('[useGetOrdersQuery] queryFn start', { status, userId });
-
-      const response = await orderService.getOrders(status, userId);
-      console.debug('[useGetOrdersQuery] raw response from orderService.getOrders:', response);
-
-      // Try to find the orders array in several common places
-      let ordersRaw = [];
-
-      if (Array.isArray(response?.orders)) {
-        ordersRaw = response.orders;
-        console.debug('[useGetOrdersQuery] using response.orders length:', ordersRaw.length);
-      } else if (Array.isArray(response?.ordersResponse)) {
-        ordersRaw = response.ordersResponse;
-        console.debug('[useGetOrdersQuery] using response.ordersResponse length:', ordersRaw.length);
-      } else if (Array.isArray(response)) {
-        ordersRaw = response;
-        console.debug('[useGetOrdersQuery] response itself is an array length:', ordersRaw.length);
-      } else if (Array.isArray(response?.data?.orders)) {
-        ordersRaw = response.data.orders;
-        console.debug('[useGetOrdersQuery] using response.data.orders length:', ordersRaw.length);
-      } else {
-        console.warn('[useGetOrdersQuery] could not find orders array in response, full response logged above.');
-      }
-
-      // Normalize and return as object with `orders` prop (so callers can do data?.orders)
-      const normalized = normalizeOrders(ordersRaw || []);
-      console.debug('[useGetOrdersQuery] normalized orders count:', normalized.length);
-      // Return an object so callers referencing `data.orders` will work
-      return { orders: normalized };
+      const response = await orderService.getOrders();
+      
+      // ✅ THE FIX: Extract the 'data' array from each paginated list.
+      const newOrdersRaw = response?.data?.new_orders?.data || [];
+      const completedOrdersRaw = response?.data?.completed_orders?.data || [];
+      
+      const newOrders = normalizeOrders(newOrdersRaw);
+      const completedOrders = normalizeOrders(completedOrdersRaw);
+      
+      // Return a structured object that the component can easily use.
+      return { new: newOrders, completed: completedOrders };
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    keepPreviousData: true,
+    // This query is only enabled if there's a logged-in user.
+    enabled: !!userId,
+    staleTime: 60 * 1000, // 1 minute
     ...options,
   });
 };
 
 /**
- * Fetch a single order by ID for a store/user
- * (kept as-is but logs added for debugging)
+ * Fetch a single order by ID.
  */
-export const useGetOrderByIdQuery = (orderId, userId = 'default_user_id', options = {}) => {
+export const useGetOrderByIdQuery = (orderId, userId, options = {}) => {
   return useQuery({
     queryKey: ['order', userId, orderId],
     queryFn: async () => {
-      console.debug('[useGetOrderByIdQuery] queryFn start', { orderId, userId });
       if (!orderId) return null;
-      const response = await orderService.getOrderById(orderId, userId);
-      console.debug('[useGetOrderByIdQuery] raw response:', response);
-
-      // `getOrderById` may return { order: {...} } or the order directly
-      const rawOrder = response?.order ?? response;
+      const response = await orderService.getOrderById(orderId);
+      const rawOrder = response?.data; // The backend wraps the order in 'data'
       const normalized = normalizeOrders(rawOrder ? [rawOrder] : []);
-      console.debug('[useGetOrderByIdQuery] normalized order:', normalized[0] ?? null);
       return normalized[0] ?? null;
     },
     enabled: !!orderId,

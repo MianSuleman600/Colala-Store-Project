@@ -1,20 +1,17 @@
-// src/utils/mediaUtils.js
-export const FALLBACK_IMAGE = '/placeholder.png';
+export const FALLBACK_IMAGE = '/apple-touch-icon.png'; // Make sure this path is correct
 
 export const isVideoUrl = (url = '') => {
   if (typeof url !== 'string') return false;
   const base = url.split('?')[0];
-  return /^data:video\//i.test(url) || /^blob:/i.test(url) || /\.(mp4|webm|ogg|mov|m4v)$/i.test(base);
+  return /\.(mp4|webm|ogg|mov|m4v)$/i.test(base);
 };
 
-export const dedupe = (list = []) => {
-  const out = [];
-  const seen = new Set();
-  for (const v of list) {
-    if (v && !seen.has(v)) {
-      seen.add(v);
-      out.push(v);
-    }
-  }
-  return out;
+export const dedupe = (arr) => {
+  if (!Array.isArray(arr)) return [];
+  const seen = {};
+  return arr.filter((item) => {
+    if (!item) return false;
+    const s = String(item);
+    return Object.prototype.hasOwnProperty.call(seen, s) ? false : (seen[s] = true);
+  });
 };

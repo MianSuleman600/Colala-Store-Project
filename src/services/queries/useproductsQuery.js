@@ -1,86 +1,33 @@
+// src/services/queries/useproductsQuery.js
+
 import { useQuery } from '@tanstack/react-query';
-import { productService } from '../index.js';
+import { productService } from '../productService.js'; 
 import { normalizeProducts } from '../../utils/dataNormalizer.js';
 
-const getToken = () =>
-  (typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : '') || '';
-
-const extractProductsArray = (response) => {
-  if (Array.isArray(response)) return response;
-  if (!response || typeof response !== 'object') return [];
-
-  const candidates = ['products', 'data', 'items', 'result', 'results', 'rows', 'list', 'content'];
-  for (const key of candidates) {
-    const val = response[key];
-    if (Array.isArray(val)) return val;
-
-    if (val && typeof val === 'object') {
-      if (Array.isArray(val.items)) return val.items;
-      if (Array.isArray(val.data)) return val.data;
-      if (Array.isArray(val.results)) return val.results;
-      if (Array.isArray(val.list)) return val.list;
-      if (Array.isArray(val.content)) return val.content;
-    }
-  }
-
-  for (const v of Object.values(response)) {
-    if (Array.isArray(v)) return v;
-  }
-  return [];
-};
-
-// --- Categories ---
-export const useCategories = (options = {}) =>
-  useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => productService.getCategories(getToken()),
-    staleTime: 5 * 60 * 1000,
-    ...options,
-  });
-
-// --- Brands ---
-export const useBrands = (options = {}) =>
-  useQuery({
-    queryKey: ['brands'],
-    queryFn: async () => productService.getBrands(getToken()),
-    staleTime: 5 * 60 * 1000,
-    ...options,
-  });
-
-// --- Locations ---
-export const useLocations = (options = {}) =>
-  useQuery({
-    queryKey: ['locations'],
-    queryFn: async () => productService.getLocations(getToken()),
-    staleTime: 5 * 60 * 1000,
-    ...options,
-  });
-
-// --- My Products (user-scoped, robust parsing, normalized) ---
+// --- My Products (user-scoped, points to the correct endpoint) ---
+// This is the ONLY hook that fetches a list of products.
 export const useGetMyProductsQuery = (userId, options = {}) =>
   useQuery({
-    queryKey: ['myProducts', userId || 'anonymous'],
+    queryKey: ['myProducts', userId],
     queryFn: async () => {
-      const token = getToken();
-      const response = await productService.getProducts(token, { userId });
-      const arr = extractProductsArray(response);
-      return normalizeProducts(arr);
+      const response = await productService.getProducts();
+      const productsArray = response?.data || [];
+      return normalizeProducts(productsArray);
     },
-    enabled: !!userId, // Only fetch when userId is available
+    enabled: !!userId,
     staleTime: 5 * 60 * 1000,
-    keepPreviousData: true,
-    refetchOnWindowFocus: false,
     ...options,
   });
 
-// --- Product Detail ---
+// --- Product Detail (Now uses the correct data path) ---
 export const useProductDetailsQuery = (productId, options = {}) =>
   useQuery({
     queryKey: ['productDetail', productId],
     queryFn: async () => {
       if (!productId) return null;
-      const response = await productService.getProductDetail(productId, getToken());
-      const [normalized] = normalizeProducts([response]);
+      const response = await productService.getProductDetail(productId);
+      const productData = response?.data;
+      const [normalized] = normalizeProducts(productData ? [productData] : []);
       return normalized || null;
     },
     enabled: !!productId,
@@ -88,28 +35,35 @@ export const useProductDetailsQuery = (productId, options = {}) =>
     ...options,
   });
 
-  // --- Store Products (public store view) ---
-export const useStoreProductsQuery = (storeId, options = {}) =>
+// --- Product Stats Hook ---
+export const useProductStatsQuery = (productId, options = {}) =>
   useQuery({
-    queryKey: ['storeProducts', storeId || 'unknown'],
+    queryKey: ['productStats', productId],
     queryFn: async () => {
-      const token = getToken();
+      if (!productId) return null;
 
-      // Prefer a dedicated API if available, otherwise fall back to getProducts with a storeId filter
-      let response;
-      if (typeof productService.getStoreProducts === 'function') {
-        response = await productService.getStoreProducts(storeId, token);
-      } else {
-        // Many backends support passing a storeId/sellerId filter object
-        response = await productService.getProducts(token, { storeId });
-      }
+      const [detailsRes, chartRes, totalsRes] = await Promise.all([
+        productService.getProductDetail(productId),
+        productService.getProductStats(productId),
+        productService.getProductStatTotals(productId),
+      ]);
 
-      const arr = extractProductsArray(response);
-      return normalizeProducts(arr);
+      const chartData = (chartRes?.data || []).map(d => ({
+        name: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        Impressions: d.impression || 0,
+        Visitors: d.view || 0,
+        Orders: d.order || 0,
+      }));
+
+      return {
+        name: detailsRes?.data?.name || 'Product',
+        chartData: chartData,
+        totals: totalsRes?.data || {},
+      };
     },
-    enabled: !!storeId,
+    enabled: !!productId,
     staleTime: 5 * 60 * 1000,
-    keepPreviousData: true,
-    refetchOnWindowFocus: false,
     ...options,
   });
+
+// --- REMOVED useStoreProductsQuery ---

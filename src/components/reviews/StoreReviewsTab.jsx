@@ -1,66 +1,41 @@
-// src/components/reviews/StoreReviewsTab.jsx
 import React from 'react';
 import Card from '../ui/Card';
 import { StarIcon } from '@heroicons/react/24/solid';
 
-const StoreReviewsTab = ({ reviews, brandColor, onViewReview }) => {
-  const renderStars = (rating) => {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-      stars.push(
-        <StarIcon key={i} className={`h-5 w-5 ${i <= rating ? 'text-yellow-400' : 'text-gray-300'}`} />
-      );
-    }
-    return <div className="flex">{stars}</div>;
-  };
+const renderStars = (rating) => (
+  <div className="flex">
+    {[1, 2, 3, 4, 5].map((i) => (
+      <StarIcon key={i} className={`h-5 w-5 ${i <= rating ? 'text-yellow-400' : 'text-gray-300'}`} />
+    ))}
+  </div>
+);
 
+const StoreReviewsTab = ({ reviews, brandColor, onViewReview }) => {
   return (
     <div className="space-y-4">
-      {(!reviews || reviews.length === 0) ? (
-        <Card className="p-6 text-center text-gray-600">No store reviews available.</Card>
+      {reviews.length === 0 ? (
+        <Card className="p-6 text-center text-gray-600">No store reviews found.</Card>
       ) : (
         reviews.map((review) => (
-          <Card key={review.id} className="p-4 rounded-xl shadow-sm flex flex-col">
+          <Card key={review.id} className="p-4 rounded-xl shadow-sm">
             <div className="flex justify-between items-start mb-2">
               <div className="flex items-center">
                 <img
-                  src={review.reviewerAvatar || 'https://placehold.co/40x40/e0e0e0/000000?text=User'}
-                  alt={review.reviewerName}
+                  src={review.user?.profile_picture_url || 'https://ui-avatars.com/api/?name=' + review.user?.full_name}
+                  alt={review.user?.full_name}
                   className="h-10 w-10 rounded-full object-cover mr-3"
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = 'https://placehold.co/40x40/e0e0e0/000000?text=User';
-                  }}
                 />
-                <div className="flex flex-col">
-                  <span className="text-gray-800 font-medium">{review.reviewerName}</span>
+                <div>
+                  <span className="font-medium text-gray-800">{review.user?.full_name}</span>
                   {renderStars(review.rating)}
                 </div>
               </div>
-              <span className="text-gray-500 text-xs">{review.dateCreated}</span>
+              <span className="text-gray-500 text-xs">{new Date(review.created_at).toLocaleDateString()}</span>
             </div>
-
-            <p className="text-gray-700 text-base mb-3">{review.reviewText}</p>
-
-            <div className="flex items-center p-2 border border-gray-200 rounded-lg bg-gray-50">
-              <img
-                src="https://placehold.co/40x40/e0e0e0/000000?text=Store"
-                alt="Store"
-                className="h-10 w-10 rounded-lg object-cover mr-3"
-              />
-              <div className="flex flex-col flex-grow">
-                <span className="text-gray-800 font-medium">Sasha Stores</span>
-                <div className="flex items-center text-sm text-gray-600">
-                  <span>4.5 Stars</span>
-                  <StarIcon className="h-4 w-4 text-yellow-400 ml-1" />
-                </div>
-              </div>
-              <button
-                onClick={() => onViewReview?.({ ...review, type: 'store' })}
-                className="text-sm font-semibold py-1 px-2 rounded-lg"
-                style={{ color: brandColor }}
-              >
-                View Store
+            <p className="text-gray-700 mb-3">{review.comment}</p>
+            <div className="flex items-center justify-end mt-2">
+              <button onClick={() => onViewReview(review, 'store')} className="text-sm font-semibold" style={{ color: brandColor }}>
+                View Review
               </button>
             </div>
           </Card>

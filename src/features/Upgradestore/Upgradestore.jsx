@@ -1,7 +1,7 @@
-// src/features/Upgradestore/Upgradestore.jsx
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 
 import Level1Form from '../auth/pages/register/Level1';
 import Level2Form from '../auth/pages/register/Level2';
@@ -13,345 +13,224 @@ import ErrorModal from '../../components/models/ErrorModal';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../components/ui/ToastProvider';
 
-import { updateStepField, setLevelStep } from '../auth/registrationSlice';
+import { updateStepField, setLevelStep, loadFormData } from '../auth/registrationSlice';
 import { useStoreProfile } from '../../services/queries/storeProfileQuery';
-import { useUpdateStoreProfileMutation } from '../../services/mutations/storeProfileMutation';
 import { getContrastTextColor } from '../../utils/colorUtils';
 import { computeProgressBreakdown, REQUIRED_FIELDS } from '../../utils/progress';
 
-const stepsPerLevel = { 1: 3, 2: 2, 3: 2 };
+import {
+  useSubmitL1ProfileMediaMutation,
+  useSubmitL1CategoriesSocialMutation,
+  useSubmitL2BusinessDetailsMutation,
+  useSubmitL2DocumentsMutation,
+  useSubmitL3PhysicalStoreMutation,
+  useSubmitL3AddressMutation,
+  useSubmitL3DeliveryMutation,
+  useSubmitL3ThemeMutation,
+  useSubmitL3UtilityBillMutation,
+} from '../../services/mutations/onboardingMutations';
+
+const stepsPerLevel = { 1: 3, 2: 2, 3: 5 };
 const formsMap = { 1: Level1Form, 2: Level2Form, 3: Level3Form };
 
 const UpgradeStorePage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { push } = useToast();
+  const queryClient = useQueryClient();
 
-  const { userId, isLoggedIn } = useSelector((s) => s.user);
-  const { formData, profileCompletion, currentLevel, currentStep } = useSelector((s) => s.registration);
+  const { user } = useSelector((state) => state.auth);
+  const userId = user?.id;
+  const { formData, currentLevel, currentStep } = useSelector((state) => state.registration);
 
-  const [submitting, setSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
-  const [modalErrorMessage, setModalErrorMessage] = useState('');
   const [prefilled, setPrefilled] = useState(false);
+  const [modalErrorMessage, setModalErrorMessage] = useState('');
 
-  // Fetch current profile
-  const {
-    data: currentStoreProfile,
-    isLoading: isProfileLoading,
-    refetch,
-  } = useStoreProfile(userId, {
-    enabled: isLoggedIn && !!userId,
-  });
+  const { data: storeProfile, isLoading: isProfileLoading } = useStoreProfile(userId, { enabled: !!userId });
 
-  const {
-    mutate: updateStoreProfile,
-    isSuccess: updOK,
-    isError: updErr,
-    error: updError,
-    isLoading: isUpdating,
-  } = useUpdateStoreProfileMutation();
+  const { mutateAsync: submitL1ProfileMedia } = useSubmitL1ProfileMediaMutation();
+  const { mutateAsync: submitL1CategoriesSocial } = useSubmitL1CategoriesSocialMutation();
+  const { mutateAsync: submitL2BusinessDetails } = useSubmitL2BusinessDetailsMutation();
+  const { mutateAsync: submitL2Documents } = useSubmitL2DocumentsMutation();
+  const { mutateAsync: submitL3PhysicalStore } = useSubmitL3PhysicalStoreMutation();
+  const { mutateAsync: submitL3UtilityBill } = useSubmitL3UtilityBillMutation();
+  const { mutateAsync: submitL3Address } = useSubmitL3AddressMutation();
+  const { mutateAsync: submitL3Delivery } = useSubmitL3DeliveryMutation();
+  const { mutateAsync: submitL3Theme } = useSubmitL3ThemeMutation();
 
-  // Mutation status -> toasts + modals
+  // Prefill store profile data
   useEffect(() => {
-    if (updOK) {
-      push('Profile updated successfully.', { type: 'success' });
-      setShowSuccessModal(true);
-      refetch?.();
-    }
-    if (updErr) {
-      const msg = updError?.message || 'Submission failed. Please try again.';
-      push(msg, { type: 'error' });
-      setModalErrorMessage(msg);
-      setShowErrorModal(true);
-      console.error('❌ Update mutation error:', updError);
-    }
-  }, [updOK, updErr, updError, refetch, push]);
-
-  // Prefill from current profile so all levels show existing data
-  useEffect(() => {
-    if (!currentStoreProfile || prefilled) return;
-
-    const p = currentStoreProfile;
-
-    // Level 1 - Step 1
-    [
-      ['storeName', p.storeName || ''],
-      ['storeLocation', p.location || ''],
-      ['email', p.email || ''],
-      ['phoneNumber', p.phoneNumber || ''],
-      ['referralCode', p.referralCode || ''],
-    ].forEach(([name, value]) =>
-      dispatch(updateStepField({ level: 'level1', step: 'step1', name, value }))
-    );
-
-    // Level 1 - Step 2
-    [
-      ['profilePicture', p.profilePictureUrl || ''],
-      ['storeBanner', p.bannerImageUrl || ''],
-    ].forEach(([name, value]) =>
-      dispatch(updateStepField({ level: 'level1', step: 'step2', name, value }))
-    );
-
-    // Level 1 - Step 3
-    [
-      ['categories', p.categories || []],
-      ['whatsapp', p.whatsapp || ''],
-      ['instagram', p.instagram || ''],
-      ['facebook', p.facebook || ''],
-      ['twitter', p.twitter || ''],
-    ].forEach(([name, value]) =>
-      dispatch(updateStepField({ level: 'level1', step: 'step3', name, value }))
-    );
-
-    // Level 2 - Step 1
-    [
-      ['businessName', p.businessName || ''],
-      ['businessType', p.businessType || ''],
-      ['ninNumber', p.ninNumber || ''],
-      ['cacNumber', p.cacNumber || ''],
-    ].forEach(([name, value]) =>
-      dispatch(updateStepField({ level: 'level2', step: 'step1', name, value }))
-    );
-
-    // Level 2 - Step 2
-    [
-      ['ninSlip', p.ninSlipUrl || ''],
-      ['cacCertificate', p.cacCertificateUrl || ''],
-    ].forEach(([name, value]) =>
-      dispatch(updateStepField({ level: 'level2', step: 'step2', name, value }))
-    );
-
-    // Level 3 - Step 1
-    [
-      ['hasPhysicalStore', !!p.hasPhysicalStore],
-      ['storeVideo', p.storeVideoUrl || ''],
-    ].forEach(([name, value]) =>
-      dispatch(updateStepField({ level: 'level3', step: 'step1', name, value }))
-    );
-
-    // Level 3 - Step 2
-    const storeAddress = p.storeAddress || { state: '', localGovernment: '', fullAddress: '', openingHours: [] };
-    const deliveryPricing = p.deliveryPricing || [];
-    [
-      ['storeAddress', storeAddress],
-      ['deliveryPricing', deliveryPricing],
-      ['selectedColor', p.brandColor || '#EF4444'],
-    ].forEach(([name, value]) =>
-      dispatch(updateStepField({ level: 'level3', step: 'step2', name, value }))
-    );
-
-    setPrefilled(true);
-  }, [currentStoreProfile, prefilled, dispatch]);
-
-  // Prefer selected color from form; fallback profile; else default
-  const brandColor =
-    formData?.level3?.step2?.selectedColor ||
-    currentStoreProfile?.brandColor ||
-    '#EF4444';
-  const contrastColor = getContrastTextColor(brandColor);
-
-  // Sidebar progress
-  const progress = useMemo(
-    () => computeProgressBreakdown(formData, REQUIRED_FIELDS),
-    [formData]
-  );
-
-  const levelsProgress = useMemo(() => {
-    return [1, 2, 3].map((id) => {
-      const key = `level${id}`;
-      const lvl = progress.byLevel[id] || { completed: 0, total: 0, percentage: 0 };
-      const steps = Object.keys(formData?.[key] || {}).length || stepsPerLevel[id];
-      return {
-        id,
-        title: `Level ${id}`,
-        completion: lvl.percentage,
-        completed: lvl.completed,
-        total: lvl.total,
-        steps,
+    if (storeProfile && !prefilled) {
+      const p = storeProfile;
+      const initialData = {
+        level1: {
+          step1: { storeName: p.name || '', storeLocation: p.location || '', email: p.email || '', phoneNumber: p.phone || '' },
+          step2: { profilePicture: p.profilePictureUrl || null, storeBanner: p.bannerImageUrl || null },
+          step3: { categories: p.categories?.map(c => c.id) || [], whatsapp: p.socialLinks?.find(s => s.type === 'whatsapp')?.url || '', instagram: p.socialLinks?.find(s => s.type === 'instagram')?.url || '', facebook: p.socialLinks?.find(s => s.type === 'facebook')?.url || '', twitter: p.socialLinks?.find(s => s.type === 'twitter')?.url || '' },
+        },
+        level2: {
+          step1: { businessName: p.business?.registered_name || '', businessType: p.business?.business_type || '', ninNumber: p.business?.nin_number || '', cacNumber: p.business?.cac_number || '' },
+          step2: { ninSlip: p.business?.nin_document_url || null, cacCertificate: p.business?.cac_document_url || null },
+        },
+        level3: {
+          step1: { hasPhysicalStore: !!p.business?.has_physical_store, storeVideo: p.business?.store_video_url || null },
+          step2: { storeAddress: p.addresses?.[0] || {} },
+          step3: { deliveryPricing: p.delivery || [] },
+          step4: { utilityBill: p.business?.utility_bill_url || null },
+          step5: { selectedColor: p.brandColor || '#EF4444' },
+        }
       };
-    });
-  }, [progress, formData]);
+      dispatch(loadFormData(initialData));
+      setPrefilled(true);
+    }
+  }, [storeProfile, prefilled, dispatch]);
 
-  // --- Handlers ---
-  const handleSubmit = useCallback(
-    async (allData) => {
-      if (!isLoggedIn || !userId) return;
-      setSubmitting(true);
-      try {
-        // Upgrade uses updateStoreProfile (does not affect "number of registered users")
-        updateStoreProfile({ userId, payload: allData || formData });
-      } catch (err) {
-        console.error('❌ handleSubmit error:', err);
-        const msg = 'An unknown error occurred.';
-        push(msg, { type: 'error' });
-        setModalErrorMessage(msg);
-        setShowErrorModal(true);
-      } finally {
-        setSubmitting(false);
-      }
-    },
-    [isLoggedIn, userId, formData, updateStoreProfile, push]
-  );
+  const brandColor = useMemo(() => formData?.level3?.step5?.selectedColor || storeProfile?.brandColor || '#EF4444', [formData, storeProfile]);
+  const contrastColor = useMemo(() => getContrastTextColor(brandColor), [brandColor]);
 
-  const handleChange = (e, level, step) => {
+  const liveProgress = useMemo(() => computeProgressBreakdown(formData, REQUIRED_FIELDS), [formData]);
+  const profileCompletion = liveProgress.overallPercentage;
+  const levelsProgress = useMemo(() => [1, 2, 3].map(id => ({ id, title: `Level ${id}`, completion: liveProgress.byLevel[id]?.percentage || 0 })), [liveProgress]);
+
+  // ---------------- Change Handlers ----------------
+  const handleChange = useCallback((level, step) => (e) => {
     const { name, type, checked, value } = e.target;
-    dispatch(
-      updateStepField({
-        level,
-        step,
-        name,
-        value: type === 'checkbox' ? checked : value,
-      })
-    );
-  };
+    dispatch(updateStepField({ level, step, name, value: type === 'checkbox' ? checked : value }));
+  }, [dispatch]);
 
-  const handleFileChange = (e, level, step) => {
-    dispatch(
-      updateStepField({
-        level,
-        step,
-        name: e.target.name,
-        value: e.target.files?.[0] ?? null,
-      })
-    );
-  };
+  const handleFileChange = useCallback((level, step) => (e) => {
+    dispatch(updateStepField({ level, step, name: e.target.name, value: e.target.files?.[0] ?? null }));
+  }, [dispatch]);
 
-  const handleNext = () => {
+  // ---------------- Step Submission ----------------
+  const handleSubmitCurrentStep = useCallback(async () => {
+    const levelKey = `level${currentLevel}`;
+    const stepKey = `step${currentStep}`;
+    const stepData = formData[levelKey][stepKey];
+    let submissionPromise;
+
+    try {
+      setIsSubmitting(true);
+
+      if (levelKey === 'level1' && stepKey === 'step2') {
+        const payload = new FormData();
+        if (stepData.profilePicture instanceof File) payload.append('profile_image', stepData.profilePicture);
+        if (stepData.storeBanner instanceof File) payload.append('banner_image', stepData.storeBanner);
+        if (payload.has('profile_image') || payload.has('banner_image')) submissionPromise = submitL1ProfileMedia(payload);
+      } else if (levelKey === 'level1' && stepKey === 'step3') {
+        const socialLinks = [
+          { type: 'whatsapp', url: stepData.whatsapp },
+          { type: 'instagram', url: stepData.instagram },
+          { type: 'facebook', url: stepData.facebook },
+          { type: 'twitter', url: stepData.twitter }
+        ].filter(l => l.url);
+        submissionPromise = submitL1CategoriesSocial({ categories: stepData.categories, social_links: socialLinks });
+      } else if (levelKey === 'level2' && stepKey === 'step1') {
+        submissionPromise = submitL2BusinessDetails({ registered_name: stepData.businessName, business_type: stepData.businessType, nin_number: stepData.ninNumber, cac_number: stepData.cacNumber });
+      } else if (levelKey === 'level2' && stepKey === 'step2') {
+        const payload = new FormData();
+        if (stepData.ninSlip instanceof File) payload.append('nin_document', stepData.ninSlip);
+        if (stepData.cacCertificate instanceof File) payload.append('cac_document', stepData.cacCertificate);
+        if (payload.has('nin_document') || payload.has('cac_document')) submissionPromise = submitL2Documents(payload);
+      } else if (levelKey === 'level3' && stepKey === 'step1') {
+        submissionPromise = submitL3PhysicalStore({ has_physical_store: stepData.hasPhysicalStore ? 1 : 0 });
+        if (stepData.storeVideo instanceof File) {
+          const videoForm = new FormData();
+          videoForm.append('store_video', stepData.storeVideo);
+          await submitL3PhysicalStore(videoForm);
+        }
+      } else if (levelKey === 'level3' && stepKey === 'step2') {
+        if (stepData.storeAddress) submissionPromise = submitL3Address(stepData.storeAddress);
+      } else if (levelKey === 'level3' && stepKey === 'step3') {
+        if (stepData.deliveryPricing?.length) {
+          const promises = stepData.deliveryPricing.map(d => submitL3Delivery(d));
+          await Promise.all(promises);
+        }
+      } else if (levelKey === 'level3' && stepKey === 'step4') {
+        if (stepData.utilityBill instanceof File) submissionPromise = submitL3UtilityBill(stepData.utilityBill);
+      } else if (levelKey === 'level3' && stepKey === 'step5') {
+        submissionPromise = submitL3Theme({ theme_color: stepData.selectedColor });
+      }
+
+      if (submissionPromise) await submissionPromise;
+
+      push('Step saved!', { type: 'success' });
+      queryClient.invalidateQueries({ queryKey: ['onboarding', 'progress'] });
+      queryClient.invalidateQueries({ queryKey: ['storeProfile', userId] });
+    } catch (error) {
+      const message = error.message || 'Failed to save step.';
+      setModalErrorMessage(message);
+      setShowErrorModal(true);
+      push(message, { type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [currentLevel, currentStep, formData, push, queryClient, userId, submitL1ProfileMedia, submitL1CategoriesSocial, submitL2BusinessDetails, submitL2Documents, submitL3PhysicalStore, submitL3Address, submitL3Delivery, submitL3UtilityBill, submitL3Theme]);
+
+  // ---------------- Navigation ----------------
+  const handleNext = async () => {
+    await handleSubmitCurrentStep();
     const nextStep = currentStep + 1;
-    const maxStep = stepsPerLevel[currentLevel];
-
-    if (nextStep <= maxStep) dispatch(setLevelStep({ level: currentLevel, step: nextStep }));
+    if (nextStep <= stepsPerLevel[currentLevel]) dispatch(setLevelStep({ level: currentLevel, step: nextStep }));
     else if (currentLevel < 3) dispatch(setLevelStep({ level: currentLevel + 1, step: 1 }));
-    else handleSubmit(formData);
+    else setShowSuccessModal(true);
   };
 
   const handleBack = () => {
-    const prevStep = currentStep - 1;
-    if (prevStep > 0) dispatch(setLevelStep({ level: currentLevel, step: prevStep }));
-    else if (currentLevel > 1)
-      dispatch(setLevelStep({ level: currentLevel - 1, step: stepsPerLevel[currentLevel - 1] }));
+    if (currentStep > 1) dispatch(setLevelStep({ level: currentLevel, step: currentStep - 1 }));
+    else if (currentLevel > 1) dispatch(setLevelStep({ level: currentLevel - 1, step: stepsPerLevel[currentLevel - 1] }));
   };
 
-  // Current form component
   const CurrentFormComponent = formsMap[currentLevel];
   const currentFormData = formData?.[`level${currentLevel}`]?.[`step${currentStep}`] || {};
 
-  if (!isLoggedIn) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">Access Denied</h2>
-        <p className="text-gray-700 mb-6">Please log in to upgrade your store.</p>
-        <Button
-          onClick={() => navigate('/login')}
-          className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600"
-        >
-          Go to Login
-        </Button>
-      </div>
-    );
-  }
-
-  if (isProfileLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
-        <p className="text-lg text-gray-700">Loading your store profile...</p>
-      </div>
-    );
-  }
+  if (isProfileLoading) return <div className="p-8 text-center">Loading your store details...</div>;
+  if (!user) return <div className="p-8 text-center">Please log in to upgrade your store.</div>;
 
   return (
-    <div
-      className="min-h-screen bg-gray-100 flex justify-center items-center p-4 lg:p-8"
-      aria-busy={submitting || isUpdating ? 'true' : 'false'}
-    >
+    <div className="min-h-screen bg-gray-100 flex justify-center items-center p-4 lg:p-8">
       <div className="relative flex w-full max-w-6xl bg-white rounded-2xl shadow-xl overflow-hidden">
-        {/* Sidebar */}
-        <aside className="hidden lg:flex flex-col w-[350px] bg-white p-8 border-r border-gray-200 space-y-6 overflow-y-auto">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Upgrade Store</h1>
-
-          {levelsProgress.map((lvl) => {
-            const isActive = currentLevel === lvl.id;
-            return (
-              <div
-                key={lvl.id}
-                className={[
-                  'p-4 border rounded-2xl shadow-sm transition-colors',
-                  isActive ? ' ring-1 ring-red-500/40' : 'border-gray-300',
-                ].join(' ')}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-lg font-bold text-gray-800">{lvl.title}</h2>
-                  <CircularProgress
-                    percentage={lvl.completion}
-                    size={44}
-                    strokeWidth={5}
-                    color={brandColor}
-                    textColor={brandColor}
-                  />
-                </div>
-
-                <p className="text-sm text-gray-600">Completion</p>
-                <p className="text-lg font-bold mb-3" style={{ color: brandColor }}>
-                  {lvl.completion}%
-                </p>
-
-                
-
-                <Button
-                  className="w-full py-3 rounded-[15px] text-base shadow-md"
-                  style={{ backgroundColor: brandColor, color: contrastColor }}
-                  onClick={() => dispatch(setLevelStep({ level: lvl.id, step: 1 }))}
-                >
-                  View Details
-                </Button>
+        <aside className="hidden lg:flex flex-col w-[350px] p-8 border-r">
+          <h1 className="text-3xl font-bold mb-6">Upgrade Store</h1>
+          {levelsProgress.map((lvl) => (
+            <div key={lvl.id} className={`p-4 border rounded-2xl mb-4 ${currentLevel === lvl.id ? 'ring-2' : ''}`} style={{ '--tw-ring-color': brandColor }}>
+              <div className="flex justify-between items-center mb-2">
+                <h2 className="text-lg font-bold">{lvl.title}</h2>
+                <CircularProgress percentage={lvl.completion} color={brandColor} />
               </div>
-            );
-          })}
+              <p className="text-lg font-bold" style={{ color: brandColor }}>{lvl.completion}%</p>
+              <Button className="w-full mt-3 py-3" style={{ backgroundColor: brandColor, color: contrastColor }} onClick={() => dispatch(setLevelStep({ level: lvl.id, step: 1 }))}>View Details</Button>
+            </div>
+          ))}
         </aside>
 
-        {/* Main Form Area */}
-        <main className="flex-1 p-6 md:p-8 flex flex-col overflow-y-auto">
+        <main className="flex-1 p-6 md:p-8 flex flex-col">
           <div className="w-full bg-gray-200 rounded-full h-4 mb-2">
-            <div
-              className="h-4 rounded-full transition-all duration-500 ease-in-out"
-              style={{ width: `${profileCompletion}%`, backgroundColor: brandColor }}
-            />
+            <div className="h-4 rounded-full" style={{ width: `${profileCompletion}%`, backgroundColor: brandColor }} />
           </div>
-          <p className="text-center text-sm mt-2 text-gray-600">{profileCompletion}% Complete</p>
-
-          {/* Full-width form */}
-          <div className="mt-6 w-full max-w-full">
+          <p className="text-center text-sm mt-2">{profileCompletion}% Complete</p>
+          <div className="mt-6 w-full flex-1">
             <CurrentFormComponent
               mode="upgrade"
               activeStep={currentStep}
               formData={currentFormData}
-              handleChange={(e) => handleChange(e, `level${currentLevel}`, `step${currentStep}`)}
-              handleFileChange={(e) => handleFileChange(e, `level${currentLevel}`, `step${currentStep}`)}
+              handleChange={handleChange(`level${currentLevel}`, `step${currentStep}`)}
+              handleFileChange={handleFileChange(`level${currentLevel}`, `step${currentStep}`)}
               onNext={handleNext}
               onBack={handleBack}
               brandColor={brandColor}
               contrastColor={contrastColor}
+              isSubmitting={isSubmitting}
             />
           </div>
         </main>
       </div>
 
-      {/* Modals */}
-      {showSuccessModal && (
-        <SuccessModal
-          onClose={() => {
-            setShowSuccessModal(false);
-            navigate('/');
-          }}
-          title="Profile Updated!"
-          message="Your store profile was successfully updated."
-        />
-      )}
-      {showErrorModal && (
-        <ErrorModal message={modalErrorMessage} onClose={() => setShowErrorModal(false)} />
-      )}
+      {showSuccessModal && <SuccessModal onClose={() => { setShowSuccessModal(false); navigate('/'); }} title="Profile Updated!" message="Your store profile was successfully updated." />}
+      {showErrorModal && <ErrorModal message={modalErrorMessage} onClose={() => setShowErrorModal(false)} />}
     </div>
   );
 };

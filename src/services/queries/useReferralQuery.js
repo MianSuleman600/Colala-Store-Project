@@ -1,11 +1,6 @@
-//D:\Project\frontend\src\services\queries\useReferralQuery.js
+// src/services/queries/useReferralQuery.js
 import { useQuery } from '@tanstack/react-query';
 import { referralService } from '../settings/referralService.js';
-import {
-  normalizeReferralWallet,
-  normalizeReferralTransactions,
-  normalizeReferralProducts,
-} from '../../utils/dataNormalizer.js';
 
 export const referralQueryKeys = {
   wallet: ['referrals', 'wallet'],
@@ -17,11 +12,7 @@ export const referralQueryKeys = {
 export const useReferralWalletQuery = (options = {}) =>
   useQuery({
     queryKey: referralQueryKeys.wallet,
-    queryFn: async () => {
-      const res = await referralService.getWallet();
-      // normalize handles object or [object]
-      return normalizeReferralWallet(res?.wallet ?? res);
-    },
+    queryFn: () => referralService.getWallet(),
     staleTime: 60_000,
     ...options,
   });
@@ -29,11 +20,7 @@ export const useReferralWalletQuery = (options = {}) =>
 export const useReferralTransactionsQuery = (params = {}, options = {}) =>
   useQuery({
     queryKey: referralQueryKeys.transactions(params),
-    queryFn: async () => {
-      const res = await referralService.getTransactions?.(params);
-      const rows = res?.transactions ?? res?.data ?? res ?? [];
-      return normalizeReferralTransactions(rows);
-    },
+    queryFn: () => referralService.getTransactions(params),
     staleTime: 60_000,
     ...options,
   });
@@ -41,10 +28,7 @@ export const useReferralTransactionsQuery = (params = {}, options = {}) =>
 export const useReferralFaqsQuery = (options = {}) =>
   useQuery({
     queryKey: referralQueryKeys.faqs,
-    queryFn: async () => {
-      const res = await referralService.getFaqs?.();
-      return res?.faqs ?? res?.data ?? [];
-    },
+    queryFn: () => referralService.getFaqs(),
     staleTime: 300_000,
     ...options,
   });
@@ -52,11 +36,7 @@ export const useReferralFaqsQuery = (options = {}) =>
 export const useReferralProductsQuery = (params = {}, options = {}) =>
   useQuery({
     queryKey: referralQueryKeys.products(params),
-    queryFn: async () => {
-      const res = await referralService.getProducts?.(params);
-      const rows = res?.products ?? res?.data ?? [];
-      return normalizeReferralProducts(rows);
-    },
+    queryFn: () => referralService.getProducts(params),
     staleTime: 60_000,
     ...options,
   });

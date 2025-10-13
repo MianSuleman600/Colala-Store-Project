@@ -1,31 +1,34 @@
+// src/services/settings/storeAnalyticsService.js
+
 import { apiRequest } from '../../api/apiClient';
 import { ENDPOINTS } from '../../api/apiConfig';
-import { USE_DUMMY_DATA } from '../../utils/config';
-import { dummyStoreAnalytics, buildDummyAnalytics } from '../../utils/data/dummyStoreAnalytics';
 
-// Normalize axios-like { data } or raw object
-const takeData = (res) => (res && typeof res === 'object' && 'data' in res ? res.data : res);
-
-// Live Rails API
 const apiAnalyticsService = {
-  getStoreAnalytics: async (storeId, params = {}) => {
-    if (!storeId) throw new Error('storeId is required');
-    const url = `${ENDPOINTS.STORE_ANALYTICS}/${storeId}`;
-    const res = await apiRequest.get(url, { params });
-    return takeData(res); // hook will shape this
+  getStoreAnalytics: async (params = {}) => {
+    const url = ENDPOINTS.STORE_ANALYTICS;
+    
+    // The backend expects the query parameter to be named 'period'.
+    // We extract the number from the range string (e.g., "30_days" -> 30).
+    const requestParams = {
+      period: params.range ? parseInt(params.range.split('_')[0], 10) : 30,
+    };
+
+    // --- THIS IS THE FIX ---
+    // Instead of `apiRequest.get(url, { params })`, we call apiRequest as a function
+    // and pass the configuration as a single object.
+    const res = await apiRequest({
+      url: url,
+      method: 'GET',
+      params: requestParams,
+    });
+    // --- END OF FIX ---
+
+    // The rest of your code works as intended.
+    // The `apiRequest` function already returns the `data` object,
+    // so no need for the `takeData` helper.
+    return res;
   },
 };
 
-// Dummy (Dev) API
-const dummyAnalyticsService = {
-  getStoreAnalytics: async (storeId, params = {}) => {
-    const range = params?.range;
-    const days =
-      range === '90_days' ? 90 : range === '30_days' ? 30 : 7;
-    return buildDummyAnalytics(dummyStoreAnalytics, { storeId, days });
-  },
-};
-
-const service = USE_DUMMY_DATA ? dummyAnalyticsService : apiAnalyticsService;
-export const getStoreAnalytics = (storeId, params) => service.getStoreAnalytics(storeId, params);
-export const storeAnalyticsService = service;
+export const getStoreAnalytics = (params) => apiAnalyticsService.getStoreAnalytics(params);
+export const storeAnalyticsService = apiAnalyticsService;

@@ -1,90 +1,43 @@
-// src/hooks/useReviewMutation.js
+// src/services/mutations/useReviewMutation.js
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { reviewService } from '../settings/reviewService.js';
 import { reviewQueryKeys } from '../queries/useReviewQuery.js';
 
-const toast = (type, message) => {
-  try {
-    window.dispatchEvent(new CustomEvent('SHOW_ALERT', { detail: { type, message } }));
-  } catch {}
-};
+const toast = (type, message) => console.log(`[Toast ${type}]: ${message}`);
 
-// Store reviews
-export const useCreateStoreReviewMutation = (params = {}) => {
-  const qc = useQueryClient();
+export const useUpdateStoreReviewMutation = () => {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload) => reviewService.createStoreReview(payload),
-    onSuccess: () => {
-      toast('success', 'Store review created');
-      qc.invalidateQueries({ queryKey: reviewQueryKeys.store({}) });
-      qc.invalidateQueries({ queryKey: reviewQueryKeys.store(params) });
-    },
-    onError: (err) => toast('error', err?.message || 'Failed to create store review'),
-  });
-};
-
-export const useUpdateStoreReviewMutation = (params = {}) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, payload }) => reviewService.updateStoreReview(id, payload),
+    mutationFn: ({ storeId, reviewId, payload }) => reviewService.updateStoreReview(storeId, reviewId, payload),
     onSuccess: () => {
       toast('success', 'Store review updated');
-      qc.invalidateQueries({ queryKey: reviewQueryKeys.store({}) });
-      qc.invalidateQueries({ queryKey: reviewQueryKeys.store(params) });
+      queryClient.invalidateQueries({ queryKey: reviewQueryKeys.myReviews });
     },
     onError: (err) => toast('error', err?.message || 'Failed to update store review'),
   });
 };
 
-export const useDeleteStoreReviewMutation = (params = {}) => {
-  const qc = useQueryClient();
+export const useDeleteStoreReviewMutation = () => {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id) => reviewService.deleteStoreReview(id),
+    mutationFn: ({ storeId, reviewId }) => reviewService.deleteStoreReview({ storeId, reviewId }),
     onSuccess: () => {
       toast('success', 'Store review deleted');
-      qc.invalidateQueries({ queryKey: reviewQueryKeys.store({}) });
-      qc.invalidateQueries({ queryKey: reviewQueryKeys.store(params) });
+      queryClient.invalidateQueries({ queryKey: reviewQueryKeys.myReviews });
     },
     onError: (err) => toast('error', err?.message || 'Failed to delete store review'),
   });
 };
 
-// Product reviews
-export const useCreateProductReviewMutation = (params = {}) => {
-  const qc = useQueryClient();
+// Placeholder mutations for product reviews
+export const useUpdateProductReviewMutation = () => {
   return useMutation({
-    mutationFn: (payload) => reviewService.createProductReview(payload),
-    onSuccess: () => {
-      toast('success', 'Product review created');
-      qc.invalidateQueries({ queryKey: reviewQueryKeys.product({}) });
-      qc.invalidateQueries({ queryKey: reviewQueryKeys.product(params) });
-    },
-    onError: (err) => toast('error', err?.message || 'Failed to create product review'),
+    mutationFn: () => { throw new Error("Updating product reviews is not supported by the backend yet.") },
   });
 };
 
-export const useUpdateProductReviewMutation = (params = {}) => {
-  const qc = useQueryClient();
+export const useDeleteProductReviewMutation = () => {
   return useMutation({
-    mutationFn: ({ id, payload }) => reviewService.updateProductReview(id, payload),
-    onSuccess: () => {
-      toast('success', 'Product review updated');
-      qc.invalidateQueries({ queryKey: reviewQueryKeys.product({}) });
-      qc.invalidateQueries({ queryKey: reviewQueryKeys.product(params) });
-    },
-    onError: (err) => toast('error', err?.message || 'Failed to update product review'),
-  });
-};
-
-export const useDeleteProductReviewMutation = (params = {}) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id) => reviewService.deleteProductReview(id),
-    onSuccess: () => {
-      toast('success', 'Product review deleted');
-      qc.invalidateQueries({ queryKey: reviewQueryKeys.product({}) });
-      qc.invalidateQueries({ queryKey: reviewQueryKeys.product(params) });
-    },
-    onError: (err) => toast('error', err?.message || 'Failed to delete product review'),
+    mutationFn: () => { throw new Error("Deleting product reviews is not supported by the backend yet.") },
   });
 };

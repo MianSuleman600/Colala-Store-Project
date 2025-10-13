@@ -1,32 +1,24 @@
-// src/hooks/useSupportQuery.js
 import { useQuery } from '@tanstack/react-query';
 import { supportService } from '../settings/supportService';
 
 export const supportQueryKeys = {
-  chats: (params = {}) => ['support', 'chats', params],
-  chatById: (chatId) => ['support', 'chat', chatId],
+  tickets: ['support', 'tickets'],
+  ticketById: (ticketId) => ['support', 'ticket', ticketId],
 };
 
-export const useSupportChatsQuery = (params = {}, options = {}) =>
+export const useSupportTicketsQuery = (options = {}) =>
   useQuery({
-    queryKey: supportQueryKeys.chats(params),
-    queryFn: async () => {
-      const res = await supportService.getChats(params);
-      return res.chats || [];
-    },
+    queryKey: supportQueryKeys.tickets,
+    queryFn: () => supportService.getTickets(),
     staleTime: 30_000,
     ...options,
   });
 
-export const useSupportChatByIdQuery = (chatId, options = {}) =>
+export const useSupportTicketByIdQuery = (ticketId, options = {}) =>
   useQuery({
-    queryKey: supportQueryKeys.chatById(chatId),
-    queryFn: async () => {
-      if (!chatId) return null;
-      const res = await supportService.getChatById(chatId);
-      return res.chat || null;
-    },
-    enabled: !!chatId,
+    queryKey: supportQueryKeys.ticketById(ticketId),
+    queryFn: () => supportService.getTicketById(ticketId),
+    enabled: !!ticketId,
     staleTime: 15_000,
     ...options,
   });

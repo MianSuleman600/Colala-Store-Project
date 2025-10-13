@@ -1,113 +1,89 @@
-// src/pages/MyReviewsPage.jsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useSelector } from 'react-redux';
+import ScrollToTop from '../../components/ui/ScrollToTop';
+import { useToast } from '../../components/ui/ToastProvider';
+import { getContrastTextColor } from '../../utils/colorUtils';
+
+// Import hooks
+import { useMyReviewsQuery } from '../../services/queries/useReviewQuery.js';
+import {
+  useUpdateStoreReviewMutation,
+  useDeleteStoreReviewMutation,
+  useUpdateProductReviewMutation,
+  useDeleteProductReviewMutation,
+} from '../../services/mutations/useReviewMutation.js';
+
+// Import sub-components
 import StoreReviewsTab from '../../components/reviews/StoreReviewsTab';
 import ProductReviewsTab from '../../components/reviews/ProductReviewsTab';
 import MyReviewModal from '../../components/reviews/models/MyReviewModal';
 import LeaveReviewModal from '../../components/reviews/models/LeaveReviewModal';
-import ScrollToTop from '../ui/ScrollToTop';
 
-import {
-  useStoreReviewsQuery,
-  useProductReviewsQuery,
-} from '../../services/queries/useReviewQuery.js';
-
-import {
-  useUpdateStoreReviewMutation,
-  useUpdateProductReviewMutation,
-  useDeleteStoreReviewMutation,
-  useDeleteProductReviewMutation,
-} from '../../services/mutations/useReviewMutation.js';
-
-const toast = (type, message) => {
-  try {
-    window.dispatchEvent(new CustomEvent('SHOW_ALERT', { detail: { type, message } }));
-  } catch {}
-};
-
-const MyReviewsPage = ({ brandColor = '#EF4444', contrastTextColor = '#ffffff' }) => {
+const MyReviewsPage = () => {
+  const { push } = useToast();
   const [activeTab, setActiveTab] = useState('store');
-  const [showMyReviewModal, setShowMyReviewModal] = useState(false);
-  const [selectedReview, setSelectedReview] = useState(null);
-  const [showLeaveReviewModal, setShowLeaveReviewModal] = useState(false);
-  const [reviewToEdit, setReviewToEdit] = useState(null);
+  const [selectedReview, setSelectedReview] = useState(null); // For viewing
+  const [reviewToEdit, setReviewToEdit] = useState(null);     // For editing
 
-  // Fetch lists (you can pass params like storeId/productId if needed)
-  const { data: storeReviews = [], isLoading: loadingStore } = useStoreReviewsQuery({});
-  const { data: productReviews = [], isLoading: loadingProduct } = useProductReviewsQuery({});
+  // Get user and brand color from Redux
+  const { user } = useSelector((state) => state.auth);
+  const brandColor = useMemo(() => user?.store?.brandColor || user?.store?.theme_color || '#EF4444', [user]);
+  const contrastTextColor = useMemo(() => getContrastTextColor(brandColor), [brandColor]);
+
+  // A single query to get all reviews, with selectors splitting the data
+  const { data, isLoading } = useMyReviewsQuery();
+  const storeReviews = data?.storeReviews || [];
+  const productReviews = data?.productReviews || [];
 
   // Mutations
-  const updateStoreReview = useUpdateStoreReviewMutation({});
-  const updateProductReview = useUpdateProductReviewMutation({});
-  const deleteStoreReview = useDeleteStoreReviewMutation({});
-  const deleteProductReview = useDeleteProductReviewMutation({});
+  const updateStoreReview = useUpdateStoreReviewMutation();
+  const deleteStoreReview = useDeleteStoreReviewMutation();
+  const updateProductReview = useUpdateProductReviewMutation(); // Note: Will show error until backend is ready
+  const deleteProductReview = useDeleteProductReviewMutation(); // Note: Will show error until backend is ready
 
   const handleViewReview = (review, type) => {
-    const r = type ? { ...review, type } : review;
-    setSelectedReview(r);
-    setShowMyReviewModal(true);
-  };
-
-  const handleCloseMyReviewModal = () => {
-    setShowMyReviewModal(false);
-    setSelectedReview(null);
+    setSelectedReview({ ...review, type });
   };
 
   const handleEditReview = (review) => {
     setReviewToEdit(review);
-    setShowLeaveReviewModal(true);
-    handleCloseMyReviewModal();
-  };
-
-  const handleCloseLeaveReviewModal = () => {
-    setShowLeaveReviewModal(false);
-    setReviewToEdit(null);
+    setSelectedReview(null); // Close the view modal to open the edit modal
   };
 
   const handleSaveReview = async (updatedReview) => {
     try {
       if (updatedReview.type === 'store') {
         await updateStoreReview.mutateAsync({
-          id: updatedReview.id,
-          payload: {
-            rating: updatedReview.rating,
-            reviewText: updatedReview.reviewText,
-            reviewerName: updatedReview.reviewerName,
-            reviewerAvatar: updatedReview.reviewerAvatar,
-          },
+          storeId: updatedReview.store_id,
+          reviewId: updatedReview.id,
+          payload: { rating: updatedReview.rating, comment: updatedReview.comment, images: updatedReview.images },
         });
-      } else if (updatedReview.type === 'product') {
-        await updateProductReview.mutateAsync({
-          id: updatedReview.id,
-          payload: {
-            rating: updatedReview.rating,
-            reviewText: updatedReview.reviewText,
-            reviewerName: updatedReview.reviewerName,
-            reviewerAvatar: updatedReview.reviewerAvatar,
-            productImages: updatedReview.productImages || [],
-          },
-        });
+      } else {
+        // This will fail until the backend endpoint is created, but the UI is ready
+        push("Updating product reviews is not yet supported.", { type: 'info' });
+        // await updateProductReview.mutateAsync({ reviewId: updatedReview.id, payload: { ... } });
       }
-      toast('success', 'Review updated');
+      push('Review updated successfully!', { type: 'success' });
+      setReviewToEdit(null); // Close the edit modal
     } catch (err) {
-      toast('error', err?.message || 'Failed to save review');
-    } finally {
-      setShowLeaveReviewModal(false);
+      push(err.message || 'Failed to update review.', { type: 'error' });
     }
   };
 
-  const handleDeleteReview = async (reviewId, reviewType) => {
-    if (!window.confirm(`Are you sure you want to delete this ${reviewType} review?`)) return;
+  const handleDeleteReview = async (review) => {
+    if (!window.confirm(`Are you sure you want to delete this ${review.type} review?`)) return;
     try {
-      if (reviewType === 'store') {
-        await deleteStoreReview.mutateAsync(reviewId);
-      } else if (reviewType === 'product') {
-        await deleteProductReview.mutateAsync(reviewId);
+      if (review.type === 'store') {
+        await deleteStoreReview.mutateAsync({ storeId: review.store_id, reviewId: review.id });
+      } else {
+        // This will fail until the backend endpoint is created
+        push("Deleting product reviews is not yet supported.", { type: 'info' });
+        // await deleteProductReview.mutateAsync(review.id);
       }
-      toast('success', 'Review deleted successfully!');
+      push('Review deleted successfully!', { type: 'success' });
+      setSelectedReview(null); // Close the view modal
     } catch (err) {
-      toast('error', err?.message || 'Failed to delete review');
-    } finally {
-      handleCloseMyReviewModal();
+      push(err.message || 'Failed to delete review.', { type: 'error' });
     }
   };
 
@@ -118,67 +94,49 @@ const MyReviewsPage = ({ brandColor = '#EF4444', contrastTextColor = '#ffffff' }
 
       <div className="flex bg-gray-100 rounded-xl p-1 mb-8">
         <button
-          className={`flex-1 py-2 px-4 rounded-lg text-lg font-semibold transition-all duration-200 ${
-            activeTab === 'store' ? 'bg-white shadow text-gray-800' : 'text-gray-600 hover:bg-gray-200'
+          className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all duration-200 ${
+            activeTab === 'store' ? 'shadow text-white' : 'text-gray-600'
           }`}
-          style={activeTab === 'store' ? { backgroundColor: brandColor, color: contrastTextColor } : {}}
+          style={activeTab === 'store' ? { backgroundColor: brandColor } : {}}
           onClick={() => setActiveTab('store')}
         >
           Store Reviews
         </button>
         <button
-          className={`flex-1 py-2 px-4 rounded-lg text-lg font-semibold transition-all duration-200 ${
-            activeTab === 'product' ? 'bg-white shadow text-gray-800' : 'text-gray-600 hover:bg-gray-200'
+          className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all duration-200 ${
+            activeTab === 'product' ? 'shadow text-white' : 'text-gray-600'
           }`}
-          style={activeTab === 'product' ? { backgroundColor: brandColor, color: contrastTextColor } : {}}
+          style={activeTab === 'product' ? { backgroundColor: brandColor } : {}}
           onClick={() => setActiveTab('product')}
         >
           Product Reviews
         </button>
       </div>
 
-      {activeTab === 'store' && (
-        <StoreReviewsTab
-          reviews={storeReviews}
-          brandColor={brandColor}
-          onViewReview={(review) => handleViewReview(review, 'store')}
-        />
+      {isLoading ? (
+        <div className="text-center p-8 text-gray-500">Loading reviews...</div>
+      ) : (
+        <>
+          {activeTab === 'store' && <StoreReviewsTab reviews={storeReviews} brandColor={brandColor} onViewReview={handleViewReview} />}
+          {activeTab === 'product' && <ProductReviewsTab reviews={productReviews} brandColor={brandColor} onViewReview={handleViewReview} />}
+        </>
       )}
 
-      {activeTab === 'product' && (
-        <ProductReviewsTab
-          reviews={productReviews}
-          brandColor={brandColor}
-          onViewReview={(review) => handleViewReview(review, 'product')}
-        />
-      )}
-
-      {showMyReviewModal && selectedReview && (
-        <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="relative bg-white rounded-xl shadow-xl max-h-[90vh] overflow-y-auto w-full max-w-md">
-            <MyReviewModal
-              review={selectedReview}
-              onClose={handleCloseMyReviewModal}
-              onEdit={handleEditReview}
-              onDelete={handleDeleteReview}
-              brandColor={brandColor}
-            />
-          </div>
-        </div>
-      )}
-
-      {showLeaveReviewModal && reviewToEdit && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="relative bg-white rounded-xl shadow-xl max-h-[90vh] overflow-y-auto w-full max-w-md">
-            <LeaveReviewModal
-              reviewToEdit={reviewToEdit}
-              onClose={handleCloseLeaveReviewModal}
-              onSave={handleSaveReview}
-              brandColor={brandColor}
-            />
-          </div>
-        </div>
-      )}
+      <MyReviewModal
+        isOpen={!!selectedReview}
+        review={selectedReview}
+        onClose={() => setSelectedReview(null)}
+        onEdit={handleEditReview}
+        onDelete={handleDeleteReview}
+        brandColor={brandColor}
+      />
+      <LeaveReviewModal
+        isOpen={!!reviewToEdit}
+        reviewToEdit={reviewToEdit}
+        onClose={() => setReviewToEdit(null)}
+        onSave={handleSaveReview}
+        brandColor={brandColor}
+      />
     </div>
   );
 };
