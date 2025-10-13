@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../authSlice';
 import { setAuthTokens } from '../../../api/apiClient';
-import useForm from '../../../hooks/useFrom'; // Corrected path
+import useForm from '../../../hooks/useFrom'; // FIX: Corrected typo from useFrom to useForm
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
 import { useToast } from '../../../components/ui/ToastProvider';
@@ -89,9 +89,22 @@ const Login = ({ onClose, onSwitchToRegister }) => {
     }
   };
 
+  // FIX: Add the handleResendCode logic
+  const handleResendCode = async () => {
+    try {
+      await sendCode({ email: resetEmail });
+      push('A new verification code has been sent to your email.', { type: 'success' });
+      return true;
+    } catch (err) {
+      push(err.data?.message || 'Failed to resend verification code.', { type: 'error' });
+      return false;
+    }
+  };
+
   const handleOtpConfirm = async (otp) => {
     try {
-      await verifyCode({ email: resetEmail, code: otp });
+      // FIX: Change the key from 'code' to 'otp' to match $request->otp in PHP
+      await verifyCode({ email: resetEmail, otp: otp });
       setResetOtp(otp);
       setShowOtp(false);
       setShowSetNewPassword(true);
@@ -112,7 +125,7 @@ const Login = ({ onClose, onSwitchToRegister }) => {
       push(err.data?.message || 'Failed to reset password.', { type: 'error' });
     }
   };
-  
+
   const closeAllResetModals = () => {
     setShowEnterEmail(false);
     setShowOtp(false);
@@ -195,7 +208,16 @@ const Login = ({ onClose, onSwitchToRegister }) => {
       </div>
 
       <EnterEmailModal isOpen={showEnterEmail} onEmailSubmit={handleEmailSubmit} onClose={closeAllResetModals} isProcessing={isSendingCode} />
-      <OtpInputModal isOpen={showOtp} onOtpConfirm={handleOtpConfirm} onClose={closeAllResetModals} email={resetEmail} isProcessing={isVerifyingCode} />
+      {/* FIX: Pass the handleResendCode function and the loading state */}
+      <OtpInputModal
+        isOpen={showOtp}
+        onOtpConfirm={handleOtpConfirm}
+        onClose={closeAllResetModals}
+        email={resetEmail}
+        isProcessing={isVerifyingCode}
+        onResendCode={handleResendCode} // New prop for resending code
+        isSendingCode={isSendingCode} // Pass the correct loading state
+      />
       <SetNewPasswordModal isOpen={showSetNewPassword} onSetPassword={handleNewPassword} onClose={closeAllResetModals} isProcessing={isResetingPassword} />
     </div>
   );

@@ -26,11 +26,16 @@ import registerBannerImage from '../../../assets/images/login-banner.jpg';
 import registerOverlayImage from '../../../assets/images/login-overlay.jpg';
 import Button from '../../../components/ui/Button';
 
+// ✅ Import toast
+import { useToast } from '../../../components/ui/ToastProvider';
+
 const Register = ({ onClose, onSwitchToLogin, mode = 'register' }) => {
   const dispatch = useDispatch();
   const { formData, currentLevel, currentStep } = useSelector((s) => s.registration);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const { push } = useToast(); // ✅ Initialize toast
 
   const { mutateAsync: startRegistration } = useStartSellerRegistrationMutation();
   const { mutateAsync: submitL1ProfileMedia } = useSubmitL1ProfileMediaMutation();
@@ -42,6 +47,7 @@ const Register = ({ onClose, onSwitchToLogin, mode = 'register' }) => {
   const { mutateAsync: submitL3Delivery } = useSubmitL3DeliveryMutation();
   const { mutateAsync: submitL3Theme } = useSubmitL3ThemeMutation();
 
+  // -------------------- Step Handlers --------------------
   const handleStep1Submit = async () => {
     setIsSubmitting(true);
     try {
@@ -61,10 +67,22 @@ const Register = ({ onClose, onSwitchToLogin, mode = 'register' }) => {
           setAuthTokens({ accessToken: response.token });
           dispatch(loginSuccess({ token: response.token, user: temporaryUser }));
           dispatch(setLevelStep({ level: 1, step: 2 }));
-        } else { console.error('❌ Registration API did not return a token.', response); }
-      } else { dispatch(setLevelStep({ level: 1, step: 2 })); }
-    } catch (error) { console.error('❌ Step 1 submission error:', error); } 
-    finally { setIsSubmitting(false); }
+          push('Registration successful!', { type: 'success' });
+        } else {
+          console.error('❌ Registration API did not return a token.', response);
+          push('Registration failed. Please try again.', { type: 'error' });
+        }
+      } else {
+        dispatch(setLevelStep({ level: 1, step: 2 }));
+      }
+    } catch (error) {
+      console.error('❌ Step 1 submission error:', error);
+      if (error?.response?.data?.message?.toLowerCase().includes('email')) {
+        push('Email already exists. Please use a different email.', { type: 'error' });
+      } else {
+        push(error.message || 'Step 1 submission failed. Please try again.', { type: 'error' });
+      }
+    } finally { setIsSubmitting(false); }
   };
 
   const handleStep2Submit = async () => {
@@ -78,8 +96,11 @@ const Register = ({ onClose, onSwitchToLogin, mode = 'register' }) => {
         await submitL1ProfileMedia(apiFormData);
       }
       dispatch(setLevelStep({ level: 1, step: 3 }));
-    } catch (error) { console.error('❌ Step 2 submission error:', error); } 
-    finally { setIsSubmitting(false); }
+      push('Step 2 completed!', { type: 'success' });
+    } catch (error) {
+      console.error('❌ Step 2 submission error:', error);
+      push(error.message || 'Step 2 submission failed.', { type: 'error' });
+    } finally { setIsSubmitting(false); }
   };
 
   const handleStep3Submit = async () => {
@@ -87,14 +108,19 @@ const Register = ({ onClose, onSwitchToLogin, mode = 'register' }) => {
     try {
       const stepData = formData.level1.step3;
       const socialLinks = [
-        { type: 'whatsapp', url: stepData.whatsapp }, { type: 'instagram', url: stepData.instagram },
-        { type: 'facebook', url: stepData.facebook }, { type: 'twitter', url: stepData.twitter },
+        { type: 'whatsapp', url: stepData.whatsapp },
+        { type: 'instagram', url: stepData.instagram },
+        { type: 'facebook', url: stepData.facebook },
+        { type: 'twitter', url: stepData.twitter },
       ].filter(link => link.url && link.url.trim() !== '');
       const payload = { categories: stepData.categories, social_links: socialLinks };
       await submitL1CategoriesSocial(payload);
       dispatch(setLevelStep({ level: 2, step: 1 }));
-    } catch (error) { console.error('❌ Step 3 submission error:', error); } 
-    finally { setIsSubmitting(false); }
+      push('Step 3 completed!', { type: 'success' });
+    } catch (error) {
+      console.error('❌ Step 3 submission error:', error);
+      push(error.message || 'Step 3 submission failed.', { type: 'error' });
+    } finally { setIsSubmitting(false); }
   };
 
   const handleStep4Submit = async () => {
@@ -102,13 +128,18 @@ const Register = ({ onClose, onSwitchToLogin, mode = 'register' }) => {
     try {
       const stepData = formData.level2.step1;
       const payload = {
-        registered_name: stepData.businessName, business_type: stepData.businessType,
-        nin_number: stepData.ninNumber, cac_number: stepData.cacNumber,
+        registered_name: stepData.businessName,
+        business_type: stepData.businessType,
+        nin_number: stepData.ninNumber,
+        cac_number: stepData.cacNumber,
       };
       await submitL2BusinessDetails(payload);
       dispatch(setLevelStep({ level: 2, step: 2 }));
-    } catch (error) { console.error('❌ Step 4 submission error:', error); } 
-    finally { setIsSubmitting(false); }
+      push('Step 4 completed!', { type: 'success' });
+    } catch (error) {
+      console.error('❌ Step 4 submission error:', error);
+      push(error.message || 'Step 4 submission failed.', { type: 'error' });
+    } finally { setIsSubmitting(false); }
   };
 
   const handleStep5Submit = async () => {
@@ -122,8 +153,11 @@ const Register = ({ onClose, onSwitchToLogin, mode = 'register' }) => {
          await submitL2Documents(apiFormData);
       }
       dispatch(setLevelStep({ level: 3, step: 1 }));
-    } catch (error) { console.error('❌ Step 5 submission error:', error); } 
-    finally { setIsSubmitting(false); }
+      push('Step 5 completed!', { type: 'success' });
+    } catch (error) {
+      console.error('❌ Step 5 submission error:', error);
+      push(error.message || 'Step 5 submission failed.', { type: 'error' });
+    } finally { setIsSubmitting(false); }
   };
 
   const handleStep6Submit = async () => {
@@ -138,11 +172,11 @@ const Register = ({ onClose, onSwitchToLogin, mode = 'register' }) => {
         await submitL3PhysicalStore(videoFormData);
       }
       dispatch(setLevelStep({ level: 3, step: 2 }));
+      push('Step 6 completed!', { type: 'success' });
     } catch (error) {
       console.error('❌ Step 6 submission error:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
+      push(error.message || 'Step 6 submission failed.', { type: 'error' });
+    } finally { setIsSubmitting(false); }
   };
 
   const handleStep7Submit = async () => {
@@ -162,12 +196,11 @@ const Register = ({ onClose, onSwitchToLogin, mode = 'register' }) => {
         promisesToRun.push(submitL3Address(addressPayload));
       }
 
-      // ✅ FINAL FIX: The data transformation from camelCase to snake_case is applied here.
       if (stepData.deliveryPricing?.length) {
         for (const delivery of stepData.deliveryPricing) {
           const deliveryPayload = {
             state: delivery.state,
-            local_government: delivery.localGovernment, // Mismatch fixed
+            local_government: delivery.localGovernment,
             variant: delivery.variant,
             price: delivery.deliveryFee || 0,
             is_free: delivery.markForFreeDelivery ? 1 : 0,
@@ -183,13 +216,14 @@ const Register = ({ onClose, onSwitchToLogin, mode = 'register' }) => {
       await Promise.all(promisesToRun);
 
       setShowSuccessModal(true);
+      push('Registration completed!', { type: 'success' });
     } catch (error) {
       console.error('❌ Step 7 submission error:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
+      push(error.message || 'Step 7 submission failed.', { type: 'error' });
+    } finally { setIsSubmitting(false); }
   };
-  
+
+  // -------------------- Navigation --------------------
   const handleBack = () => {
     if (currentLevel === 1 && currentStep > 1) dispatch(setLevelStep({ level: 1, step: currentStep - 1 }));
     else if (currentLevel === 2 && currentStep === 1) dispatch(setLevelStep({ level: 1, step: 3 }));
@@ -200,9 +234,13 @@ const Register = ({ onClose, onSwitchToLogin, mode = 'register' }) => {
 
   const handleCloseSuccess = () => { setShowSuccessModal(false); onClose?.(); };
 
-  const handleChange = (e, level, step) => dispatch(updateStepField({ level, step, name: e.target.name, value: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
-  const handleFileChange = (e, level, step) => dispatch(updateStepField({ level, step, name: e.target.name, value: e.target.files?.[0] ?? null }));
+  const handleChange = (e, level, step) =>
+    dispatch(updateStepField({ level, step, name: e.target.name, value: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
 
+  const handleFileChange = (e, level, step) =>
+    dispatch(updateStepField({ level, step, name: e.target.name, value: e.target.files?.[0] ?? null }));
+
+  // -------------------- Render Current Form --------------------
   const renderCurrentForm = () => {
     const commonProps = { mode, onBack: handleBack, onLoginClick: onSwitchToLogin, isSubmitting };
     const levelKey = `level${currentLevel}`;
