@@ -1,6 +1,5 @@
-// src/components/products/ProductDisplayCard.jsx
-
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import {
@@ -10,226 +9,162 @@ import {
   ShoppingCartIcon,
   StarIcon,
   MapPinIcon,
-  ArrowPathIcon, // For the loading spinner
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { getContrastTextColor } from '../../utils/colorUtils';
+import { ASSETS_BASE } from '../../api/apiConfig';
 
+/**
+ * A universal display card for products, services, and sponsored items.
+ * It adapts its appearance and actions based on the `mode` prop.
+ */
 const ProductDisplayCard = ({
   item = {},
   brandColor = '#EF4444',
-  contrastTextColor,
-  mode = 'product', // 'profile' | 'product' | 'sponsored' | 'service'
-  isUpdating = false, // <-- LOGIC: To show loading state for this specific card
+  mode = 'product', // 'profile', 'product', 'sponsored', 'service'
+  isUpdating = false,
   onAddToCart = () => {},
-  onViewDetailsClick = () => {},
-  onViewStatsClick = () => {},
   onEdit = () => {},
   onMoreOptionsClick = () => {},
 }) => {
-  // --- UI & State Normalization ---
+  const navigate = useNavigate();
+  const contrast = getContrastTextColor(brandColor);
   const isService = mode === 'service';
-  const contrast = contrastTextColor ?? getContrastTextColor(brandColor);
 
-  const raw = String(item.status || '').trim().toLowerCase();
-  const normalizedStatus =
-    raw === 'available' || raw === 'active'
-      ? 'available'
-      : raw === 'sold' || raw === 'sold out' || raw === 'out of stock' || raw === 'oos'
-      ? 'sold'
-      : raw === 'unavailable' || raw === 'inactive'
-      ? 'unavailable'
-      : 'available';
+  // --- UNIVERSAL DATA NORMALIZATION ---
+  // This block makes the component flexible. It maps various possible
+  // backend property names to a consistent internal structure.
+  const normalizedItem = React.useMemo(() => {
+    const rawStatus = (item.status || 'available').toLowerCase();
+    const firstImage = item.images?.[0]?.path_url || item.media?.[0]?.path_url || item.imageUrl;
+    
+    return {
+      id: item.id,
+      name: item.name || 'Untitled Item',
+      imageUrl: firstImage ? (firstImage.startsWith('http') ? firstImage : `${ASSETS_BASE}/storage/${firstImage}`) : null,
+      price: parseFloat(item.discount_price ?? item.price ?? 0),
+      originalPrice: item.discount_price != null ? parseFloat(item.price) : null,
+      minPrice: parseFloat(item.price_from ?? 0),
+      maxPrice: parseFloat(item.price_to ?? 0),
+      category: item.category?.title || item.category || 'Uncategorized',
+      storeName: item.store?.store_name || 'Store',
+      storeLogo: item.store?.profile_image_url,
+      rating: item.average_rating ?? item.rating ?? 0,
+      location: item.location || item.store?.location,
+      status: (rawStatus === 'sold' || rawStatus === 'out of stock') ? 'sold' : (rawStatus === 'unavailable' || rawStatus === 'inactive') ? 'unavailable' : 'available',
+      metrics: item.metrics || {
+        productViews: item.views || 0,
+        productClicks: item.clicks || 0,
+        messages: item.chats || 0,
+      },
+      // Keep original item for handlers
+      originalItem: item,
+    };
+  }, [item]);
 
-  const isSold = normalizedStatus === 'sold';
-  const isUnavailable = normalizedStatus === 'unavailable';
+  const isSold = normalizedItem.status === 'sold';
+  const isUnavailable = normalizedItem.status === 'unavailable';
   const isMasked = isSold || isUnavailable;
-
-  // LOGIC: A button is disabled if the item is sold, unavailable, OR being updated.
   const isDisabled = isMasked || isUpdating;
-
-  const displayPrice = Number(item.discountPrice ?? item.currentPrice ?? item.price ?? 0);
-  const originalPrice = item.originalPrice != null ? Number(item.currentPrice ?? item.price ?? 0) : null;
   const badgeText = isSold ? 'Out of Stock' : isUnavailable ? 'Unavailable' : null;
 
-  // --- Render ---
+  // --- Event Handlers ---
+  const handleViewDetails = () => {
+    const path = isService ? `/my-services/${normalizedItem.id}/details` : `/my-products/${normalizedItem.id}/details`;
+    navigate(path);
+  };
+
+  const handleEdit = () => {
+    const path = isService ? `/my-services/${normalizedItem.id}/edit` : `/my-products/${normalizedItem.id}/edit`;
+    onEdit ? onEdit(normalizedItem.id) : navigate(path);
+  };
+  
+  const handleAddToCartClick = () => {
+    onAddToCart(normalizedItem.originalItem);
+  };
+
   return (
-    <Card className={`relative flex h-full w-full flex-col overflow-hidden rounded-3xl bg-white shadow-lg transition-opacity ${isUpdating ? 'opacity-75' : ''}`}>
-      
-      {/* LOGIC: Loading overlay for when this specific card is being mutated */}
+    <Card className={`relative flex h-full w-full flex-col overflow-hidden rounded-3xl bg-white shadow-lg`}>
       {isUpdating && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center rounded-3xl bg-white/50 backdrop-blur-sm">
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/70">
           <ArrowPathIcon className="h-8 w-8 animate-spin text-gray-800" />
         </div>
       )}
+      {isMasked && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50">
+          {badgeText && <span className="rounded-lg px-3 py-2 text-2xl font-semibold uppercase text-white">{badgeText}</span>}
+        </div>
+      )}
 
-      {/* UI: Final Status Overlay (Sold/Unavailable) */}
-      <div
-        className={`absolute inset-0 z-20 flex items-center justify-center rounded-3xl bg-black/50 transition-opacity ${
-          isMasked ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-        role="status"
-        aria-label={badgeText}
-      >
-        {badgeText && (
-          <span className="select-none rounded-lg px-3 py-2 text-2xl font-semibold uppercase tracking-wide text-white shadow">
-            {badgeText}
-          </span>
-        )}
-      </div>
-
-      {/* UI: Top image section */}
-      <div className="relative h-40 w-full bg-gray-100 sm:h-48">
-        {item.imageUrl ? (
-          <img src={item.imageUrl} alt={item.name || 'Item'} className="h-full w-full object-cover" loading="lazy" />
+      <div className="relative h-40 w-full cursor-pointer bg-gray-100" onClick={handleViewDetails}>
+        {normalizedItem.imageUrl ? (
+          <img src={normalizedItem.imageUrl} alt={normalizedItem.name} className="h-full w-full object-cover" loading="lazy" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-gray-400">No Image</div>
         )}
         {item.isSponsored && (
           <div className="absolute left-2 top-2 z-10 flex items-center rounded-md bg-black/60 px-2 py-1 text-xs text-white">
-            <FireIcon className="mr-1 h-4 w-4 text-orange-400" />
-            Sponsored
-          </div>
-        )}
-        {badgeText && !isMasked && ( // Show badge only if not masked to avoid duplication
-          <div className="absolute right-2 top-2 z-10 rounded-md bg-black/70 px-2 py-1 text-xs font-semibold uppercase text-white">
-            {badgeText}
+            <FireIcon className="mr-1 h-4 w-4 text-orange-400" /> Sponsored
           </div>
         )}
       </div>
 
-      {/* UI: Store & rating bar */}
-      {mode !== 'service' && (
-        <div className="flex items-center gap-2 bg-[#F2F2F2] px-3 py-2">
-          <img src={item.storeLogo || '/default-profile.png'} alt="store logo" className="h-6 w-6 rounded-full object-cover" loading="lazy" />
-          <span className="text-sm font-medium text-gray-800" style={{ color: brandColor }}>
-            {item.storeName || 'Store'}
-          </span>
-          <span className="ml-auto flex items-center gap-1 pr-1 text-sm" style={{ color: brandColor }}>
-            <StarIcon className="h-4 w-4" />
-            {item.rating ?? '4.5'}
-          </span>
-        </div>
-      )}
+      <div className="flex items-center gap-2 bg-gray-100 px-3 py-2">
+        <img src={normalizedItem.storeLogo || 'https://placehold.co/24x24'} alt="store logo" className="h-6 w-6 rounded-full object-cover" />
+        <span className="text-sm font-medium" style={{ color: brandColor }}>{normalizedItem.storeName}</span>
+        <span className="ml-auto flex items-center gap-1 pr-1 text-sm" style={{ color: brandColor }}>
+          <StarIcon className="h-4 w-4" />{normalizedItem.rating.toFixed(1)}
+        </span>
+      </div>
 
-      {/* UI: Main Body */}
       <div className="flex flex-1 flex-col p-4">
-        <h3 className="mb-2 line-clamp-2 text-lg font-semibold text-gray-900">{item.name || 'Item Name'}</h3>
+        <h3 className="mb-2 line-clamp-2 text-lg font-semibold text-gray-900 cursor-pointer" onClick={handleViewDetails}>{normalizedItem.name}</h3>
         
-        {/* Price section */}
         {!isService ? (
           <div className="mb-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold" style={{ color: brandColor }}>
-              ₦{Number.isFinite(displayPrice) ? displayPrice.toLocaleString() : '0'}
-            </span>
-            {originalPrice !== null && (
-              <span className="text-[12px] text-gray-400 line-through">
-                ₦{Number.isFinite(originalPrice) ? originalPrice.toLocaleString() : '0'}
-              </span>
-            )}
+            <span className="text-2xl font-bold" style={{ color: brandColor }}>₦{normalizedItem.price.toLocaleString()}</span>
+            {normalizedItem.originalPrice != null && <span className="text-xs text-gray-400 line-through">₦{normalizedItem.originalPrice.toLocaleString()}</span>}
           </div>
         ) : (
           <div className="mb-3">
             <span className="text-xl font-bold" style={{ color: brandColor }}>
-              ₦{item.minPrice?.toLocaleString?.() || '0'} - ₦{item.maxPrice?.toLocaleString?.() || '0'}
+              ₦{normalizedItem.minPrice.toLocaleString()} - ₦{normalizedItem.maxPrice.toLocaleString()}
             </span>
           </div>
         )}
         
-        {/* Discount Tags section */}
-        {!isService && (
-          <div className="mb-4 flex flex-wrap gap-2">
-            {item.hasFreeDelivery && (
-              <span className="flex items-center overflow-hidden rounded-md text-xs text-white shadow-sm" style={{ background: `linear-gradient(120deg, ${brandColor} 0 30%, orange 30% 100%)` }}>
-                <span className="flex items-center justify-center px-2"><ShoppingCartIcon className="h-4 w-4" style={{ color: contrast }} /></span>
-                <span className="px-3 py-1">Free delivery</span>
-              </span>
-            )}
-            {item.hasBulkDiscount && (
-              <span className="flex items-center overflow-hidden rounded-md text-xs text-white shadow-sm" style={{ background: `linear-gradient(120deg, ${brandColor} 0 30%, orange 30% 100%)` }}>
-                <span className="flex items-center justify-center px-2"><ShoppingCartIcon className="h-4 w-4" style={{ color: contrast }} /></span>
-                <span className="px-3 py-1">20% Off in bulk</span>
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* UI & LOGIC: Metrics and Actions Section */}
-        <div className="mt-auto w-full">
-          <div className="mb-4 grid gap-3 text-sm text-gray-700">
+        <div className="mt-auto w-full pt-4 border-t">
+          {/* Renders for seller's own product/service list */}
+          {(mode === 'product' || isService) && (
             <div className="flex items-center justify-between">
-              <span className="text-gray-500">{isService ? "Service Views" : "Product Views"}</span>
-              <span className="font-semibold">{isService ? item.serviceViews ?? 0 : item.metrics?.productViews ?? 0}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-500">Product Clicks</span>
-              <span className="font-semibold">{isService  ? item.productClicks ?? 0 : item.metrics?.productClicks ?? 0}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-500">Messages</span>
-              <span className="font-semibold">{isService ? item.messages ?? 0 : item.metrics?.messages ?? 0}</span>
-            </div>
-          </div>
-
-          {mode === 'product' && (
-            <div className="flex items-center justify-between">
-              <span className="rounded-lg border px-2 py-1 text-gray-800">{item.category || 'Uncategorized'}</span>
+              <span className="rounded-lg border px-2 py-1 text-gray-800 text-xs">{normalizedItem.category}</span>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  aria-label="Edit"
-                  onClick={() => onEdit(item.id)}
-                  className="rounded p-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                  title="Edit"
-                  disabled={isDisabled}
-                >
-                  <PencilSquareIcon className={`h-6 w-6 transition-colors ${isDisabled ? 'text-gray-400' : 'text-gray-700'}`} />
-                </button>
-                <button
-                  type="button"
-                  aria-label="More options"
-                  onClick={(e) => onMoreOptionsClick(e, item)} // LOGIC: Pass full item object
-                  className="rounded p-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                  title="More options"
-                  disabled={isDisabled}
-                >
-                  <EllipsisVerticalIcon className={`h-6 w-6 transition-colors ${isDisabled ? 'text-gray-400' : 'text-gray-700'}`} />
-                </button>
+                <button type="button" onClick={handleEdit} disabled={isDisabled}><PencilSquareIcon className={`h-6 w-6 ${isDisabled ? 'text-gray-400' : 'text-gray-700'}`} /></button>
+                <button type="button" onClick={(e) => onMoreOptionsClick(e, normalizedItem.originalItem)} disabled={isDisabled}><EllipsisVerticalIcon className={`h-6 w-6 ${isDisabled ? 'text-gray-400' : 'text-gray-700'}`} /></button>
               </div>
             </div>
           )}
 
-          {mode === 'sponsored' && (
+          {/* Renders for public store profile view */}
+          {mode === 'profile' && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center text-sm text-gray-500"><MapPinIcon className="h-5 w-5 mr-1" /><span>{normalizedItem.location}</span></div>
+              <button type="button" onClick={handleAddToCartClick} disabled={isDisabled} className="p-2 rounded-full border hover:bg-gray-100"><ShoppingCartIcon className={`h-6 w-6 ${isDisabled ? 'text-gray-400' : 'text-gray-700'}`} /></button>
+            </div>
+          )}
+
+           {/* Renders for sponsored or search results view */}
+          {(mode === 'sponsored' || mode === 'search') && (
             <Button
-              className="mt-3 w-full rounded-lg py-2 font-semibold shadow-sm"
+              className="w-full rounded-lg py-2 font-semibold"
               style={{ backgroundColor: brandColor, color: contrast }}
-              onClick={() => onViewDetailsClick(item.id)}
+              onClick={handleViewDetails}
               disabled={isDisabled}
             >
               View Details
             </Button>
           )}
-
-          {isService && (
-            <Button
-              onClick={() => onViewStatsClick(item.id)}
-              className="w-full rounded-lg py-2 font-semibold shadow-md transition-shadow hover:shadow-lg"
-              style={{ backgroundColor: brandColor, color: contrast }}
-              disabled={isDisabled}
-            >
-              Details
-            </Button>
-          )}
         </div>
-
-        {mode === 'profile' && (
-            // This part is for a different view, but logic is consistent
-            <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3">
-            <div className="flex items-center text-sm text-gray-500"><MapPinIcon className="h-6 w-6" /><span>{item.location || 'Lagos, Nigeria'}</span></div>
-            <button type="button" onClick={onAddToCart} className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 transition hover:bg-gray-50" aria-label="Add to cart" title="Add to cart" disabled={isDisabled}>
-              <ShoppingCartIcon className={`h-6 w-6 transition-colors ${isDisabled ? 'text-gray-400' : 'text-gray-700'}`} />
-            </button>
-          </div>
-        )}
       </div>
     </Card>
   );

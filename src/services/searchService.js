@@ -1,33 +1,51 @@
 // src/services/searchService.js
 
 import { apiRequest } from '../api/apiClient.js';
-import { ENDPOINTS } from '../api/apiConfig.js';
+import { ENDPOINTS, ASSETS_BASE } from '../api/apiConfig.js';
+
+const normalizeProduct = (product) => {
+  if (!product) return null;
+  const firstImage = product.images?.[0]?.path;
+  return {
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    price: parseFloat(product.price),
+    discountPrice: product.discount_price ? parseFloat(product.discount_price) : null,
+    imageUrl: firstImage ? `${ASSETS_BASE}/storage/${firstImage}` : null,
+    category: product.category?.title || 'Uncategorized',
+    storeName: product.store?.store_name,
+    storeLogo: product.store?.profile_image_url,
+    rating: product.average_rating,
+    status: product.status,
+  };
+};
 
 export const searchService = {
-  /**
-   * Performs a search on the backend.
-   * @param {object} params - { q, type }
-   * @returns {Promise<object>} The paginated search results from the API.
-   */
   performSearch: async (params) => {
-    // If the search query or type is missing, return an empty result immediately
-    // to avoid an unnecessary API call.
     if (!params.q || !params.type) {
-      return { data: [], links: {}, meta: {} };
+      return { data: [] };
     }
     
     // --- THIS IS THE FIX ---
-    // Call apiRequest as a function with a configuration object.
-    // The `params` object will be correctly converted to a query string (e.g., ?q=...&type=...).
+    // 1. Call the endpoint function to build the complete URL string with query parameters.
+    const url = ENDPOINTS.SEARCH(params);
+    
+    // 2. Pass the generated `url` string to the apiRequest wrapper.
+    //    Do not pass `params` again, as they are already part of the URL.
     const response = await apiRequest({
-      url: ENDPOINTS.SEARCH,
+      url: url,
       method: 'GET',
-      params: params,
     });
     // --- END OF FIX ---
     
-    // Your apiRequest wrapper returns the `data` portion of the response,
-    // and your backend nests the actual results inside another `data` key.
-    return response.data || { data: [] };
+    const rawResults = response.data?.data || [];
+    const normalizedResults = rawResults.map(normalizeProduct);
+
+    return {
+      data: normalizedResults,
+      meta: response.data?.meta,
+      links: response.data?.links,
+    };
   },
 };

@@ -54,11 +54,13 @@ export const buildQuery = (params = {}) => {
 // ---------------------------
 export const ENDPOINTS = {
 
-   AUTH: {
+  SEARCH: (params = {}) => `${u('/search')}${buildQuery(params)}`,
+
+  AUTH: {
     LOGIN: u('/auth/login'),
-    SIGNUP: u('/auth/register'), 
+    SIGNUP: u('/auth/register'),
     LOGOUT: u('/auth/logout'),
-    DELETE_ACCOUNT: u('/users/delete-account'), 
+    DELETE_ACCOUNT: u('/users/delete-account'),
     EDIT_PROFILE: u('/auth/edit-profile'), // ✅ Added
     PASSWORD: {
       RESET_REQUEST: u('/auth/forget-password'), // ✅ Corrected
@@ -66,7 +68,7 @@ export const ENDPOINTS = {
       RESET_CONFIRM: u('/auth/reset-password'), // ✅ Corrected
     },
   },
- 
+
 
   SELLER_ONBOARDING: {
     START: u('/auth/seller/start'),
@@ -102,8 +104,8 @@ export const ENDPOINTS = {
 
   STORE_BUILDER: u('/seller/store/builder'),
 
-    SELLER_PRODUCTS: {
-    MY_PRODUCTS: u('/seller/products/my-products'), 
+  SELLER_PRODUCTS: {
+    MY_PRODUCTS: u('/seller/products/my-products'),
     LIST: u('/seller/products'),
     DETAIL: (id) => u(`/seller/products/${encodeSeg(id)}`), // Generic detail endpoint
     CREATE: u('/seller/products/create'),
@@ -136,9 +138,11 @@ export const ENDPOINTS = {
     },
   },
 
-   STORE_ANALYTICS: u('/seller/analytics'),
+  
 
-     SUPPORT: {
+  STORE_ANALYTICS: u('/seller/analytics'),
+
+  SUPPORT: {
     // Add the 'buyer' prefix to match the backend routes.
     TICKETS: {
       LIST: u('/buyer/support/tickets'),
@@ -150,14 +154,14 @@ export const ENDPOINTS = {
       SEND: u('/buyer/support/messages'),
     },
   },
-   
-   CATALOG: {
+
+  CATALOG: {
     CATEGORIES: u('/seller/onboarding/catalog/categories'),
     BRANDS: u('/brands'),
     // This endpoint returns the seller's registered addresses
     LOCATIONS: u('/seller/onboarding/store/addresses'),
     // --- NEW: Added endpoint for delivery options ---
-    DELIVERY_LOCATIONS: u('/seller/onboarding/store/delivery'), 
+    DELIVERY_LOCATIONS: u('/seller/onboarding/store/delivery'),
   },
 
   BOOSTS: {
@@ -186,13 +190,13 @@ export const ENDPOINTS = {
   },
 
 
-    SELLER_CHAT: {
+  SELLER_CHAT: {
     LIST_CHATS: u('/seller/chat'),
     GET_MESSAGES: (chatId) => u(`/seller/chat/${encodeSeg(chatId)}/messages`),
     SEND_MESSAGE: (chatId) => u(`/seller/chat/${encodeSeg(chatId)}/send`),
   },
 
-  
+
   SERVICE_CATEGORIES: {
     LIST: u('/service-categories'),
     DETAIL: (id) => u(`/service-categories/${encodeSeg(id)}`),
@@ -207,7 +211,7 @@ export const ENDPOINTS = {
   },
 
 
-   POSTS: {
+  POSTS: {
     LIST: u('/posts'),
     DETAIL: (id) => u(`/posts/${encodeSeg(id)}`),
     CREATE: u('/posts'),
@@ -229,7 +233,7 @@ export const ENDPOINTS = {
     UPDATE: (id) => u(`/seller/announcements/${encodeSeg(id)}`),
     DELETE: (id) => u(`/seller/announcements/${encodeSeg(id)}`),
   },
-  
+
   SELLER_BANNERS: {
     LIST: u('/seller/banners'),
     CREATE: u('/seller/banners'),
@@ -238,14 +242,14 @@ export const ENDPOINTS = {
     DELETE: (id) => u(`/seller/banners/${encodeSeg(id)}`),
   },
 
- SELLER_COUPONS: {
+  SELLER_COUPONS: {
     LIST: u('/seller/coupons'),
     CREATE: u('/seller/coupons'),
     UPDATE: (id) => u(`/seller/coupons/${encodeSeg(id)}`),
     DELETE: (id) => u(`/seller/coupons/${encodeSeg(id)}`),
     APPLY: (code) => u(`/seller/coupons/apply/${encodeSeg(code)}`),
   },
-  
+
   // The old POINTS endpoints remain if they are still correct
   POINTS: {
     SUMMARY: u('/points/summary'),
@@ -253,10 +257,10 @@ export const ENDPOINTS = {
     UPDATE_SETTINGS: u('/points/settings'),
   },
 
-   PLANS: {
+  PLANS: {
     LIST: u('/seller/plans'),
   },
-  
+
   SUBSCRIPTIONS: {
     LIST: u('/seller/subscriptions'), // For the current user's subscription
     CREATE: u('/seller/subscriptions'),
@@ -276,8 +280,8 @@ export const ENDPOINTS = {
     RESUME: (id) => u(`/promotions/${encodeSeg(id)}/resume`),
   },
 
- 
- 
+
+
 
 
   REVIEWS: {
@@ -292,14 +296,14 @@ export const ENDPOINTS = {
       DELETE: (storeId, reviewId) => u(`/buyer/stores/${storeId}/reviews/${reviewId}`),
     },
     PRODUCT: {
-        // The backend doesn't seem to have update/delete for product reviews,
-        // so we'll comment these out for now.
-        // UPDATE: (orderItemId) => u(`/buyer/order-items/${orderItemId}/review`),
-        // DELETE: (reviewId) => u(`/buyer/product-reviews/${reviewId}`),
+      // The backend doesn't seem to have update/delete for product reviews,
+      // so we'll comment these out for now.
+      // UPDATE: (orderItemId) => u(`/buyer/order-items/${orderItemId}/review`),
+      // DELETE: (reviewId) => u(`/buyer/product-reviews/${reviewId}`),
     }
-   
+
   },
- ESCROW: {
+  ESCROW: {
     // Maps to GET /escrow
     SUMMARY: u('/escrow'),
   },
@@ -312,7 +316,7 @@ export const ENDPOINTS = {
     TRANSACTIONS: (params = {}) => `${u('/referrals/transactions')}${buildQuery(params)}`,
 
     FAQS: u('/faqs/category/name/general'),
-    
+
     PRODUCTS: (params = {}) => `${u('/referrals/products')}${buildQuery(params)}`,
   },
 
@@ -326,11 +330,11 @@ export const ENDPOINTS = {
     LIST: u('/user/transactions'), // GET
   },
 
- LEADERBOARD: {
+  LEADERBOARD: {
     SELLERS: u('/leaderboard/sellers'),
   },
 
-   FAQS: {
+  FAQS: {
     LIST: u('/faqs'), // General list of all FAQ categories
     // --- ADD THIS NEW ENDPOINT ---
     // Maps to GET /faqs/category/name/{name}
@@ -340,13 +344,13 @@ export const ENDPOINTS = {
   ACCESS_CONTROL: {
     // Maps to: GET /seller/store/users
     LIST_USERS: u('/seller/store/users'),
-    
+
     // Maps to: POST /seller/store/users/add
     ADD_USER: u('/seller/store/users/add'),
-    
+
     // Maps to: DELETE /seller/store/users/{userId}
     REMOVE_USER: (userId) => u(`/seller/store/users/${encodeSeg(userId)}`),
   },
 
- 
+
 };
