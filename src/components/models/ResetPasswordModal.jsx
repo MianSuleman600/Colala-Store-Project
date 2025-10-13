@@ -14,13 +14,15 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
  * @param {function} props.onClose - Function to call when the modal should be closed.
  * @param {function} props.onOtpConfirm - Function to call with the entered OTP.
  * @param {string} props.email - The email address to which the OTP was sent.
+ * @param {function} props.onResendCode - Function to call to resend the OTP.
+ * @param {boolean} props.isProcessing - Loading state for OTP verification.
+ * @param {boolean} props.isSendingCode - Loading state for resending the code. // NEW
  * @param {string} [props.brandColor='#EF4444'] - Primary brand color in hex.
  * @param {string} [props.contrastColor='#FFFFFF'] - Contrast text color in hex.
  */
-const OtpInputModal = ({ isOpen, onClose, onOtpConfirm, email, brandColor = '#EF4444', contrastColor = '#FFFFFF' }) => {
+const OtpInputModal = ({ isOpen, onClose, onOtpConfirm, email, onResendCode, isProcessing, isSendingCode, brandColor = '#EF4444', contrastColor = '#FFFFFF' }) => {
     const [otpCode, setOtpCode] = useState('');
     const [resendTimer, setResendTimer] = useState(59);
-    const [isResending, setIsResending] = useState(false);
     const [resendMessage, setResendMessage] = useState('');
     const [error, setError] = useState('');
 
@@ -31,7 +33,8 @@ const OtpInputModal = ({ isOpen, onClose, onOtpConfirm, email, brandColor = '#EF
 
     useEffect(() => {
         let timerInterval;
-        if (isOpen && resendTimer > 0 && !isResending) {
+        // Use isSendingCode to manage the timer pause
+        if (isOpen && resendTimer > 0 && !isSendingCode) {
             timerInterval = setInterval(() => {
                 setResendTimer((prev) => prev - 1);
             }, 1000);
@@ -40,13 +43,13 @@ const OtpInputModal = ({ isOpen, onClose, onOtpConfirm, email, brandColor = '#EF
             setResendMessage('You can resend the code.');
         }
         return () => clearInterval(timerInterval);
-    }, [isOpen, resendTimer, isResending]);
+    }, [isOpen, resendTimer, isSendingCode]); // Added isSendingCode to dependency array
 
     useEffect(() => {
         if (isOpen) {
             setOtpCode('');
+            // Reset timer only if it's the first time opening or after an action
             setResendTimer(59);
-            setIsResending(false);
             setResendMessage('');
             setError('');
         }
@@ -57,20 +60,23 @@ const OtpInputModal = ({ isOpen, onClose, onOtpConfirm, email, brandColor = '#EF
         setError('');
     };
 
-    const handleResendCode = () => {
+    // FIX: Update handleResendCode to call the prop function
+    const handleResendCode = async () => {
         if (resendTimer === 0) {
-            setIsResending(true);
-            setResendTimer(59);
             setResendMessage('Sending new code...');
             setError('');
 
-            // Simulate API call for resending code
-            console.log(`Resending OTP to ${email}...`);
-            setTimeout(() => {
-                setIsResending(false);
+            const success = await onResendCode(); // Call the API function passed from Login
+
+            if (success) {
+                setResendTimer(59); // Reset timer on success
                 setResendMessage('New code sent!');
-                // In a real app, trigger backend to send a new OTP to 'email'
-            }, 2000);
+            } else {
+                // The parent component (Login) already pushes a toast for error, 
+                // just reset the message here for a moment.
+                setResendMessage('Failed to send. Try again.');
+                // Do NOT reset the timer on API error to allow immediate retry
+            }
         }
     };
 
@@ -79,8 +85,8 @@ const OtpInputModal = ({ isOpen, onClose, onOtpConfirm, email, brandColor = '#EF
             setError('Please enter the code.');
             return;
         }
-        if (otpCode.trim().length < 6) { // Assuming a 6-digit OTP
-            setError('Code must be at least 6 digits.');
+        if (otpCode.trim().length < 4) { // Assuming a 6-digit OTP
+            setError('Code must be at least 4 digits.');
             return;
         }
         onOtpConfirm(otpCode);
@@ -121,16 +127,16 @@ const OtpInputModal = ({ isOpen, onClose, onOtpConfirm, email, brandColor = '#EF
                                 type="button"
                                 onClick={() => {
                                     // Dummy paste functionality
-                                    document.execCommand('copy'); // Fallback for clipboard.writeText()
+                                    // Fallback for clipboard.writeText() is not needed, we want to read
                                     navigator.clipboard.readText().then(text => {
-                                        setOtpCode(text);
+                                        setOtpCode(text.trim()); // Use trim() to clean up pasted text
                                     }).catch(err => {
                                         console.error('Failed to read clipboard contents: ', err);
                                         setError('Clipboard access denied. Please type the code manually.');
                                     });
                                 }}
                                 className="px-3 py-1 rounded-md text-sm font-medium"
-                                style={{backgroundColor: brandColor, color: contrastColor}}
+                                style={{ backgroundColor: brandColor, color: contrastColor }}
                             >
                                 Paste
                             </button>
@@ -146,19 +152,20 @@ const OtpInputModal = ({ isOpen, onClose, onOtpConfirm, email, brandColor = '#EF
                 <Button
                     type="button"
                     onClick={handleProceed}
-                    className="w-full rounded-[15px] py-3 text-base shadow-md mb-3"
+                    className="w-full rounded-[15px] py-3 text-base shadow-md mb-3 disabled:opacity-60"
                     style={{ ...brandBgStyle, ...contrastTextStyle, ...brandHoverStyle }}
+                    disabled={isProcessing}
                 >
-                    Proceed
+                    {isProcessing ? 'Verifying...' : 'Proceed'}
                 </Button>
 
                 <Button
                     type="button"
                     onClick={handleResendCode}
-                    disabled={resendTimer > 0 || isResending}
-                    className={`w-full rounded-[15px] py-3 text-base shadow-sm ${resendTimer > 0 || isResending ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+                    disabled={resendTimer > 0 || isSendingCode}
+                    className={`w-full rounded-[15px] py-3 text-base shadow-sm ${resendTimer > 0 || isSendingCode ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
                 >
-                    Resend Code
+                    {isSendingCode ? 'Sending...' : 'Resend Code'}
                 </Button>
                 {resendMessage && <p className="text-xs mt-2 text-center" style={brandTextStyle}>{resendMessage}</p>}
             </div>

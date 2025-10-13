@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ShoppingCart, Search, Camera, User, Menu, X } from 'lucide-react';
-// ✅ FIX: Import shallowEqual to resolve the Redux performance warning
 import { useSelector, useDispatch, shallowEqual } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Skeleton from 'react-loading-skeleton';
@@ -21,7 +20,7 @@ const linkPaths = {
 const getActiveNavLinkFromPath = (pathname) =>
   Object.keys(linkPaths).find((key) => linkPaths[key] === pathname) || null;
 
-function NavBar({ onSearchChange, onSearchSubmit, onCameraClick }) {
+function NavBar({ onCameraClick }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,15 +28,19 @@ function NavBar({ onSearchChange, onSearchSubmit, onCameraClick }) {
   const { isAuthenticated, user, status } = useSelector((state) => state.auth);
   const userIdForCart = user?.id ?? 'guest';
 
-  const [searchTerm, setSearchTerm] = useState('');
+  // Use URL search params to keep search term in sync
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
+  
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  const selectMemoizedCartItems = useMemo(() => selectCartItemsByUser(userIdForCart), [userIdForCart]);
+  // Update search term if the URL changes (e.g., browser back/forward)
+  useEffect(() => {
+    setSearchTerm(searchParams.get('q') || '');
+  }, [searchParams]);
 
-  // ✅ FIX: Added `shallowEqual` to the selector.
-  // This prevents the NavBar from re-rendering unnecessarily every time the Redux state updates,
-  // resolving the performance warning from your console logs.
+  const selectMemoizedCartItems = useMemo(() => selectCartItemsByUser(userIdForCart), [userIdForCart]);
   const cartItems = useSelector(selectMemoizedCartItems, shallowEqual);
   
   const totalItems = useMemo(() => cartItems.reduce((t, item) => t + (item.quantity || 0), 0), [cartItems]);
@@ -45,19 +48,25 @@ function NavBar({ onSearchChange, onSearchSubmit, onCameraClick }) {
   const brandColor = user?.store?.theme_color || '#EF4444';
   const contrastTextColor = '#fff';
 
-  const handleSearchChangeInternal = useCallback((e) => {
+  const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
-    onSearchChange?.(e.target.value);
-  }, [onSearchChange]);
+  };
 
-  const handleSearchKeyDown = useCallback((e) => {
-    if (e.key === 'Enter') onSearchSubmit?.(searchTerm);
-  }, [onSearchSubmit, searchTerm]);
+  const handleSearchSubmit = () => {
+    if (searchTerm.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchTerm.trim())}&type=product`);
+    }
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSearchSubmit();
+    }
+  };
 
   const handleNavLinkClick = useCallback((k) => {
     navigate(linkPaths[k] || '/');
     setMobileMenuOpen(false);
-    setIsCartOpen(false);
   }, [navigate]);
   
   const handleAccountClick = () => {
@@ -71,17 +80,6 @@ function NavBar({ onSearchChange, onSearchSubmit, onCameraClick }) {
     setMobileMenuOpen(false);
     setIsCartOpen(false);
   }, [location.pathname]);
-
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === 'Escape') {
-        setMobileMenuOpen(false);
-        setIsCartOpen(false);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
 
   const displayedStoreName = isAuthenticated
     ? (status === 'loading' ? <Skeleton width={80} baseColor="#ffffff50" highlightColor="#ffffff80" /> : user?.full_name || 'My Store')
@@ -106,9 +104,13 @@ function NavBar({ onSearchChange, onSearchSubmit, onCameraClick }) {
           </div>
           <div className="hidden sm:block flex-grow mx-2 sm:mx-4 max-w-lg">
             <div className="relative flex items-center w-full">
-              <Search size={20} className="absolute left-3 text-gray-500" />
-              <input type="text" placeholder="Search products, shop or category" className="w-full py-2.5 pl-10 pr-10 rounded-lg bg-white text-gray-800" value={searchTerm} onChange={handleSearchChangeInternal} onKeyDown={handleSearchKeyDown} />
-              <Camera size={24} className="absolute right-3 text-gray-500 cursor-pointer" onClick={onCameraClick} />
+              <button onClick={handleSearchSubmit} className="absolute left-3 text-gray-500" aria-label="Search">
+                <Search size={20} />
+              </button>
+              <input type="text" placeholder="Search products, shop or category" className="w-full py-2.5 pl-10 pr-10 rounded-lg bg-white text-gray-800" value={searchTerm} onChange={handleSearchChange} onKeyDown={handleSearchKeyDown} />
+              <button className="absolute right-3 text-gray-500 cursor-pointer" onClick={onCameraClick} aria-label="Search by image">
+                <Camera size={24} />
+              </button>
             </div>
           </div>
           <div className="hidden sm:flex items-center justify-end gap-6 w-auto flex-shrink-0 relative">
@@ -124,15 +126,15 @@ function NavBar({ onSearchChange, onSearchSubmit, onCameraClick }) {
               <button className="flex items-center gap-2 cursor-pointer" onClick={handleAccountClick}>
                 <User size={28} />
                 <div className="flex flex-col items-start">
-                  <span className="text-xs">Hi {displayedStoreName}</span>
+                  <span className="text-xs">Hi, {displayedStoreName}</span>
                   <span className="font-bold">Account</span>
                 </div>
               </button>
             )}
-            <div className="relative flex items-center gap-2">
-              <button className="relative cursor-pointer" onClick={handleCartToggle}>
+            <div className="relative flex items-center">
+              <button className="relative cursor-pointer p-2" onClick={handleCartToggle}>
                 <ShoppingCart size={28} />
-                {totalItems > 0 && <span className="absolute -top-1 -right-2 bg-white text-red-500 text-xs rounded-full px-1.5 py-0.5">{totalItems}</span>}
+                {totalItems > 0 && <span className="absolute top-0 right-0 bg-white text-red-500 text-xs rounded-full px-1.5 py-0.5">{totalItems}</span>}
               </button>
               {isCartOpen && <div className="hidden sm:block fixed inset-0 z-40" onClick={handleCartClose} />}
               {isCartOpen && <div className="hidden sm:block absolute right-0 top-full mt-2 z-50"><CartDropdown onClose={handleCartClose} brandColor={brandColor} contrastTextColor={contrastTextColor} userId={userIdForCart} /></div>}
@@ -150,11 +152,15 @@ function NavBar({ onSearchChange, onSearchSubmit, onCameraClick }) {
             </button>
           </div>
         </div>
-        <div className="sm:hidden px-4 pt-2 pb-3 rounded-bl-[32px] rounded-br-[32px]" style={{ backgroundColor: brandColor }}>
+        <div className="sm:hidden px-4 pt-2 pb-3 rounded-b-2xl" style={{ backgroundColor: brandColor }}>
           <div className="relative flex items-center w-full">
-            <Search size={18} className="absolute left-3 text-gray-700" />
-            <input type="text" placeholder="Search products, shop or category" className="w-full py-2 pl-9 pr-9 rounded-lg bg-white text-gray-800" value={searchTerm} onChange={handleSearchChangeInternal} onKeyDown={handleSearchKeyDown} />
-            <Camera size={20} className="absolute right-3 text-gray-700 cursor-pointer" onClick={onCameraClick} />
+             <button onClick={handleSearchSubmit} className="absolute left-3 text-gray-700" aria-label="Search">
+                <Search size={18} />
+              </button>
+            <input type="text" placeholder="Search products..." className="w-full py-2 pl-9 pr-9 rounded-lg bg-white text-gray-800" value={searchTerm} onChange={handleSearchChange} onKeyDown={handleSearchKeyDown} />
+            <button className="absolute right-3 text-gray-700 cursor-pointer" onClick={onCameraClick} aria-label="Search by image">
+                <Camera size={20} />
+            </button>
           </div>
           {isAuthenticated && (
             <div className="mt-2 text-center">
@@ -162,15 +168,15 @@ function NavBar({ onSearchChange, onSearchSubmit, onCameraClick }) {
             </div>
           )}
         </div>
-        <div className="hidden sm:flex w-full h-[70px] rounded-br-[32px] rounded-bl-[32px] items-center justify-start px-4 lg:px-8" style={{ backgroundColor: brandColor, color: contrastTextColor }}>
+        <div className="hidden sm:flex w-full h-[70px] rounded-b-2xl items-center justify-start px-4 lg:px-8" style={{ backgroundColor: brandColor, color: contrastTextColor }}>
           {isAuthenticated && (
-            <div className="text-2xl sm:text-3xl font-bold mr-6" style={{ fontFamily: 'Oleo Script', color: contrastTextColor }}>{displayedStoreName}</div>
+            <div className="text-2xl sm:text-3xl font-bold mr-6" style={{ fontFamily: 'Oleo Script' }}>{displayedStoreName}</div>
           )}
           <div className="flex flex-grow justify-center gap-10 text-base">
             {Object.keys(linkPaths).map((link) => (
               <button key={link} className="flex flex-col items-center cursor-pointer group" onClick={() => handleNavLinkClick(link)}>
                 <span>{link}</span>
-                <div className={`h-1 mt-1 bg-white transition-transform ${getActiveNavLinkFromPath(location.pathname) === link ? 'scale-x-100' : 'scale-x-0'} group-hover:scale-x-100`} style={{ width: '32px', borderRadius: '2px' }} />
+                <div className={`h-1 mt-1 bg-white transition-transform ${getActiveNavLinkFromPath(location.pathname) === link ? 'scale-x-100' : 'scale-x-0'} group-hover:scale-x-100 w-8 rounded-full`} />
               </button>
             ))}
           </div>
@@ -181,7 +187,7 @@ function NavBar({ onSearchChange, onSearchSubmit, onCameraClick }) {
             <div className="fixed top-[64px] left-0 right-0 z-50 bg-white rounded-b-2xl shadow-lg overflow-hidden">
               <div className="grid grid-cols-2 gap-2 p-4">
                 {Object.keys(linkPaths).map((link) => (
-                  <button key={link} className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-medium" onClick={() => handleNavLinkClick(link)}>{link}</button>
+                  <button key={link} className="py-3 px-4 rounded-lg bg-gray-100 font-medium" onClick={() => handleNavLinkClick(link)}>{link}</button>
                 ))}
                 {!isAuthenticated ? (
                   <>

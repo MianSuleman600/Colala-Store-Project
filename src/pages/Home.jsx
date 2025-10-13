@@ -18,7 +18,11 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import StoreProfileModal from '../components/models/StoreProfileModal';
 
+import StoreBuilderModal from '../components/models/StoreBuilderModal';
+
+
 import { useOnboardingProgressQuery } from '../services/queries/useOnboardingQuery';
+
 
 import productIcon from '../assets/icons/product.png';
 import checkIcon from '../assets/icons/check.png';
@@ -31,7 +35,11 @@ export default function HomePage() {
   const { isAuthenticated, user, status: authStatus } = useSelector((state) => state.auth);
   const storeProfileFromRedux = user?.store;
 
+
+
   const [isStoreProfileModalOpen, setIsStoreProfileModalOpen] = useState(false);
+
+  const [isStoreBuilderModalOpen, setIsStoreBuilderModalOpen] = useState(false);
 
   const { data: onboardingProgress, isLoading: isProgressLoading } = useOnboardingProgressQuery({
     enabled: isAuthenticated && !!user?.id,
@@ -59,8 +67,12 @@ export default function HomePage() {
   }, [isAuthenticated, dispatch, navigate]);
 
   const handleOpenStoreBuilder = useCallback(() => {
-    isAuthenticated ? navigate('/store-management') : dispatch(openModal('register'));
-  }, [isAuthenticated, dispatch, navigate]);
+    if (isAuthenticated) {
+      setIsStoreBuilderModalOpen(true);
+    } else {
+      dispatch(openModal('register'));
+    }
+  }, [isAuthenticated, dispatch]);
 
   const handleViewProfileClick = useCallback(() => {
     isAuthenticated ? setIsStoreProfileModalOpen(true) : dispatch(openModal('login'));
@@ -98,6 +110,8 @@ export default function HomePage() {
           storeId={storeProfileFromRedux?.id}
         />
       )}
+
+      {isStoreBuilderModalOpen && <StoreBuilderModal isOpen={isStoreBuilderModalOpen} onClose={() => setIsStoreBuilderModalOpen(false)} />}
 
       <StoreHeader
         bannerImageUrl={storeProfileFromRedux ? `${ASSETS_BASE}${storeProfileFromRedux.banner_image}` : null}

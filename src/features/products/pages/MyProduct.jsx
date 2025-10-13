@@ -75,7 +75,7 @@ const MyProductsPage = ({ showAddProductButton = true, gridVariant = 'home' }) =
   // Derived State
   const brandColor = useMemo(() => user?.store?.theme_color || '#EF4444', [user]);
   const contrastTextColor = useMemo(() => getContrastTextColor(brandColor), [brandColor]);
-  
+
   const filteredProducts = useMemo(() => {
     return (products || []).filter((product) => {
       if (productFilterTab === 'All') return true;
@@ -127,14 +127,14 @@ const MyProductsPage = ({ showAddProductButton = true, gridVariant = 'home' }) =
     setShowBoostAdModal(false);
     setSelectedProductForBoost(null);
   };
-  
+
   const handleDeleteProduct = (productId) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       deleteProductMutation.mutate(productId);
     }
     setShowMoreOptionsPopover(false);
   };
-  
+
   const handleMarkAsSold = (productId) => {
     markStatusMutation.mutate({ productId, status: 'sold' });
     setShowMoreOptionsPopover(false);
@@ -177,7 +177,7 @@ const MyProductsPage = ({ showAddProductButton = true, gridVariant = 'home' }) =
         {['products', 'services'].map((tab) => {
           const active = selectedMainTab === tab;
           return (
-            <button key={tab} type="button" className={`px-4 py-2 text-lg font-medium capitalize ${ active ? 'border-b-2' : 'text-gray-500 hover:text-gray-700' }`} style={active ? { borderColor: brandColor, color: brandColor } : {}} onClick={() => setSelectedMainTab(tab)} aria-pressed={active}>
+            <button key={tab} type="button" className={`px-4 py-2 text-lg font-medium capitalize ${active ? 'border-b-2' : 'text-gray-500 hover:text-gray-700'}`} style={active ? { borderColor: brandColor, color: brandColor } : {}} onClick={() => setSelectedMainTab(tab)} aria-pressed={active}>
               {tab === 'products' ? 'My Products' : 'My Services'}
             </button>
           );
@@ -199,7 +199,7 @@ const MyProductsPage = ({ showAddProductButton = true, gridVariant = 'home' }) =
             {['All', 'Sponsored', 'Out of Stock'].map((tab) => {
               const isActive = productFilterTab === tab;
               return (
-                <Button key={tab} onClick={() => setProductFilterTab(tab)} className={`rounded-lg py-2 px-4 font-semibold transition-colors duration-200 ${ isActive ? 'shadow-md' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' }`} style={isActive ? { backgroundColor: brandColor, color: contrastTextColor } : {}}>
+                <Button key={tab} onClick={() => setProductFilterTab(tab)} className={`rounded-lg py-2 px-4 font-semibold transition-colors duration-200 ${isActive ? 'shadow-md' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`} style={isActive ? { backgroundColor: brandColor, color: contrastTextColor } : {}}>
                   {tab}
                 </Button>
               );
@@ -224,7 +224,7 @@ const MyProductsPage = ({ showAddProductButton = true, gridVariant = 'home' }) =
                   item={product}
                   brandColor={brandColor}
                   contrastTextColor={contrastTextColor}
-                  mode={'product'}
+                  mode="product"
                   onEdit={() => handleEditProduct(product.id)}
                   onMoreOptionsClick={(e, prod) => handleMoreOptionsClick(e, prod)}
                   onViewStatsClick={() => handleProductStatClick(product.id)}

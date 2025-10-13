@@ -85,6 +85,7 @@ const SubscriptionPage = lazy(() => import('../components/Dashboard/Subscription
 const WalletDashboard = lazy(() => import('../components/Dashboard/WalletDashboard.jsx'));
 const CheckoutPage = lazy(() => import('../features/cart/CheckoutPage'));
 const UpgradeStorePage = lazy(() => import('../features/Upgradestore/Upgradestore.jsx'));
+const SearchPage = lazy(() => import('../pages/SearchPage.jsx'));
 
 // --- Layout ---
 const MainLayout = () => {
@@ -140,7 +141,7 @@ function AppRouter() {
               <Route path="feed" element={<FeedPage />} />
               <Route path="checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
               <Route path="store-upgrade" element={<ProtectedRoute><UpgradeStorePage /></ProtectedRoute>} />
-
+              <Route path="search" element={<SearchPage />} />
               {/* Products */}
               <Route path="add-product" element={<ProtectedRoute><AddProductPage /></ProtectedRoute>} />
               <Route path="my-products" element={<ProtectedRoute><MyProductsPage /></ProtectedRoute>} />
