@@ -156,7 +156,7 @@ export const ENDPOINTS = {
   },
 
   CATALOG: {
-    CATEGORIES: u('/seller/onboarding/catalog/categories'),
+    CATEGORIES: u('/categories'),
     BRANDS: u('/brands'),
     // This endpoint returns the seller's registered addresses
     LOCATIONS: u('/seller/onboarding/store/addresses'),
