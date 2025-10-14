@@ -17,6 +17,17 @@ const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Sat
 const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/avi", "video/x-msvideo"];
 const MAX_VIDEO_MB = 10;
 
+// Helper to convert camelCase keys to snake_case
+const camelToSnake = (obj) => {
+  if (!obj || typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) return obj.map(camelToSnake);
+  return Object.entries(obj).reduce((acc, [key, value]) => {
+    const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    acc[snakeKey] = camelToSnake(value);
+    return acc;
+  }, {});
+};
+
 const Level3Form = ({
   formData = {},
   handleChange,
@@ -94,13 +105,14 @@ const Level3Form = ({
   };
 
   const handleSaveDeliveryPrice = async (newData) => {
-    const payload = {
+    const payload = camelToSnake({
         state: newData.state,
-        local_government: newData.localGovernment,
+        localGovernment: newData.localGovernment,
         variant: newData.variant,
         price: newData.deliveryFee || 0,
-        is_free: newData.markForFreeDelivery ? 1 : 0,
-    };
+        isFree: newData.markForFreeDelivery ? 1 : 0,
+    });
+
     try {
         if (editingDelivery) {
             if(editingDelivery.id) await deleteDelivery(editingDelivery.id);
@@ -177,7 +189,6 @@ const Level3Form = ({
     setShowLocationSelectModal(false);
   };
 
-  // **FIX: Missing return statement for the component's JSX**
   return (
     <div className={`w-full h-full ${mode === "register" ? "max-w-[389px] px-4 py-2 sm:px-8" : "p-0 flex flex-col"}`}>
       {/* Header */}
@@ -191,6 +202,7 @@ const Level3Form = ({
 
       {/* Content */}
       <div className="mt-6 flex flex-col gap-4 h-full flex-1 overflow-y-auto">
+        {/* Step 1: Physical Store */}
         {activeStep === 1 && (
           <>
             <div className="flex items-center justify-between p-3 rounded-lg border bg-white shadow-sm">
@@ -214,6 +226,7 @@ const Level3Form = ({
           </>
         )}
 
+        {/* Step 2: Store Address & Delivery */}
         {activeStep === 2 && (
           <div className="flex flex-col h-full">
             <div className="overflow-y-auto pr-2 -mr-2 space-y-4 flex-grow">

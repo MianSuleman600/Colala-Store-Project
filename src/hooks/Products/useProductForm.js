@@ -53,7 +53,7 @@ export function useProductForm({ product, isEdit }) {
   const { mutateAsync: deleteVariant } = useDeleteVariantMutation();
   const { mutateAsync: updateBulkPrices } = useUpdateBulkPricesMutation();
   const { mutateAsync: updateDeliveryOptions } = useUpdateDeliveryOptionsMutation();
-  
+
   const isSubmitting = isAdding || isUpdating;
 
   const [formData, setFormData] = useState(initialFormData);
@@ -68,7 +68,14 @@ export function useProductForm({ product, isEdit }) {
       const thumbs = (dp.thumbnailUrls || []).filter(u => u && !isVideoUrl(u));
       const main = (dp.mainImageUrl && !isVideoUrl(dp.mainImageUrl)) ? [dp.mainImageUrl] : [];
       const imageUrls = Array.from(new Set([...main, ...thumbs]));
-      
+
+      // Ensure wholesalePrice elements have required keys even if empty
+      const sanitizedWholesalePrice = (product.wholesalePrice || []).map(priceItem => ({
+        min_quantity: priceItem.min_quantity ?? '',
+        price: priceItem.price ?? '',
+        ...priceItem,
+      }));
+
       setFormData({
         ...initialFormData,
         ...product,
@@ -80,7 +87,7 @@ export function useProductForm({ product, isEdit }) {
         fullDescription: { ...initialFormData.fullDescription, ...product.fullDescription, generalDescription: dp.description || '' },
         price: product.currentPrice ?? '',
         has_variants: !!product.has_variants,
-        wholesalePrice: product.wholesalePrice || [],
+        wholesalePrice: sanitizedWholesalePrice, // Use sanitized data
         variants: product.variants || [],
         deliveryLocations: product.deliveryLocations || [],
         availabilityLocations: product.availabilityLocations || [],
@@ -89,10 +96,10 @@ export function useProductForm({ product, isEdit }) {
       setFormData(initialFormData);
     }
   }, [isEdit, product]);
-  
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setValidationErrors(prev => ({...prev, [name]: undefined}));
+    setValidationErrors(prev => ({ ...prev, [name]: undefined }));
     setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
@@ -116,7 +123,7 @@ export function useProductForm({ product, isEdit }) {
       setFormData((prev) => ({ ...prev, productImages: [...prev.productImages, ...newImages] }));
     }
   };
-  
+
   const handleRemoveImage = (index) => setFormData((prev) => ({ ...prev, productImages: prev.productImages.filter((_, i) => i !== index) }));
   const handleRemoveVideo = () => setFormData((prev) => ({ ...prev, productVideo: null }));
   const handleToggleLocation = (location, type) => {
@@ -152,7 +159,7 @@ export function useProductForm({ product, isEdit }) {
       corePayload.append('price', formData.price);
       if (formData.discountPrice) corePayload.append('discount_price', formData.discountPrice);
       corePayload.append('has_variants', formData.has_variants ? '1' : '0');
-      
+
       // Filter the array to only include NEW images that have a file object.
       const newImageFiles = formData.productImages.filter(img => img.fileObject);
 
@@ -163,30 +170,44 @@ export function useProductForm({ product, isEdit }) {
 
       if (formData.productVideo?.fileObject) corePayload.append('video', formData.productVideo.fileObject);
 
-      const result = isEdit 
-        ? await updateProduct({ id: product.id, payload: corePayload }) 
+      const result = isEdit
+        ? await updateProduct({ id: product.id, payload: corePayload })
         : await addProduct(corePayload);
-      
+
       const savedProduct = result.data;
       const productId = savedProduct?.id;
       if (!productId) throw new Error("Failed to get a valid Product ID after saving.");
 
       const subTasks = [];
       if (formData.has_variants) {
-          const originalVariants = product?.variants || [];
-          const currentVariants = formData.variants || [];
-          
-          originalVariants.forEach(ov => { if (!currentVariants.some(cv => cv.id === ov.id)) subTasks.push(deleteVariant({ productId, variantId: ov.id })) });
-          currentVariants.forEach(cv => {
-            const p = { name: cv.name, options: cv.options };
-            if (cv.id) subTasks.push(updateVariant({ productId, variantId: cv.id, payload: p }));
-            else subTasks.push(createVariant({ productId, payload: p }));
-          });
+        const originalVariants = product?.variants || [];
+        const currentVariants = formData.variants || [];
+
+        originalVariants.forEach(ov => { if (!currentVariants.some(cv => cv.id === ov.id)) subTasks.push(deleteVariant({ productId, variantId: ov.id })) });
+        currentVariants.forEach(cv => {
+          const p = { name: cv.name, options: cv.options };
+          if (cv.id) subTasks.push(updateVariant({ productId, variantId: cv.id, payload: p }));
+          else subTasks.push(createVariant({ productId, payload: p }));
+        });
       }
-      
-      if (formData.wholesalePrice?.length > 0) subTasks.push(updateBulkPrices({ productId, payload: formData.wholesalePrice }));
+
+      // ✅ FIX: Validate and filter wholesalePrice to ensure required fields are present and valid
+      const validWholesalePrices = (formData.wholesalePrice || []).filter(item => {
+        const minQuantity = Number(item.min_quantity);
+        const price = Number(item.price);
+        return !isNaN(minQuantity) && minQuantity > 0 && !isNaN(price) && price > 0;
+      });
+
+      if (validWholesalePrices.length > 0) {
+        // The API likely expects the payload to be under a 'prices' key in the body, 
+        // as per the error: 'The prices.0.min_quantity field is required.'
+        const bulkPricePayload = { prices: validWholesalePrices };
+        subTasks.push(updateBulkPrices({ productId, payload: bulkPricePayload }));
+      }
+      // ❌ Original line removed: if (formData.wholesalePrice?.length > 0) subTasks.push(updateBulkPrices({ productId, payload: formData.wholesalePrice }));
+
       if (formData.deliveryLocations?.length > 0) subTasks.push(updateDeliveryOptions({ productId, payload: formData.deliveryLocations }));
-      
+
       await Promise.all(subTasks);
 
       push('Product saved successfully!', { type: 'success' });
@@ -194,8 +215,12 @@ export function useProductForm({ product, isEdit }) {
 
     } catch (error) {
       console.error("Full product save failed:", error);
-      const errorMessage = error.response?.data?.message || error.message || 'An error occurred while saving.';
-      push(errorMessage, { type: 'error' });
+      // Check for the specific 422 error response structure
+      const apiErrorMessage = error.response?.data?.errors?.prices?.[0] ||
+        error.response?.data?.message ||
+        error.message ||
+        'An error occurred while saving.';
+      push(apiErrorMessage, { type: 'error' });
     }
   };
 

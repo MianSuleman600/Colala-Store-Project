@@ -120,10 +120,10 @@ function NavBar({ onCameraClick }) {
   );
 
   return (
-    <div className="w-full sticky top-0 z-50">
-      <nav className="flex flex-col">
+    <div className="w-full  sticky top-0 z-50">
+      <nav className="flex flex-col ">
         <div
-          className="h-[64px] sm:h-[80px] flex items-center justify-between px-4 sm:px-6 lg:px-8 relative gap-3"
+          className="h-[64px] sm:h-[80px]  flex items-center justify-between px-4 sm:px-6 lg:px-8 relative gap-3"
           style={{ backgroundColor: brandColor, color: contrastTextColor }}
         >
           <div className="flex sm:hidden items-center">
@@ -141,7 +141,7 @@ function NavBar({ onCameraClick }) {
               />
             )}
           </div>
-          <div className="flex-shrink-0 flex items-center justify-start w-[120px] sm:w-[150px] h-[40px] sm:h-[50px] ms-[102px]">
+          <div className="flex-shrink-0 flex items-center justify-start w-[120px] sm:w-[150px] h-[40px] sm:h-[50px] ms-[30px]">
             <img
               src="/logo.png"
               onClick={() => navigate("/")}
@@ -149,8 +149,8 @@ function NavBar({ onCameraClick }) {
               className="w-full h-full object-contain cursor-pointer"
             />
           </div>
-          <div className="hidden sm:block flex-grow mx-2 sm:mx-4 max-w-lg">
-            <div className="relative flex items-center w-[650px] ms-[-200px]">
+          <div className="hidden sm:flex flex-grow justify-center mx-2 sm:mx-4">
+            <div className="relative flex items-center w-full mx-2 ">
               <button
                 onClick={handleSearchSubmit}
                 className="absolute left-3 text-gray-500"
@@ -158,6 +158,7 @@ function NavBar({ onCameraClick }) {
               >
                 <Search size={20} />
               </button>
+
               <input
                 type="text"
                 placeholder="Search products, shop or category"
@@ -166,6 +167,7 @@ function NavBar({ onCameraClick }) {
                 onChange={handleSearchChange}
                 onKeyDown={handleSearchKeyDown}
               />
+
               <button
                 className="absolute right-3 text-gray-500 cursor-pointer"
                 onClick={onCameraClick}
@@ -175,7 +177,9 @@ function NavBar({ onCameraClick }) {
               </button>
             </div>
           </div>
-          <div className="hidden sm:flex items-center justify-end gap-6 w-auto flex-shrink-0 relative">
+
+         <div className="hidden sm:flex  items-center justify-end gap-6 w-auto flex-shrink-0 relative -translate-x-8">
+
             {!isAuthenticated ? (
               <button
                 className="flex items-center gap-2 cursor-pointer"
@@ -294,18 +298,18 @@ function NavBar({ onCameraClick }) {
           )}
         </div>
         <div
-          className="hidden sm:flex w-full h-[70px] rounded-b-2xl items-center justify-start px-4 lg:px-8"
+          className="hidden sm:flex w-full h-[70px] rounded-b-4xl items-center justify-start px-4 lg:px-8"
           style={{ backgroundColor: brandColor, color: contrastTextColor }}
         >
           {isAuthenticated && (
             <div
-              className="text-2xl sm:text-3xl font-bold mr-6 ms-[125px]"
+              className="text-2xl sm:text-3xl font-bold mr-6 ms-[50px]"
               style={{ fontFamily: "Oleo Script" }}
             >
               {displayedStoreName}
             </div>
           )}
-          <div className="flex flex-grow justify-center gap-24 text-base me-[450px]">
+          <div className="flex flex-grow justify-center gap-24  me-[350px]">
             {Object.keys(linkPaths).map((link) => (
               <button
                 key={link}
@@ -314,11 +318,10 @@ function NavBar({ onCameraClick }) {
               >
                 <span>{link}</span>
                 <div
-                  className={`h-1 mt-1 bg-white transition-transform ${
-                    getActiveNavLinkFromPath(location.pathname) === link
+                  className={`h-1 mt-1 bg-white transition-transform ${getActiveNavLinkFromPath(location.pathname) === link
                       ? "scale-x-100"
                       : "scale-x-0"
-                  } group-hover:scale-x-100 w-8 rounded-full`}
+                    } group-hover:scale-x-100 w-8 rounded-full`}
                 />
               </button>
             ))}
