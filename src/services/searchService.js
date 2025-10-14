@@ -1,5 +1,3 @@
-// src/services/searchService.js
-
 import { apiRequest } from '../api/apiClient.js';
 import { ENDPOINTS, ASSETS_BASE } from '../api/apiConfig.js';
 
@@ -15,7 +13,7 @@ const normalizeProduct = (product) => {
     imageUrl: firstImage ? `${ASSETS_BASE}/storage/${firstImage}` : null,
     category: product.category?.title || 'Uncategorized',
     storeName: product.store?.store_name,
-    storeLogo: product.store?.profile_image_url,
+    storeLogo: product.store?.profile_image,
     rating: product.average_rating,
     status: product.status,
   };
@@ -23,29 +21,48 @@ const normalizeProduct = (product) => {
 
 export const searchService = {
   performSearch: async (params) => {
-    if (!params.q || !params.type) {
-      return { data: [] };
+    if (!params.type) {
+      params.type = params.image ? 'camera' : params.code ? 'barcode' : 'product';
     }
-    
-    // --- THIS IS THE FIX ---
-    // 1. Call the endpoint function to build the complete URL string with query parameters.
-    const url = ENDPOINTS.SEARCH(params);
-    
-    // 2. Pass the generated `url` string to the apiRequest wrapper.
-    //    Do not pass `params` again, as they are already part of the URL.
-    const response = await apiRequest({
-      url: url,
-      method: 'GET',
-    });
-    // --- END OF FIX ---
-    
-    const rawResults = response.data?.data || [];
-    const normalizedResults = rawResults.map(normalizeProduct);
 
-    return {
-      data: normalizedResults,
-      meta: response.data?.meta,
-      links: response.data?.links,
-    };
+    if (params.type === 'product') {
+      if (!params.q) return { data: [] };
+      const url = ENDPOINTS.SEARCH.TEXT(params);
+      const response = await apiRequest({ url, method: 'GET' });
+      const rawResults = response.data?.data || [];
+      return { data: rawResults.map(normalizeProduct) };
+    }
+
+    if (params.type === 'camera') {
+      if (!params.image) return { data: [] };
+      const formData = new FormData();
+      formData.append('image', params.image);
+      formData.append('type', 'camera'); // Ensure type is sent
+      const response = await apiRequest({
+        url: ENDPOINTS.SEARCH.CAMERA,
+        method: 'POST',
+        data: formData,
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const rawResults = response.data?.data || [];
+      return { data: rawResults.map(normalizeProduct) };
+    }
+
+    if (params.type === 'barcode') {
+      if (!params.code) return { data: [] };
+      const formData = new FormData();
+      formData.append('barcode', params.code);
+      formData.append('type', 'barcode'); // Ensure type is sent
+      const response = await apiRequest({
+        url: ENDPOINTS.SEARCH.BARCODE,
+        method: 'POST',
+        data: formData,
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const rawResults = response.data?.data || [];
+      return { data: rawResults.map(normalizeProduct) };
+    }
+
+    return { data: [] };
   },
 };

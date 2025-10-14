@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
-import { ShoppingCart, Search, Camera, User, Menu, X } from "lucide-react";
+import { ShoppingCart, User, Menu, X } from "lucide-react";
 import { useSelector, useDispatch, shallowEqual } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
 import Skeleton from "react-loading-skeleton";
@@ -8,6 +8,7 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { openModal } from "../../redux/modalSlice";
 import { selectCartItemsByUser } from "../../features/cart/cartSlice";
 import CartDropdown from "./CartDropdown";
+import SearchInput from "./SearchInput"; // NEW: separate component
 
 const linkPaths = {
   Home: "/",
@@ -20,7 +21,7 @@ const linkPaths = {
 const getActiveNavLinkFromPath = (pathname) =>
   Object.keys(linkPaths).find((key) => linkPaths[key] === pathname) || null;
 
-function NavBar({ onCameraClick }) {
+function NavBar() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,20 +29,8 @@ function NavBar({ onCameraClick }) {
   const { isAuthenticated, user, status } = useSelector((state) => state.auth);
   const userIdForCart = user?.id ?? "guest";
 
-  // Use URL search params to keep search term in sync
-  const searchParams = useMemo(
-    () => new URLSearchParams(location.search),
-    [location.search]
-  );
-  const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
-
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
-
-  // Update search term if the URL changes (e.g., browser back/forward)
-  useEffect(() => {
-    setSearchTerm(searchParams.get("q") || "");
-  }, [searchParams]);
 
   const selectMemoizedCartItems = useMemo(
     () => selectCartItemsByUser(userIdForCart),
@@ -57,36 +46,14 @@ function NavBar({ onCameraClick }) {
   const brandColor = user?.store?.theme_color || "#EF4444";
   const contrastTextColor = "#fff";
 
-  const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
-  };
-
-  const handleSearchSubmit = () => {
-    if (searchTerm.trim()) {
-      navigate(
-        `/search?q=${encodeURIComponent(searchTerm.trim())}&type=product`
-      );
-    }
-  };
-
-  const handleSearchKeyDown = (e) => {
-    if (e.key === "Enter") {
-      handleSearchSubmit();
-    }
-  };
-
   const handleNavLinkClick = useCallback(
     (k) => {
-      // Check if the route requires authentication
       const protectedRoutes = ["Feed", "Chat", "Orders", "Settings"];
-
       if (protectedRoutes.includes(k) && !isAuthenticated) {
-        // Open login modal for protected routes when not authenticated
         dispatch(openModal("login"));
         setMobileMenuOpen(false);
         return;
       }
-
       navigate(linkPaths[k] || "/");
       setMobileMenuOpen(false);
     },
@@ -94,11 +61,8 @@ function NavBar({ onCameraClick }) {
   );
 
   const handleAccountClick = () => {
-    if (!isAuthenticated) {
-      dispatch(openModal("login"));
-    } else {
-      navigate("/settings");
-    }
+    if (!isAuthenticated) dispatch(openModal("login"));
+    else navigate("/settings");
   };
 
   const handleCartToggle = () => setIsCartOpen((prev) => !prev);
@@ -120,12 +84,14 @@ function NavBar({ onCameraClick }) {
   );
 
   return (
-    <div className="w-full  sticky top-0 z-50">
-      <nav className="flex flex-col ">
+    <div className="w-full sticky top-0 z-50">
+      <nav className="flex flex-col">
+        {/* Top nav bar */}
         <div
-          className="h-[64px] sm:h-[80px]  flex items-center justify-between px-4 sm:px-6 lg:px-8 relative gap-3"
+          className="h-[64px] sm:h-[80px] flex items-center justify-between px-4 sm:px-6 lg:px-8 relative gap-3"
           style={{ backgroundColor: brandColor, color: contrastTextColor }}
         >
+          {/* Mobile menu toggle */}
           <div className="flex sm:hidden items-center">
             {mobileMenuOpen ? (
               <X
@@ -141,6 +107,8 @@ function NavBar({ onCameraClick }) {
               />
             )}
           </div>
+
+          {/* Logo */}
           <div className="flex-shrink-0 flex items-center justify-start w-[120px] sm:w-[150px] h-[40px] sm:h-[50px] ms-[30px]">
             <img
               src="/logo.png"
@@ -149,37 +117,14 @@ function NavBar({ onCameraClick }) {
               className="w-full h-full object-contain cursor-pointer"
             />
           </div>
+
+          {/* Search input */}
           <div className="hidden sm:flex flex-grow justify-center mx-2 sm:mx-4">
-            <div className="relative flex items-center w-full mx-2 ">
-              <button
-                onClick={handleSearchSubmit}
-                className="absolute left-3 text-gray-500"
-                aria-label="Search"
-              >
-                <Search size={20} />
-              </button>
-
-              <input
-                type="text"
-                placeholder="Search products, shop or category"
-                className="w-full py-2.5 pl-10 pr-10 rounded-lg bg-white text-gray-800"
-                value={searchTerm}
-                onChange={handleSearchChange}
-                onKeyDown={handleSearchKeyDown}
-              />
-
-              <button
-                className="absolute right-3 text-gray-500 cursor-pointer"
-                onClick={onCameraClick}
-                aria-label="Search by image"
-              >
-                <Camera size={24} />
-              </button>
-            </div>
+            <SearchInput />
           </div>
 
-         <div className="hidden sm:flex  items-center justify-end gap-6 w-auto flex-shrink-0 relative -translate-x-8">
-
+          {/* Account & Cart */}
+          <div className="hidden sm:flex items-center justify-end gap-6 w-auto flex-shrink-0 relative -translate-x-8">
             {!isAuthenticated ? (
               <button
                 className="flex items-center gap-2 cursor-pointer"
@@ -188,9 +133,7 @@ function NavBar({ onCameraClick }) {
                 <User size={28} />
                 <div className="flex flex-col items-start text-white">
                   <span className="text-xs">Welcome</span>
-                  <span className="font-bold leading-tight">
-                    Sign In/Register
-                  </span>
+                  <span className="font-bold leading-tight">Sign In/Register</span>
                 </div>
               </button>
             ) : (
@@ -218,10 +161,7 @@ function NavBar({ onCameraClick }) {
                 )}
               </button>
               {isCartOpen && (
-                <div
-                  className="hidden sm:block fixed inset-0 z-40"
-                  onClick={handleCartClose}
-                />
+                <div className="hidden sm:block fixed inset-0 z-40" onClick={handleCartClose} />
               )}
               {isCartOpen && (
                 <div className="hidden sm:block absolute right-0 top-full mt-2 z-50">
@@ -235,12 +175,11 @@ function NavBar({ onCameraClick }) {
               )}
             </div>
           </div>
+
+          {/* Mobile icons */}
           <div className="flex sm:hidden items-center gap-3 ml-auto">
             {!isAuthenticated ? (
-              <button
-                onClick={() => dispatch(openModal("login"))}
-                className="p-1"
-              >
+              <button onClick={() => dispatch(openModal("login"))} className="p-1">
                 <User size={24} />
               </button>
             ) : (
@@ -248,44 +187,12 @@ function NavBar({ onCameraClick }) {
                 <User size={24} />
               </button>
             )}
-            <button className="relative p-1" onClick={handleCartToggle}>
-              <ShoppingCart size={24} />
-              {totalItems > 0 && (
-                <span className="absolute -top-1 -right-2 bg-white text-red-500 text-[10px] rounded-full px-1 py-0.5">
-                  {totalItems}
-                </span>
-              )}
-            </button>
           </div>
         </div>
-        <div
-          className="sm:hidden px-4 pt-2 pb-3 rounded-b-2xl"
-          style={{ backgroundColor: brandColor }}
-        >
-          <div className="relative flex items-center w-full">
-            <button
-              onClick={handleSearchSubmit}
-              className="absolute left-3 text-gray-700"
-              aria-label="Search"
-            >
-              <Search size={18} />
-            </button>
-            <input
-              type="text"
-              placeholder="Search products..."
-              className="w-full py-2 pl-9 pr-9 rounded-lg bg-white text-gray-800"
-              value={searchTerm}
-              onChange={handleSearchChange}
-              onKeyDown={handleSearchKeyDown}
-            />
-            <button
-              className="absolute right-3 text-gray-700 cursor-pointer"
-              onClick={onCameraClick}
-              aria-label="Search by image"
-            >
-              <Camera size={20} />
-            </button>
-          </div>
+
+        {/* Mobile search */}
+        <div className="sm:hidden px-4 pt-2 pb-3 rounded-b-2xl" style={{ backgroundColor: brandColor }}>
+          <SearchInput />
           {isAuthenticated && (
             <div className="mt-2 text-center">
               <span
@@ -297,6 +204,8 @@ function NavBar({ onCameraClick }) {
             </div>
           )}
         </div>
+
+        {/* Bottom nav links */}
         <div
           className="hidden sm:flex w-full h-[70px] rounded-b-4xl items-center justify-start px-4 lg:px-8"
           style={{ backgroundColor: brandColor, color: contrastTextColor }}
@@ -309,7 +218,7 @@ function NavBar({ onCameraClick }) {
               {displayedStoreName}
             </div>
           )}
-          <div className="flex flex-grow justify-center gap-24  me-[350px]">
+          <div className="flex flex-grow justify-center gap-24 me-[350px]">
             {Object.keys(linkPaths).map((link) => (
               <button
                 key={link}
@@ -318,21 +227,21 @@ function NavBar({ onCameraClick }) {
               >
                 <span>{link}</span>
                 <div
-                  className={`h-1 mt-1 bg-white transition-transform ${getActiveNavLinkFromPath(location.pathname) === link
+                  className={`h-1 mt-1 bg-white transition-transform ${
+                    getActiveNavLinkFromPath(location.pathname) === link
                       ? "scale-x-100"
                       : "scale-x-0"
-                    } group-hover:scale-x-100 w-8 rounded-full`}
+                  } group-hover:scale-x-100 w-8 rounded-full`}
                 />
               </button>
             ))}
           </div>
         </div>
+
+        {/* Mobile menu dropdown */}
         {mobileMenuOpen && (
           <div className="sm:hidden relative">
-            <div
-              className="fixed inset-0 bg-black/40 z-40"
-              onClick={() => setMobileMenuOpen(false)}
-            />
+            <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setMobileMenuOpen(false)} />
             <div className="fixed top-[64px] left-0 right-0 z-50 bg-white rounded-b-2xl shadow-lg overflow-hidden">
               <div className="grid grid-cols-2 gap-2 p-4">
                 {Object.keys(linkPaths).map((link) => (
@@ -344,7 +253,7 @@ function NavBar({ onCameraClick }) {
                     {link}
                   </button>
                 ))}
-                {!isAuthenticated ? (
+                {!isAuthenticated && (
                   <>
                     <button
                       className="py-3 px-4 rounded-lg bg-red-500 text-white font-semibold"
@@ -365,11 +274,13 @@ function NavBar({ onCameraClick }) {
                       Register
                     </button>
                   </>
-                ) : null}
+                )}
               </div>
             </div>
           </div>
         )}
+
+        {/* Mobile cart dropdown */}
         {isCartOpen && (
           <div className="sm:hidden">
             <CartDropdown

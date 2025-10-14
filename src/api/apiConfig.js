@@ -54,7 +54,12 @@ export const buildQuery = (params = {}) => {
 // ---------------------------
 export const ENDPOINTS = {
 
-  SEARCH: (params = {}) => `${u('/search')}${buildQuery(params)}`,
+ 
+  SEARCH: {
+    TEXT: (params = {}) => `${u('/search')}${buildQuery(params)}`,
+    CAMERA: u('/search/camera'),   // ✅ New camera search endpoint
+    BARCODE: u('/search/barcode'), // ✅ Optional barcode endpoint
+  },
 
   AUTH: {
     LOGIN: u('/auth/login'),

@@ -6,7 +6,7 @@ import { loginSuccess, logout } from '../features/auth/authSlice';
 import { ENDPOINTS } from '../api/apiConfig';
 
 import ScrollToTop from '../components/ui/ScrollToTop';
-import NavBar from '../components/common/NavBar';
+import NavBar from '../components/common/NavBar.jsx';
 import ProtectedRoute from './ProtectedRoute';
 import AuthModal from '../components/models/AuthModal.jsx';
 import { openModal, closeModal, switchMode } from '../redux/modalSlice.js';
