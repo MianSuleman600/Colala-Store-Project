@@ -1,4 +1,3 @@
-// src/pages/ManageCouponsPointsPage.jsx
 import React, { useState } from 'react';
 import { useToast } from '../../../components/ui/ToastProvider';
 import ManageCouponsTab from '../../../components/coupons_points/ManageCouponsTab';
@@ -11,7 +10,7 @@ import ScrollToTop from '../../../components/ui/ScrollToTop';
 import {
   useGetCouponsQuery,
   useGetCustomerPointsQuery,
-  useGetPointsSummaryQuery,
+  useGetPointsSettingsQuery,
 } from '../../../services/queries/useCouponsQuery';
 
 import {
@@ -31,16 +30,23 @@ const ManageCouponsPointsPage = ({ brandColor = '#EF4444', contrastTextColor = '
 
   // Queries
   const { data: coupons = [], isLoading: loadingCoupons } = useGetCouponsQuery();
-  const { data: customerPoints = [], isLoading: loadingCustomers } = useGetCustomerPointsQuery();
-  const { data: pointsSummary = { totalPointsBalance: 0 }, isLoading: loadingSummary } = useGetPointsSummaryQuery();
+  const { data: pointsData, isLoading: loadingCustomers } = useGetCustomerPointsQuery();
+  const { data: pointsSettings = {}, isLoading: loadingSettings } = useGetPointsSettingsQuery();
+
+  // FIXED: The service function already returns the inner `data` object,
+  // so we destructure directly from `pointsData` itself.
+  const { customers: customerPoints = [], total_points_balance: totalPointsBalance = 0 } = pointsData || {};
 
   // Mutations
   const createCouponMutation = useCreateCouponMutation({
-    onSuccess: () => {
+    onSuccess: (res) => {
       push('Coupon created successfully!', { type: 'success' });
       setShowCreateCouponModal(false);
     },
-    onError: (err) => push(err.message || 'Failed to create coupon.', { type: 'error' }),
+    onError: (err) => {
+      const errorMessage = err?.message || err?.data?.message || 'Failed to create coupon.';
+      push(errorMessage, { type: 'error' });
+    },
   });
 
   const updateCouponMutation = useUpdateCouponMutation({
@@ -48,7 +54,10 @@ const ManageCouponsPointsPage = ({ brandColor = '#EF4444', contrastTextColor = '
       push('Coupon updated successfully!', { type: 'success' });
       setShowEditCouponModal(false);
     },
-    onError: (err) => push(err.message || 'Failed to update coupon.', { type: 'error' }),
+    onError: (err) => {
+      const errorMessage = err?.message || err?.data?.message || 'Failed to update coupon.';
+      push(errorMessage, { type: 'error' });
+    },
   });
 
   const deleteCouponMutation = useDeleteCouponMutation({
@@ -57,34 +66,46 @@ const ManageCouponsPointsPage = ({ brandColor = '#EF4444', contrastTextColor = '
   });
 
   const updatePointsSettingsMutation = useUpdatePointsSettingsMutation({
-     onSuccess: () => {
+    onSuccess: () => {
       push('Points settings saved.', { type: 'success' });
       setShowPointsSettingsModal(false);
     },
     onError: (err) => push(err.message || 'Failed to save settings.', { type: 'error' }),
   });
 
+  const normalizeCouponPayload = (coupon) => ({
+    code: coupon.code,
+    discount_type: coupon.discount_type || 1,
+    discount_value: parseFloat(coupon.discount_value),
+    max_usage: parseInt(coupon.max_usage, 10),
+    usage_per_user: parseInt(coupon.usage_per_user, 10),
+    expiry_date: coupon.expiry_date || null,
+  });
+
   const handleOpenEditCouponModal = (coupon) => {
     setCouponToEdit(coupon);
     setShowEditCouponModal(true);
   };
-  
-  const handleSaveNewCoupon = (newCoupon) => createCouponMutation.mutate(newCoupon);
-  const handleSaveEditedCoupon = (updatedCoupon) => {
-    const { id, ...payload } = updatedCoupon;
-    updateCouponMutation.mutate({ id, payload });
+
+  const handleSaveNewCoupon = (newCoupon) => {
+    createCouponMutation.mutate(normalizeCouponPayload(newCoupon));
   };
+
+  const handleSaveEditedCoupon = (updatedCoupon) => {
+    const { id, ...rest } = updatedCoupon;
+    updateCouponMutation.mutate({ id, payload: normalizeCouponPayload(rest) });
+  };
+
   const handleDeleteCoupon = (couponId) => {
-    if (window.confirm('Are you sure you want to delete this coupon?')) {
-      deleteCouponMutation.mutate(couponId);
-    }
+    console.warn('A custom confirmation modal should appear here before deletion.');
+    deleteCouponMutation.mutate(couponId);
   };
 
   const handleSavePointsSettings = (settings) => updatePointsSettingsMutation.mutate(settings);
-  
+
   const isLoadingCouponsTab = loadingCoupons || createCouponMutation.isLoading || updateCouponMutation.isLoading || deleteCouponMutation.isLoading;
-  const isLoadingPointsTab = loadingCustomers || loadingSummary || updatePointsSettingsMutation.isLoading;
-  
+  const isLoadingPointsTab = loadingCustomers || loadingSettings || updatePointsSettingsMutation.isLoading;
+
   return (
     <div className="p-4 md:p-8">
       <ScrollToTop />
@@ -121,7 +142,7 @@ const ManageCouponsPointsPage = ({ brandColor = '#EF4444', contrastTextColor = '
 
       {activeTab === 'points' && (
         <ManagePointsTab
-          totalPointsBalance={pointsSummary?.totalPointsBalance || 0}
+          totalPointsBalance={totalPointsBalance}
           customerPoints={customerPoints}
           brandColor={brandColor}
           contrastTextColor={contrastTextColor}
@@ -161,6 +182,7 @@ const ManageCouponsPointsPage = ({ brandColor = '#EF4444', contrastTextColor = '
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md">
             <PointsSettingsModal
+              initialSettings={pointsSettings}
               onClose={() => setShowPointsSettingsModal(false)}
               onSave={handleSavePointsSettings}
               isSubmitting={updatePointsSettingsMutation.isLoading}

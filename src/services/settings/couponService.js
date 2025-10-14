@@ -1,12 +1,5 @@
-// src/services/couponService.js
 import { apiRequest } from '../../api/apiClient.js';
 import { ENDPOINTS } from '../../api/apiConfig.js';
-import { USE_DUMMY_DATA } from '../../utils/config.js';
-import * as normalizers from '../../utils/dataNormalizer.js';
-import { DUMMY_COUPONS, DUMMY_CUSTOMER_POINTS, DUMMY_POINTS_SUMMARY } from '../../utils/data/couponsPointsData.js';
-
-const identity = (x) => x;
-const normCoupons = typeof normalizers.normalizeCoupons === 'function' ? normalizers.normalizeCoupons : identity;
 
 /* ---------------- Utilities ---------------- */
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -17,99 +10,66 @@ const toIsoDateOnly = (d) => {
   return `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
 };
 
-const nowToDisplayDate = () => new Date().toISOString();
 const clampNumber = (v, min, max) => {
   const n = Number(v);
-  if (!Number.isFinite(n)) return undefined;
+  if (!Number.isFinite(n) || v === null) return undefined;
   return Math.max(min, Math.min(max, n));
 };
 
-// Map UI payload (camelCase) to API payload (snake_case) safely
 const toSafeCouponPayload = (payload = {}, partial = false) => {
   const src = payload || {};
-
   const mapped = {};
 
-  if (!partial || src.code !== undefined) mapped.code = String(src.code || '').trim();
+  const codeVal = src.code || src.couponCodeName;
+  if (!partial || codeVal !== undefined) mapped.code = String(codeVal || '').trim();
 
-  if (!partial || src.percentageOff !== undefined) {
-    const pct = clampNumber(src.percentageOff, 1, 100);
-    if (pct !== undefined) mapped.percentage_off = pct;
+  const discountTypeVal = src.discount_type !== undefined ? src.discount_type : src.discountType;
+  if (!partial || discountTypeVal !== undefined) {
+    const type = parseInt(discountTypeVal, 10);
+    if ([1, 2].includes(type)) {
+      mapped.discount_type = type;
+    }
   }
 
-  if (!partial || src.maxUsage !== undefined) {
-    const max = clampNumber(src.maxUsage, 1, Number.MAX_SAFE_INTEGER);
+  const discountValueVal = src.discount_value !== undefined ? src.discount_value : src.discountValue;
+  if (!partial || discountValueVal !== undefined) mapped.discount_value = Number(discountValueVal);
+
+  const maxUsageVal = src.max_usage !== undefined ? src.max_usage : src.maxUsage;
+  if (!partial || maxUsageVal !== undefined) {
+    const max = clampNumber(maxUsageVal, 1, Number.MAX_SAFE_INTEGER);
     if (max !== undefined) mapped.max_usage = max;
   }
 
-  if (!partial || src.usagePerUser !== undefined) {
-    const per = clampNumber(src.usagePerUser, 1, Number.MAX_SAFE_INTEGER);
+  const usagePerUserVal = src.usage_per_user !== undefined ? src.usage_per_user : src.usagePerUser;
+  if (!partial || usagePerUserVal !== undefined) {
+    const per = clampNumber(usagePerUserVal, 1, Number.MAX_SAFE_INTEGER);
     if (per !== undefined) mapped.usage_per_user = per;
   }
 
-  if (!partial || src.expiryDate !== undefined) {
-    const dateOnly = toIsoDateOnly(src.expiryDate);
+  const expiryDateVal = src.expiry_date !== undefined ? src.expiry_date : src.expiryDate;
+  if (!partial || expiryDateVal !== undefined) {
+    const dateOnly = toIsoDateOnly(expiryDateVal);
     if (dateOnly) mapped.expiry_date = dateOnly;
+    else if (expiryDateVal === null) mapped.expiry_date = null;
+    else if (expiryDateVal === '') mapped.expiry_date = null;
   }
 
   return mapped;
 };
-const takeList = (res) => res?.data || res?.coupons || (Array.isArray(res) ? res : []);
+
+const takeList = (res) => res?.data?.coupons || res?.coupons || (Array.isArray(res?.data) ? res?.data : []);
 const takeItem = (res) => res?.data || res?.coupon || res;
 
-/* ---------------- Dummy Service (Unchanged) ---------------- */
-let coupons = [...DUMMY_COUPONS];
-let customerPoints = [...DUMMY_CUSTOMER_POINTS];
-let totalPointsBalance = DUMMY_POINTS_SUMMARY.totalPointsBalance;
-const dummyCouponService = {
-  // Coupons
-  getCoupons: async () => ({ coupons: normCoupons(coupons) }),
-  createCoupon: async (payload) => {
-    const data = toSafeCouponPayload(payload);
-    const newItem = {
-      id: `coupon-${Date.now()}`,
-      code: data.code || '',
-      percentageOff: Number(data.percentage_off) || 0,
-      maxUsage: Number(data.max_usage) || 0,
-      usagePerUser: Number(data.usage_per_user) || 1,
-      expiryDate: data.expiry_date || '',
-      dateCreated: nowToDisplayDate(),
-      timesUsed: 0,
-    };
-    coupons.unshift(newItem);
-    return { coupon: newItem };
-  },
-  updateCoupon: async (id, payload) => {
-    const data = toSafeCouponPayload(payload, true);
-    coupons = coupons.map((c) => (c.id === id ? {
-      ...c,
-      code: data.code !== undefined ? data.code : c.code,
-      percentageOff: data.percentage_off !== undefined ? Number(data.percentage_off) : c.percentageOff,
-      maxUsage: data.max_usage !== undefined ? Number(data.max_usage) : c.maxUsage,
-      usagePerUser: data.usage_per_user !== undefined ? Number(data.usage_per_user) : c.usagePerUser,
-      expiryDate: data.expiry_date !== undefined ? data.expiry_date : c.expiryDate,
-    } : c));
-    const updated = coupons.find((c) => c.id === id);
-    return { coupon: updated };
-  },
-  deleteCoupon: async (id) => {
-    coupons = coupons.filter((c) => c.id !== id);
-    return { success: true };
-  },
-  applyCoupon: async (code) => ({ success: true, code }),
 
-  // Points
-  getPointsSummary: async () => ({ data: { totalPointsBalance } }),
-  getCustomerPoints: async () => ({ data: customerPoints }),
-  updatePointsSettings: async (payload) => ({ success: true, payload }),
-};
-
-/* ---------------- CORRECTED: Real API Service ---------------- */
-const apiCouponService = {
+/* ---------------- Real API Service ---------------- */
+export const couponService = {
   // Coupons
   getCoupons: async () => {
-    const res = await apiRequest({ url: ENDPOINTS.SELLER_COUPONS.LIST, method: 'GET' });
-    return { coupons: normCoupons(takeList(res)) };
+    const res = await apiRequest({
+      url: ENDPOINTS.SELLER_COUPONS.LIST,
+      method: 'GET',
+    });
+    return { coupons: takeList(res) };
   },
 
   createCoupon: async (payload) => {
@@ -131,19 +91,58 @@ const apiCouponService = {
   },
 
   deleteCoupon: async (id) => {
-    await apiRequest({ url: ENDPOINTS.SELLER_COUPONS.DELETE(id), method: 'DELETE' });
+    await apiRequest({
+      url: ENDPOINTS.SELLER_COUPONS.DELETE(id),
+      method: 'DELETE',
+    });
     return { success: true };
   },
 
   applyCoupon: async (code) => {
-    const res = await apiRequest({ url: ENDPOINTS.SELLER_COUPONS.APPLY(code), method: 'POST' });
+    const res = await apiRequest({
+      url: ENDPOINTS.SELLER_COUPONS.APPLY(code),
+      method: 'POST',
+    });
     return takeItem(res);
   },
 
-  // Points (These remain correct as they have their own ENDPOINTS object)
-  getPointsSummary: async () => apiRequest({ url: ENDPOINTS.POINTS.SUMMARY, method: 'GET' }),
-  getCustomerPoints: async () => apiRequest({ url: ENDPOINTS.POINTS.CUSTOMERS, method: 'GET' }),
-  updatePointsSettings: async (payload) => apiRequest({ url: ENDPOINTS.POINTS.UPDATE_SETTINGS, method: 'PUT', data: payload }),
-};
+  // Points (Loyalty)
 
-export const couponService = USE_DUMMY_DATA ? dummyCouponService : apiCouponService;
+  // REMOVED: This function was calling a non-existent endpoint (404).
+  // The required data is already provided by getCustomerPoints.
+  /*
+  getPointsSummary: async () => {
+    const res = await apiRequest({
+      url: ENDPOINTS.POINTS.SUMMARY,
+      method: 'GET',
+    });
+    return res.data || {};
+  },
+  */
+
+  getLoyaltySettings: async () => {
+    const res = await apiRequest({
+      url: ENDPOINTS.POINTS.GET_SETTINGS,
+      method: 'GET',
+    });
+    return { settings: takeItem(res) };
+  },
+
+  getCustomerPoints: async () => {
+    const res = await apiRequest({
+      url: ENDPOINTS.POINTS.CUSTOMERS,
+      method: 'GET',
+    });
+    // This endpoint correctly returns the full object with total_points_balance and customers
+    return res.data || {};
+  },
+
+  updatePointsSettings: async (payload) => {
+    const res = await apiRequest({
+      url: ENDPOINTS.POINTS.UPDATE_SETTINGS,
+      method: 'POST',
+      data: payload,
+    });
+    return { settings: takeItem(res) };
+  },
+};

@@ -11,7 +11,13 @@ const FullOrderDetailsPanel = ({ order, brandColor, contrastTextColor, onBackToT
     );
   }
 
-  const formattedOrderId = `ORD-${String(order.id || '').slice(0, 7).toUpperCase()}`;
+  // ✅ FIX: Using the correct order ID from the nested object.
+  const formattedOrderId = `ORD-${String(order.order?.id || '').slice(0, 7).toUpperCase()}`;
+  
+  // ✅ FIX: Accessing nested delivery and user details with optional chaining for safety.
+  const deliveryInfo = order.order?.delivery_address;
+  const paymentMethod = order.payment_method || 'Not specified';
+  const customerInfo = order.order?.user;
 
   return (
     <div className="space-y-6">
@@ -23,12 +29,13 @@ const FullOrderDetailsPanel = ({ order, brandColor, contrastTextColor, onBackToT
 
             <div className="space-y-4">
               {order.items?.map((item) => (
-                <div key={item.id || `${item.name}-${item.price}`} className="flex items-center p-3 rounded-lg bg-white shadow-sm">
+                <div key={item.id} className="flex items-center p-3 rounded-lg bg-white shadow-sm">
                   <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center mr-3">
-                    {item.imageUrl ? (
+                    {/* ✅ FIX: Accessing product image from item.product */}
+                    {item.product?.image_url ? (
                       <img
-                        src={item.imageUrl}
-                        alt={item.name}
+                        src={item.product.image_url}
+                        alt={item.product.name}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           e.currentTarget.onerror = null;
@@ -40,7 +47,8 @@ const FullOrderDetailsPanel = ({ order, brandColor, contrastTextColor, onBackToT
                     )}
                   </div>
                   <div className="flex-grow">
-                    <p className="text-base font-medium text-gray-800">{item.name}</p>
+                    {/* ✅ FIX: Accessing product name from item.product */}
+                    <p className="text-base font-medium text-gray-800">{item.product?.name || 'Product Name'}</p>
                     <p className="text-sm font-bold mt-1" style={{ color: brandColor }}>
                       N{item.price?.toLocaleString()}
                     </p>
@@ -69,11 +77,13 @@ const FullOrderDetailsPanel = ({ order, brandColor, contrastTextColor, onBackToT
             <div className="rounded-xl border border-gray-200 p-4 space-y-3">
               <div>
                 <p className="text-xs text-gray-400">Phone number</p>
-                <p className="text-sm text-gray-800 font-medium">{order.phoneNumber}</p>
+                {/* ✅ FIX: Accessing nested phone number */}
+                <p className="text-sm text-gray-800 font-medium">{deliveryInfo?.phone_number || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-400">Address</p>
-                <p className="text-sm text-gray-800 font-medium">{order.deliveryAddress}</p>
+                {/* ✅ FIX: Accessing nested address */}
+                <p className="text-sm text-gray-800 font-medium">{deliveryInfo?.address || 'N/A'}</p>
               </div>
             </div>
           </Card>
@@ -81,25 +91,26 @@ const FullOrderDetailsPanel = ({ order, brandColor, contrastTextColor, onBackToT
           {/* Price Breakdown */}
           <Card className="p-4 rounded-xl shadow-md bg-white">
             <div className="grid grid-cols-2 gap-4 text-sm text-gray-700">
+              {/* ✅ FIX: Using snake_case for API consistency */}
               <div>Items Cost</div>
-              <div className="text-right font-semibold">N{order.itemsCost?.toLocaleString()}</div>
+              <div className="text-right font-semibold">N{(order.items_cost || 0).toLocaleString()}</div>
 
               <div>Coupon Discount</div>
               <div className="text-right font-semibold" style={{ color: brandColor }}>
-                -N{order.couponDiscount?.toLocaleString()}
+                -N{(order.coupon_discount || 0).toLocaleString()}
               </div>
 
               <div>Points Discount</div>
               <div className="text-right font-semibold" style={{ color: brandColor }}>
-                -N{order.pointsDiscount?.toLocaleString()}
+                -N{(order.points_discount || 0).toLocaleString()}
               </div>
 
               <div>Delivery Fee</div>
-              <div className="text-right font-semibold">N{order.deliveryFee?.toLocaleString()}</div>
+              <div className="text-right font-semibold">N{(order.delivery_fee || 0).toLocaleString()}</div>
 
               <div className="text-lg font-bold">Total</div>
               <div className="text-right text-lg font-bold" style={{ color: brandColor }}>
-                N{order.totalToPay?.toLocaleString()}
+                N{(order.total_price || 0).toLocaleString()}
               </div>
             </div>
           </Card>
@@ -123,14 +134,15 @@ const FullOrderDetailsPanel = ({ order, brandColor, contrastTextColor, onBackToT
               <div className="text-right font-semibold">{formattedOrderId}</div>
 
               <div>Total Items</div>
-              <div className="text-right font-semibold">{order.itemCount}</div>
+              {/* ✅ FIX: Calculating item count dynamically */}
+              <div className="text-right font-semibold">{order.items?.length || 0}</div>
 
               <div>Payment Method</div>
-              <div className="text-right font-semibold">{order.paymentMethod}</div>
+              <div className="text-right font-semibold">{paymentMethod}</div>
 
               <div>Total</div>
               <div className="text-right font-semibold" style={{ color: brandColor }}>
-                N{order.totalPrice?.toLocaleString()}
+                N{(order.total_price || 0).toLocaleString()}
               </div>
             </div>
           </Card>

@@ -16,12 +16,33 @@ const ManageCouponsTab = ({
 }) => {
 
   const handleEditCoupon = (coupon) => {
+    // Pass the coupon object to the edit modal handler
     onRequestEdit?.(coupon);
   };
 
   const handleDeleteCoupon = (couponId) => {
     onRequestDelete?.(couponId);
   };
+
+  // Helper function to format the discount display string
+  const formatDiscount = (type, value) => {
+    // 1 is Percentage, 2 is Fixed (based on CouponRequest.php)
+    if (type === 1) {
+      return `${value}% off`;
+    }
+    if (type === 2) {
+      // Assuming a currency symbol (e.g., $) for fixed, adjust as needed
+      return `$${parseFloat(value).toFixed(2)} off`;
+    }
+    return 'N/A';
+  };
+
+  // Helper function to convert Laravel's timestamps to readable dates
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    // Ensure dateString is not just the date, if it includes time/timezone, use it
+    return new Date(dateString).toLocaleDateString();
+  }
 
   return (
     <div>
@@ -34,40 +55,48 @@ const ManageCouponsTab = ({
           <Card className="p-6 text-center text-gray-600">No coupons have been created yet.</Card>
         ) : (
           coupons.map((coupon) => (
+            // Use coupon.id for the key as it is a unique identifier
             <Card key={coupon.id} className="p-4 rounded-xl shadow-sm flex flex-col">
               <div className="w-full text-center border p-2 rounded-2xl border-gray-200 mb-4">
                 <h3 className="text-2xl font-bold text-gray-800 tracking-wider">{coupon.code}</h3>
+                {/* Display the discount value and type in a clear way */}
+                <p className="text-sm text-red-600 font-semibold mt-1">
+                  {formatDiscount(coupon.discount_type, coupon.discount_value)}
+                </p>
               </div>
 
               <div className="space-y-2 text-sm text-gray-600 mb-4">
                 <div className="flex justify-between">
                   <span>Date Created</span>
-                  <span className="font-medium text-gray-800">{coupon.dateCreated}</span>
+                  {/* Uses standard Laravel created_at timestamp */}
+                  <span className="font-medium text-gray-800">{formatDate(coupon.created_at)}</span>
                 </div>
+
+                {/* KEEPING: Based on the previous context, 'Times Used' maps to the backend field 
+                  'times_used', which is standard for coupon tracking. 
+                */}
                 <div className="flex justify-between">
                   <span>Times Used</span>
-                  <span className="font-medium text-gray-800">{coupon.timesUsed}</span>
+                  <span className="font-medium text-gray-800">{coupon.times_used}</span>
                 </div>
+
                 <div className="flex justify-between">
                   <span>Maximum Usage</span>
-                  <span className="font-medium text-gray-800">{coupon.maxUsage}</span>
+                  {/* Uses coupon.max_usage (Total usage limit) */}
+                  <span className="font-medium text-gray-800">{coupon.max_usage}</span>
                 </div>
-                {coupon.percentageOff != null && (
-                  <div className="flex justify-between">
-                    <span>Percentage Off</span>
-                    <span className="font-medium text-gray-800">{coupon.percentageOff}%</span>
-                  </div>
-                )}
-                {coupon.usagePerUser != null && (
-                  <div className="flex justify-between">
-                    <span>Usage Per User</span>
-                    <span className="font-medium text-gray-800">{coupon.usagePerUser}</span>
-                  </div>
-                )}
-                {coupon.expiryDate && (
+
+                <div className="flex justify-between">
+                  <span>Usage Per User</span>
+                  {/* Uses coupon.usage_per_user (Per customer limit) */}
+                  <span className="font-medium text-gray-800">{coupon.usage_per_user}</span>
+                </div>
+
+                {coupon.expiry_date && (
                   <div className="flex justify-between">
                     <span>Expiry Date</span>
-                    <span className="font-medium text-gray-800">{new Date(coupon.expiryDate).toLocaleDateString()}</span>
+                    {/* Uses coupon.expiry_date (Optional expiry date) */}
+                    <span className="font-medium text-gray-800">{formatDate(coupon.expiry_date)}</span>
                   </div>
                 )}
               </div>

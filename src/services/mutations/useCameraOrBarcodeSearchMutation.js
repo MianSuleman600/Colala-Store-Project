@@ -3,21 +3,23 @@ import { apiRequest } from '../../api/apiClient';
 
 export const useCameraOrBarcodeSearchMutation = () => {
   return useMutation({
-    mutationFn: async ({ type, image }) => {
-      if (!type) throw new Error('Search type is required');
-      if (!image) throw new Error('Image file is required');
+    // ✅ The mutation function now returns a promise
+    mutationFn: (variables) => {
+      const { type, image } = variables;
+
+      if (!type) return Promise.reject(new Error('Search type is required'));
+      if (!image) return Promise.reject(new Error('Image file is required'));
 
       const formData = new FormData();
-      formData.append('type', type);      // required by backend
-      formData.append('image', image);    // file input
+      formData.append('type', type);
+      formData.append('image', image);
 
-      const response = await apiRequest({
-        url: '/camera-search', // or /camera-search/barcode depending on backend
+      return apiRequest({
+        url: '/camera-search',
         method: 'POST',
         data: formData,
       });
-
-      return response; // backend returns { search_results, extracted_text, ... }
     },
+    // onSuccess and onError are now handled where the mutation is called (in SearchInput.jsx)
   });
 };

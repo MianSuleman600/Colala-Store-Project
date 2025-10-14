@@ -7,6 +7,9 @@ const OrderListItem = ({ order, isActive, onClick, brandColor }) => {
     if (order?.id) onClick(order.id);
   };
 
+  // ✅ FIX: Changed to display the store's name, with a fallback to the order number.
+  const displayName = order.store?.store_name || order.order?.order_no || `Order #${order.id}`;
+
   return (
     <Card
       className={`flex items-center p-4 rounded-xl cursor-pointer transition-all duration-200 ${
@@ -27,13 +30,15 @@ const OrderListItem = ({ order, isActive, onClick, brandColor }) => {
       </div>
 
       <div className="flex-grow">
-        <h3 className="text-lg font-semibold text-gray-800">{order?.customerName || 'Unknown Customer'}</h3>
-        <p className="text-sm text-gray-500">{order?.itemCount ?? 0} items</p>
+        <h3 className="text-lg font-semibold text-gray-800">{displayName}</h3>
+        {/* Correctly uses the length of the items array for the count. */}
+        <p className="text-sm text-gray-500">{order.items?.length ?? 0} items</p>
       </div>
 
       <div className="flex-shrink-0 text-right">
+        {/* Correctly uses subtotal_with_shipping for the price. */}
         <span className="text-lg font-bold" style={{ color: brandColor }}>
-          N{order?.totalPrice?.toLocaleString() ?? '0'}
+          N{parseFloat(order.subtotal_with_shipping || 0).toLocaleString()}
         </span>
       </div>
     </Card>

@@ -10,24 +10,31 @@ import { normalizeOrders } from '../../utils/dataNormalizer.js';
  */
 export const useGetOrdersQuery = (userId, options = {}) => {
   return useQuery({
-    // The query key is now simpler, as we fetch everything at once.
     queryKey: ['orders', userId],
     queryFn: async () => {
       const response = await orderService.getOrders();
-      
-      // ✅ THE FIX: Extract the 'data' array from each paginated list.
+
+      // --- DEBUGGING: log the raw backend response
+      console.log('Raw response from getOrders:', response);
+
       const newOrdersRaw = response?.data?.new_orders?.data || [];
       const completedOrdersRaw = response?.data?.completed_orders?.data || [];
-      
+
+      // --- DEBUGGING: log the raw extracted arrays
+      console.log('Raw new orders:', newOrdersRaw);
+      console.log('Raw completed orders:', completedOrdersRaw);
+
       const newOrders = normalizeOrders(newOrdersRaw);
       const completedOrders = normalizeOrders(completedOrdersRaw);
-      
-      // Return a structured object that the component can easily use.
+
+      // --- DEBUGGING: log normalized data
+      console.log('Normalized new orders:', newOrders);
+      console.log('Normalized completed orders:', completedOrders);
+
       return { new: newOrders, completed: completedOrders };
     },
-    // This query is only enabled if there's a logged-in user.
     enabled: !!userId,
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 60 * 1000,
     ...options,
   });
 };
@@ -40,9 +47,22 @@ export const useGetOrderByIdQuery = (orderId, userId, options = {}) => {
     queryKey: ['order', userId, orderId],
     queryFn: async () => {
       if (!orderId) return null;
+
       const response = await orderService.getOrderById(orderId);
+
+      // --- DEBUGGING: log raw backend response for single order
+      console.log(`Raw response for order ${orderId}:`, response);
+
       const rawOrder = response?.data; // The backend wraps the order in 'data'
+      
+      // --- DEBUGGING: log raw order before normalization
+      console.log('Raw single order before normalization:', rawOrder);
+
       const normalized = normalizeOrders(rawOrder ? [rawOrder] : []);
+
+      // --- DEBUGGING: log normalized single order
+      console.log('Normalized single order:', normalized[0] ?? null);
+
       return normalized[0] ?? null;
     },
     enabled: !!orderId,

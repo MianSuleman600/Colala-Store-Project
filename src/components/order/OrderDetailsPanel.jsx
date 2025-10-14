@@ -7,24 +7,20 @@ import OrderTrackerPanel from './OrderTrackerPanel';
 import { getContrastTextColor } from '../../utils/colorUtils';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../ui/ToastProvider';
-import { useSelector } from 'react-redux'; // Import useSelector
+import { useSelector } from 'react-redux';
 
 const OrderDetailsPanel = ({ customerOrder, brandColor, onBackToList }) => {
   const navigate = useNavigate();
   const { push } = useToast();
-  // Get the logged-in user's ID for mutations
   const userId = useSelector(state => state.auth.user?.id);
   
   const contrastTextColor = useMemo(() => getContrastTextColor(brandColor), [brandColor]);
 
-  // The status tabs are purely for UI and don't need to fetch data.
-  // We can derive the active tab from the order's actual status.
-  const activeStatusTab = useMemo(() => {
-    const status = (customerOrder?.status || '').toLowerCase();
-    if (status === 'delivered' || status === 'completed') return 'Completed';
-    if (status === 'out_for_delivery') return 'Out for delivery';
-    return 'Order placed';
-  }, [customerOrder?.status]);
+  // ✅ FIX: Define the four interactive tabs as requested by the design.
+  const TABS = ['Order placed', 'Out for delivery', 'Delivered', 'Completed'];
+
+  // ✅ FIX: Add state to manage which tab is currently selected by the user.
+  const [activeStatusTab, setActiveStatusTab] = useState('Order placed');
 
   const [showTracker, setShowTracker] = useState(false);
   const [itemToTrack, setItemToTrack] = useState(null);
@@ -35,7 +31,6 @@ const OrderDetailsPanel = ({ customerOrder, brandColor, onBackToList }) => {
   };
 
   const handleOpenChat = () => {
-    // ✅ FIX: The backend provides the chat object directly.
     if (customerOrder?.chat?.id) {
       navigate(`/chat/${customerOrder.chat.id}`);
     } else {
@@ -47,6 +42,28 @@ const OrderDetailsPanel = ({ customerOrder, brandColor, onBackToList }) => {
     setShowTracker(false);
     setItemToTrack(null);
   };
+  
+  // ✅ FIX: This function checks if the order's actual status matches the selected tab.
+  const shouldDisplayItemsForCurrentTab = useMemo(() => {
+    const orderStatus = (customerOrder?.status || '').toLowerCase();
+    const tab = activeStatusTab.toLowerCase();
+
+    if (tab === 'order placed') {
+      // Show for any initial status that isn't one of the later stages.
+      return !['out_for_delivery', 'delivered', 'completed'].includes(orderStatus);
+    }
+    if (tab === 'out for delivery') {
+      return orderStatus === 'out_for_delivery';
+    }
+    if (tab === 'delivered') {
+      return orderStatus === 'delivered';
+    }
+    if (tab === 'completed') {
+      return orderStatus === 'completed';
+    }
+    return false;
+  }, [activeStatusTab, customerOrder?.status]);
+
 
   if (!customerOrder) {
     return (
@@ -56,8 +73,7 @@ const OrderDetailsPanel = ({ customerOrder, brandColor, onBackToList }) => {
     );
   }
 
-  // ✅ FIX: Extract customer name from the nested user object provided by the backend.
-  const customerName = customerOrder.order?.user?.full_name || 'Customer';
+  const displayName = customerOrder.store?.store_name || customerOrder.order?.order_no || `Order #${customerOrder.id}`;
 
   return (
     <div className="space-y-6">
@@ -71,33 +87,36 @@ const OrderDetailsPanel = ({ customerOrder, brandColor, onBackToList }) => {
           >
             <ArrowLeftIcon className="h-5 w-5" />
           </button>
-          <h2 className="text-lg font-semibold text-gray-800">{customerName}</h2>
+          <h2 className="text-lg font-semibold text-gray-800">{displayName}</h2>
         </div>
       )}
 
       {showTracker && itemToTrack ? (
         <OrderTrackerPanel
-          customerName={customerName}
+          customerName={displayName}
           itemToTrack={itemToTrack}
           onOpenChat={handleOpenChat}
           onBackToOrderDetails={handleBackToOrderDetails}
           brandColor={brandColor}
-          fullOrderData={customerOrder} // Pass the complete order object
-          userId={userId} // Pass userId for mutation hooks
+          fullOrderData={customerOrder}
+          userId={userId}
         />
       ) : (
         <>
+          <h2 className="hidden lg:block text-2xl font-bold text-gray-800">{displayName}</h2>
+          
+          {/* ✅ FIX: Tabs are now interactive, using the new state and tab array. */}
           <div className="flex space-x-2 sm:space-x-4 overflow-x-auto pb-2 no-scrollbar">
-            {['Order placed', 'Out for delivery', 'Completed'].map((tab) => (
+            {TABS.map((tab) => (
               <button
                 key={tab}
+                onClick={() => setActiveStatusTab(tab)} // Set the active tab on click
                 className={`py-2 px-4 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors duration-200 flex-shrink-0 ${
                   activeStatusTab === tab ? 'shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
                 style={activeStatusTab === tab ? { backgroundColor: brandColor, color: contrastTextColor } : {}}
                 aria-pressed={activeStatusTab === tab}
                 type="button"
-                disabled // Tabs are for display, not interaction
               >
                 {tab}
               </button>
@@ -109,7 +128,8 @@ const OrderDetailsPanel = ({ customerOrder, brandColor, onBackToList }) => {
               Items in Order
             </h3>
             <div className="space-y-4">
-              {customerOrder.items?.length > 0 ? (
+              {/* ✅ FIX: Conditionally render items based on the selected tab and order status. */}
+              {shouldDisplayItemsForCurrentTab && customerOrder.items?.length > 0 ? (
                 customerOrder.items.map((item) => (
                   <OrderItemCard
                     key={item.id}
@@ -120,7 +140,9 @@ const OrderDetailsPanel = ({ customerOrder, brandColor, onBackToList }) => {
                   />
                 ))
               ) : (
-                <p className="text-sm text-gray-500">No items found for this order.</p>
+                <p className="text-sm text-center py-4 text-gray-500">
+                  No items found for the "{activeStatusTab}" status.
+                </p>
               )}
             </div>
           </Card>

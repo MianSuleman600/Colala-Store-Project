@@ -21,19 +21,15 @@ const ACCESS_KEY = 'authToken';
 const REFRESH_KEY = 'refresh_token';
 
 export const getAuthTokens = () => {
-  // Try localStorage first, then sessionStorage as fallback
   let accessToken = safeStorage.get(ACCESS_KEY);
   let refreshToken = safeStorage.get(REFRESH_KEY);
   
-  // If not found in localStorage, try sessionStorage
   if (!accessToken) {
     try {
       if (typeof sessionStorage !== 'undefined') {
         accessToken = sessionStorage.getItem(ACCESS_KEY);
       }
-    } catch (e) {
-      console.warn('Could not access sessionStorage:', e);
-    }
+    } catch {}
   }
   
   if (!refreshToken) {
@@ -41,36 +37,20 @@ export const getAuthTokens = () => {
       if (typeof sessionStorage !== 'undefined') {
         refreshToken = sessionStorage.getItem(REFRESH_KEY);
       }
-    } catch (e) {
-      console.warn('Could not access sessionStorage:', e);
-    }
+    } catch {}
   }
   
-  console.log('Retrieved auth tokens:', { 
-    hasAccessToken: !!accessToken, 
-    hasRefreshToken: !!refreshToken,
-    accessTokenLength: accessToken?.length || 0
-  });
-  
-  return {
-    accessToken,
-    refreshToken,
-  };
+  return { accessToken, refreshToken };
 };
 
 export const setAuthTokens = ({ accessToken, refreshToken }) => {
-  console.log('Storing auth tokens:', { hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken });
-  
   if (accessToken) {
     safeStorage.set(ACCESS_KEY, accessToken);
-    // Also store in sessionStorage as backup
     try {
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.setItem(ACCESS_KEY, accessToken);
       }
-    } catch (e) {
-      console.warn('Could not store token in sessionStorage:', e);
-    }
+    } catch {}
   }
   if (refreshToken) {
     safeStorage.set(REFRESH_KEY, refreshToken);
@@ -78,24 +58,19 @@ export const setAuthTokens = ({ accessToken, refreshToken }) => {
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.setItem(REFRESH_KEY, refreshToken);
       }
-    } catch (e) {
-      console.warn('Could not store refresh token in sessionStorage:', e);
-    }
+    } catch {}
   }
 };
 
 export const clearAuthTokens = () => {
   safeStorage.remove(ACCESS_KEY);
   safeStorage.remove(REFRESH_KEY);
-  // Also clear from sessionStorage
   try {
     if (typeof sessionStorage !== 'undefined') {
       sessionStorage.removeItem(ACCESS_KEY);
       sessionStorage.removeItem(REFRESH_KEY);
     }
-  } catch (e) {
-    console.warn('Could not clear tokens from sessionStorage:', e);
-  }
+  } catch {}
 };
 
 // ---------------------------

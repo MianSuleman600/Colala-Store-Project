@@ -14,80 +14,47 @@ import {
 import { getContrastTextColor } from "../../utils/colorUtils";
 import { ASSETS_BASE } from "../../api/apiConfig";
 
-/**
- * A universal display card for products, services, and sponsored items.
- * It adapts its appearance and actions based on the `mode` prop.
- */
 const ProductDisplayCard = ({
   item = {},
   brandColor = "#EF4444",
-  mode = "product", // 'profile', 'product', 'sponsored', 'service'
+  mode = "product",
   isUpdating = false,
   onAddToCart = () => {},
   onEdit = () => {},
   onMoreOptionsClick = () => {},
-  onViewDetailsClick,
+  onViewDetailsClick, // This prop is now used for the "View Details" button in service mode
+  onViewStatsClick = () => {}, // This will now be triggered by the "View Details" button for services
+  onDeleteClick = () => {},
+  onMarkAsAvailable = () => {},
+  onMarkAsUnavailable = () => {},
 }) => {
   const navigate = useNavigate();
   const contrast = getContrastTextColor(brandColor);
   const isService = mode === "service";
 
-  // --- UNIVERSAL DATA NORMALIZATION ---
-  // This block makes the component flexible. It maps various possible
-  // backend property names to a consistent internal structure.
   const normalizedItem = React.useMemo(() => {
-    // If item is already normalized (from normalizeSellerProducts), use it directly
-    if (item.imageUrl && item.metrics) {
+    if (item.originalItem) {
       return item;
     }
 
-    // Otherwise, normalize the raw API response
     const rawStatus = (item.status || "available").toLowerCase();
-    const firstImage =
-      item.images?.[0]?.url ||
-      item.images?.[0]?.path_url ||
-      item.media?.[0]?.url ||
-      item.media?.[0]?.path_url ||
-      item.imageUrl;
-
-    const hasBulkPrices = Array.isArray(item.detailsPageInfo?.bulkPrices) && item.detailsPageInfo.bulkPrices.length > 0;
-    const hasBulkFlag = item.hasBulkDiscount || hasBulkPrices;
-    const hasFreeDeliveryFlag =
-      item.hasFreeDelivery || item.markForFreeDelivery || item.delivery?.isFree || item.delivery?.is_free || false;
+    const firstProductImage = item.images?.[0]?.path;
+    const firstServiceImage = item.media?.find(m => m.type === 'image')?.path;
+    const firstImage = firstProductImage || firstServiceImage;
 
     return {
       id: item.id,
       name: item.name || "Untitled Item",
-      imageUrl: firstImage
-        ? firstImage.startsWith("http")
-          ? firstImage
-          : `${ASSETS_BASE}/storage/${firstImage}`
-        : null,
+      imageUrl: firstImage ? `${ASSETS_BASE}/storage/${firstImage}` : null,
       price: parseFloat(item.discount_price ?? item.price ?? 0),
-      originalPrice:
-        item.discount_price != null ? parseFloat(item.price) : null,
+      originalPrice: item.discount_price != null ? parseFloat(item.price) : null,
       minPrice: parseFloat(item.price_from ?? 0),
       maxPrice: parseFloat(item.price_to ?? 0),
-      category: item.category?.title || item.category || "Uncategorized",
+      category: item.category?.title || "Uncategorized",
       storeName: item.store?.store_name || "Store",
       storeLogo: item.store?.profile_image_url,
       rating: item.average_rating ?? item.rating ?? 0,
-      location: item.location || item.store?.location,
-      status:
-        rawStatus === "sold" || rawStatus === "out of stock"
-          ? "sold"
-          : rawStatus === "unavailable" || rawStatus === "inactive"
-          ? "unavailable"
-          : "available",
-      metrics: item.metrics || {
-        productViews: item.views || 0,
-        productClicks: item.clicks || 0,
-        messages: item.chats || 0,
-      },
-      hasFreeDelivery: !!hasFreeDeliveryFlag,
-      hasBulkDiscount: !!hasBulkFlag,
-      bulkDiscountText: item.discountText || (hasBulkFlag ? "20% Off in bulk" : undefined),
-      // Keep original item for handlers
+      status: rawStatus === "sold" || rawStatus === "out of stock" ? "sold" : rawStatus === "unavailable" || rawStatus === "inactive" ? "unavailable" : "available",
       originalItem: item,
     };
   }, [item]);
@@ -96,41 +63,28 @@ const ProductDisplayCard = ({
   const isUnavailable = normalizedItem.status === "unavailable";
   const isMasked = isSold || isUnavailable;
   const isDisabled = isMasked || isUpdating;
-  const badgeText = isSold
-    ? "Out of Stock"
-    : isUnavailable
-    ? "Unavailable"
-    : null;
+  const badgeText = isSold ? "Out of Stock" : isUnavailable ? "Unavailable" : null;
 
-  // --- Event Handlers ---
   const handleViewDetails = () => {
+    // For services, the main click should open stats as per the new flow.
+    if (isService) {
+        onViewStatsClick();
+        return;
+    }
+    // For products, it navigates to the details page.
     if (onViewDetailsClick) {
-      onViewDetailsClick(normalizedItem.originalItem);
+      onViewDetailsClick();
       return;
     }
-    const path = isService
-      ? `/my-services/${normalizedItem.id}/details`
-      : `/my-products/${normalizedItem.id}/details`;
-    navigate(path, { state: { product: {
-      id: normalizedItem.id,
-      name: normalizedItem.name,
-      imageUrl: normalizedItem.imageUrl,
-      currentPrice: normalizedItem.price,
-      originalPrice: normalizedItem.originalPrice,
-      rating: normalizedItem.rating,
-    } } });
+    const path = `/my-products/${normalizedItem.id}/details`;
+    navigate(path, { state: { product: normalizedItem.originalItem } });
   };
-
+  
   const handleEdit = () => {
-    const path = isService
-      ? `/my-services/${normalizedItem.id}/edit`
-      : `/my-products/${normalizedItem.id}/edit`;
-    onEdit ? onEdit(normalizedItem.id) : navigate(path);
+    onEdit(normalizedItem); 
   };
-
-  const handleAddToCartClick = () => {
-    onAddToCart(normalizedItem.originalItem);
-  };
+  
+  const handleAddToCartClick = () => onAddToCart(normalizedItem.originalItem);
 
   return (
     <Card
@@ -174,25 +128,23 @@ const ProductDisplayCard = ({
         )}
       </div>
 
-      {mode !== "sponsored" && (
-        <div className="flex items-center gap-2 bg-gray-100 px-3 py-2">
-          <img
-            src={normalizedItem.storeLogo || "https://placehold.co/24x24"}
-            alt="store logo"
-            className="h-6 w-6 rounded-full object-cover"
-          />
-          <span className="text-sm font-medium" style={{ color: brandColor }}>
-            {normalizedItem.storeName}
-          </span>
-          <span
-            className="ml-auto flex items-center gap-1 pr-1 text-sm"
-            style={{ color: brandColor }}
-          >
-            <StarIcon className="h-4 w-4" />
-            {normalizedItem.rating.toFixed(1)}
-          </span>
-        </div>
-      )}
+      <div className="flex items-center gap-2 bg-gray-100 px-3 py-2">
+        <img
+          src={normalizedItem.storeLogo || "https://placehold.co/24x24"}
+          alt="store logo"
+          className="h-6 w-6 rounded-full object-cover"
+        />
+        <span className="text-sm font-medium" style={{ color: brandColor }}>
+          {normalizedItem.storeName}
+        </span>
+        <span
+          className="ml-auto flex items-center gap-1 pr-1 text-sm"
+          style={{ color: brandColor }}
+        >
+          <StarIcon className="h-4 w-4" />
+          {normalizedItem.rating.toFixed(1)}
+        </span>
+      </div>
 
       <div className="flex flex-1 flex-col p-4">
         <h3
@@ -222,24 +174,20 @@ const ProductDisplayCard = ({
           </div>
         )}
 
-        {mode === "sponsored" && (
-          <div className="mb-4 flex items-center gap-2">
-            {normalizedItem.hasFreeDelivery && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/10 text-orange-600 border border-orange-200 px-2 py-1 text-xs font-semibold">
-                <ShoppingCartIcon className="h-4 w-4" /> Free delivery
-              </span>
-            )}
-            {normalizedItem.hasBulkDiscount && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-yellow-500/10 text-yellow-700 border border-yellow-200 px-2 py-1 text-xs font-semibold">
-                <ShoppingCartIcon className="h-4 w-4" /> {normalizedItem.bulkDiscountText || "Bulk discount"}
-              </span>
-            )}
-          </div>
-        )}
-
         <div className="mt-auto w-full pt-4 border-t">
-          {/* Renders for seller's own product/service list */}
-          {(mode === "product" || isService) && (
+          {/* ✅ FIX: Conditional rendering based on `mode` */ }
+          {isService ? (
+            // For "service" mode, show only the "View Details" button.
+            <Button
+              className="w-full rounded-xl py-3 font-semibold"
+              style={{ backgroundColor: brandColor, color: contrast }}
+              onClick={onViewStatsClick} // This now opens the stats modal.
+              disabled={isDisabled}
+            >
+              View Details
+            </Button>
+          ) : (
+            // For "product" mode, show the original layout.
             <div className="flex items-center justify-between">
               <span className="rounded-lg border px-2 py-1 text-gray-800 text-xs">
                 {normalizedItem.category}
@@ -271,57 +219,6 @@ const ProductDisplayCard = ({
                 </button>
               </div>
             </div>
-          )}
-
-          {/* Renders for public store profile view */}
-          {mode === "profile" && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center text-sm text-gray-500">
-                <MapPinIcon className="h-5 w-5 mr-1" />
-                <span>{normalizedItem.location}</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleAddToCartClick}
-                disabled={isDisabled}
-                className="p-2 rounded-full border hover:bg-gray-100"
-              >
-                <ShoppingCartIcon
-                  className={`h-6 w-6 ${
-                    isDisabled ? "text-gray-400" : "text-gray-700"
-                  }`}
-                />
-              </button>
-            </div>
-          )}
-
-          {mode === "sponsored" && (
-            <div className="mb-3 space-y-3 text-sm text-gray-600">
-              <div className="flex items-center justify-between">
-                <span>Product Views</span>
-                <span className="font-medium text-gray-900">{normalizedItem.metrics.productViews}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Product Clicks</span>
-                <span className="font-medium text-gray-900">{normalizedItem.metrics.productClicks}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Messages</span>
-                <span className="font-medium text-gray-900">{normalizedItem.metrics.messages}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Renders for sponsored or search results view */}
-          {(mode === "sponsored" || mode === "search") && (
-            <Button
-              className="w-full rounded-xl py-3 font-semibold"
-              style={{ backgroundColor: brandColor, color: contrast }}
-              onClick={handleViewDetails}
-              disabled={isDisabled}
-            >
-              View Details
-            </Button>
           )}
         </div>
       </div>

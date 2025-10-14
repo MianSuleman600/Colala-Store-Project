@@ -1,5 +1,3 @@
-// src/hooks/Products/useProductForm.js
-
 import { useEffect, useState, useRef } from 'react';
 import { useToast } from '../../components/ui/ToastProvider';
 import { useSelector } from 'react-redux';
@@ -12,12 +10,7 @@ import {
   useUpdateBulkPricesMutation,
   useUpdateDeliveryOptionsMutation
 } from '../../services/mutations/useProductMutation';
-
-const isVideoUrl = (url = '') => {
-  if (typeof url !== 'string') return false;
-  const base = url.split('?')[0];
-  return /^data:video\//i.test(url) || /^blob:/i.test(url) || /\.(mp4|webm|ogg|mov|m4v)$/i.test(base);
-};
+import { ASSETS_BASE } from '../../api/apiConfig';
 
 const initialFormData = {
   productImages: [],
@@ -43,7 +36,8 @@ const initialFormData = {
 };
 
 export function useProductForm({ product, isEdit }) {
-  const { userId } = useSelector((s) => s.auth);
+  const { user } = useSelector((s) => s.auth);
+  const userId = user?.id;
   const { push } = useToast();
 
   const { mutateAsync: addProduct, isLoading: isAdding } = useAddProductMutation({ userId });
@@ -53,7 +47,6 @@ export function useProductForm({ product, isEdit }) {
   const { mutateAsync: deleteVariant } = useDeleteVariantMutation();
   const { mutateAsync: updateBulkPrices } = useUpdateBulkPricesMutation();
   const { mutateAsync: updateDeliveryOptions } = useUpdateDeliveryOptionsMutation();
-
   const isSubmitting = isAdding || isUpdating;
 
   const [formData, setFormData] = useState(initialFormData);
@@ -63,47 +56,54 @@ export function useProductForm({ product, isEdit }) {
   useEffect(() => () => { createdUrls.current.forEach(URL.revokeObjectURL); }, []);
 
   useEffect(() => {
+    // --- DEBUGGING LINE ---
+    console.log('[DEBUG useProductForm] Received RAW product data for form population:', product);
+
     if (isEdit && product) {
-      const dp = product.detailsPageInfo || {};
-      const thumbs = (dp.thumbnailUrls || []).filter(u => u && !isVideoUrl(u));
-      const main = (dp.mainImageUrl && !isVideoUrl(dp.mainImageUrl)) ? [dp.mainImageUrl] : [];
-      const imageUrls = Array.from(new Set([...main, ...thumbs]));
+      // ✅ FIX: Use 'path' from the images array to build the full URL.
+      const imageUrls = (product.images || []).map(img => {
+        const url = img.path;
+        if (!url) return null;
+        const fullUrl = url.startsWith('http') ? url : `${ASSETS_BASE}/storage/${url}`;
+        return { fileObject: null, fileUrl: fullUrl };
+      }).filter(Boolean);
 
-      // Ensure wholesalePrice elements have required keys even if empty
-      const sanitizedWholesalePrice = (product.wholesalePrice || []).map(priceItem => ({
-        min_quantity: priceItem.min_quantity ?? '',
-        price: priceItem.price ?? '',
-        ...priceItem,
-      }));
-
-      setFormData({
+      // ✅ FIX: The video is a string path. Build the full URL.
+      const videoUrl = product.video;
+      const fullVideoUrl = videoUrl
+        ? videoUrl.startsWith('http') ? videoUrl : `${ASSETS_BASE}/storage/${videoUrl}`
+        : null;
+      
+      const populatedData = {
         ...initialFormData,
         ...product,
-        productImages: imageUrls.map(u => ({ fileObject: null, fileUrl: u })),
-        productVideo: dp.productVideo ? { fileObject: null, fileUrl: dp.productVideo } : null,
+        productImages: imageUrls,
+        productVideo: fullVideoUrl ? { fileObject: null, fileUrl: fullVideoUrl } : null,
         productName: product.name || '',
-        category: product.category_id || product.category || '',
-        shortDescription: product.shortDescription || '',
-        fullDescription: { ...initialFormData.fullDescription, ...product.fullDescription, generalDescription: dp.description || '' },
-        price: product.currentPrice ?? '',
+        // ✅ FIX: Set the category_id from the RAW object.
+        category: product.category_id || '',
+        brand: product.brand || '',
+        shortDescription: product.description || '',
+        price: product.price ?? '',
+        discountPrice: product.discount_price ?? '',
         has_variants: !!product.has_variants,
-        wholesalePrice: sanitizedWholesalePrice, // Use sanitized data
+        wholesalePrice: (product.wholesale_prices || []).map(p => ({ ...p, min_quantity: p.min_quantity ?? '', price: p.price ?? '' })),
         variants: product.variants || [],
-        deliveryLocations: product.deliveryLocations || [],
-        availabilityLocations: product.availabilityLocations || [],
-      });
+      };
+
+      // --- DEBUGGING LINE ---
+      console.log('[DEBUG useProductForm] Populating form with this data:', populatedData);
+      setFormData(populatedData);
+      
     } else if (!isEdit) {
       setFormData(initialFormData);
     }
   }, [isEdit, product]);
-
+  
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setValidationErrors(prev => ({ ...prev, [name]: undefined }));
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
   const handleFileChange = (e) => {
@@ -143,7 +143,7 @@ export function useProductForm({ product, isEdit }) {
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
-
+  
   const submit = async ({ onSuccessNavigateTo }) => {
     if (!validateForm()) {
       push('Please fix the errors before submitting.', { type: 'error' });
@@ -160,15 +160,21 @@ export function useProductForm({ product, isEdit }) {
       if (formData.discountPrice) corePayload.append('discount_price', formData.discountPrice);
       corePayload.append('has_variants', formData.has_variants ? '1' : '0');
 
-      // Filter the array to only include NEW images that have a file object.
-      const newImageFiles = formData.productImages.filter(img => img.fileObject);
-
-      // Loop over this *filtered* array to ensure the indexes are contiguous (0, 1, 2...).
-      newImageFiles.forEach((img, index) => {
-        corePayload.append(`images[${index}]`, img.fileObject);
+      formData.productImages.forEach((img, index) => {
+        if (img.fileObject) {
+          corePayload.append(`images[${index}]`, img.fileObject);
+        } else if (img.fileUrl && isEdit) {
+          const relativeUrl = img.fileUrl.replace(`${ASSETS_BASE}/storage/`, '');
+          corePayload.append(`existing_images[${index}]`, relativeUrl);
+        }
       });
-
-      if (formData.productVideo?.fileObject) corePayload.append('video', formData.productVideo.fileObject);
+      
+      if (formData.productVideo?.fileObject) {
+        corePayload.append('video', formData.productVideo.fileObject);
+      } else if (formData.productVideo?.fileUrl && isEdit) {
+        const relativeUrl = formData.productVideo.fileUrl.replace(`${ASSETS_BASE}/storage/`, '');
+        corePayload.append('existing_video', relativeUrl);
+      }
 
       const result = isEdit
         ? await updateProduct({ id: product.id, payload: corePayload })
@@ -179,48 +185,20 @@ export function useProductForm({ product, isEdit }) {
       if (!productId) throw new Error("Failed to get a valid Product ID after saving.");
 
       const subTasks = [];
-      if (formData.has_variants) {
-        const originalVariants = product?.variants || [];
-        const currentVariants = formData.variants || [];
-
-        originalVariants.forEach(ov => { if (!currentVariants.some(cv => cv.id === ov.id)) subTasks.push(deleteVariant({ productId, variantId: ov.id })) });
-        currentVariants.forEach(cv => {
-          const p = { name: cv.name, options: cv.options };
-          if (cv.id) subTasks.push(updateVariant({ productId, variantId: cv.id, payload: p }));
-          else subTasks.push(createVariant({ productId, payload: p }));
-        });
-      }
-
-      // ✅ FIX: Validate and filter wholesalePrice to ensure required fields are present and valid
-      const validWholesalePrices = (formData.wholesalePrice || []).filter(item => {
-        const minQuantity = Number(item.min_quantity);
-        const price = Number(item.price);
-        return !isNaN(minQuantity) && minQuantity > 0 && !isNaN(price) && price > 0;
-      });
-
+      const validWholesalePrices = (formData.wholesalePrice || []).filter(item => Number(item.min_quantity) > 0 && Number(item.price) > 0);
       if (validWholesalePrices.length > 0) {
-        // The API likely expects the payload to be under a 'prices' key in the body, 
-        // as per the error: 'The prices.0.min_quantity field is required.'
-        const bulkPricePayload = { prices: validWholesalePrices };
-        subTasks.push(updateBulkPrices({ productId, payload: bulkPricePayload }));
+        subTasks.push(updateBulkPrices({ productId, payload: { prices: validWholesalePrices } }));
       }
-      // ❌ Original line removed: if (formData.wholesalePrice?.length > 0) subTasks.push(updateBulkPrices({ productId, payload: formData.wholesalePrice }));
-
-      if (formData.deliveryLocations?.length > 0) subTasks.push(updateDeliveryOptions({ productId, payload: formData.deliveryLocations }));
-
+      
       await Promise.all(subTasks);
 
       push('Product saved successfully!', { type: 'success' });
       if (onSuccessNavigateTo) onSuccessNavigateTo();
 
     } catch (error) {
-      console.error("Full product save failed:", error);
-      // Check for the specific 422 error response structure
-      const apiErrorMessage = error.response?.data?.errors?.prices?.[0] ||
-        error.response?.data?.message ||
-        error.message ||
-        'An error occurred while saving.';
-      push(apiErrorMessage, { type: 'error' });
+       console.error("Full product save failed:", error);
+       const apiErrorMessage = error.response?.data?.message || error.message || 'An error occurred while saving.';
+       push(apiErrorMessage, { type: 'error' });
     }
   };
 

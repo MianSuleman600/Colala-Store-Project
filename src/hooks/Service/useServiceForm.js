@@ -1,5 +1,3 @@
-// src/hooks/Service/useServiceForm.js
-
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useCreateService, useUpdateService } from '../../services/mutations/useServicesMutation';
@@ -9,7 +7,7 @@ import { ASSETS_BASE } from '../../api/apiConfig';
 
 export const MEDIA = {
   MAX_IMAGES: 5,
-  MAX_TOTAL_MEDIA: 5, // Define a total limit for all media files
+  MAX_TOTAL_MEDIA: 5,
   MAX_IMAGE_MB: 5,
   MAX_VIDEO_MB: 5,
   ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
@@ -36,12 +34,16 @@ const emptyForm = {
   subServices: [],
 };
 
-export function useServiceForm({ serviceId, onSuccess, onError } = {}) {
+export function useServiceForm({ serviceId, serviceFromState, onSuccess, onError } = {}) {
   const isEdit = Boolean(serviceId);
   const { push } = useToast();
   const { isAuthenticated } = useSelector((state) => state.auth);
 
-  const { data: service, isLoading: isLoadingService } = useService(serviceId, { enabled: isEdit });
+  const { data: serviceFromApi, isLoading: isLoadingService } = useService(serviceId, { 
+    enabled: isEdit && !serviceFromState 
+  });
+
+  const service = serviceFromState || serviceFromApi;
 
   const [formData, setFormData] = useState(emptyForm);
   const [validationErrors, setValidationErrors] = useState({});
@@ -64,8 +66,9 @@ export function useServiceForm({ serviceId, onSuccess, onError } = {}) {
     });
   }, [isEdit, service]);
 
-  const createMutation = useCreateService({ onSuccess: (data) => onSuccess?.(data, { mode: 'create' }), onError });
-  const updateMutation = useUpdateService({ onSuccess: (data) => onSuccess?.(data, { mode: 'edit' }), onError });
+  // ✅ FIX: The hook's internal onSuccess now passes the full response data to the parent component's onSuccess function.
+  const createMutation = useCreateService({ onSuccess: (response) => onSuccess?.(response, { mode: 'create' }), onError });
+  const updateMutation = useUpdateService({ onSuccess: (response) => onSuccess?.(response, { mode: 'edit' }), onError });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -83,7 +86,6 @@ export function useServiceForm({ serviceId, onSuccess, onError } = {}) {
     if (!files || !files.length) return;
     setFormData(currentState => {
       const currentMediaCount = currentState.serviceImages.length + (currentState.serviceVideo ? 1 : 0);
-
       if (name === 'serviceImages') {
         const availableSlots = MEDIA.MAX_TOTAL_MEDIA - currentMediaCount;
         if (availableSlots <= 0) {
@@ -151,20 +153,14 @@ export function useServiceForm({ serviceId, onSuccess, onError } = {}) {
     if (asNumber(formData.priceRangeTo) !== null) fd.append('price_to', asNumber(formData.priceRangeTo));
     if (asNumber(formData.discountPrice) !== null) fd.append('discount_price', asNumber(formData.discountPrice));
     
-    // --- FIX: Use PHP-friendly square bracket notation for arrays. ---
-    // This is the standard format that Laravel will correctly parse into arrays on the backend.
-    
-    // Handle Images: media[]
     formData.serviceImages.filter(img => img.file).forEach(img => {
       fd.append('media[]', img.file);
     });
 
-    // Handle Video: video
     if (formData.serviceVideo?.file) {
       fd.append('video', formData.serviceVideo.file);
     }
     
-    // Handle Sub-Services: sub_services[index][key]
     formData.subServices.forEach((sub, index) => {
       fd.append(`sub_services[${index}][name]`, sub.name);
       fd.append(`sub_services[${index}][price_from]`, sub.price_from || '');
@@ -185,15 +181,6 @@ export function useServiceForm({ serviceId, onSuccess, onError } = {}) {
     }
     
     const payload = buildPayload();
-
-    // --- DEBUGGING LINE: Log FormData content before sending ---
-    console.log("--- Submitting Service FormData ---");
-    for (const [key, value] of payload.entries()) {
-      // Log file details for clarity, otherwise log the value
-      const logValue = value instanceof File ? `${value.name} (${value.size} bytes, type: ${value.type})` : value;
-      console.log(`[${key}]:`, logValue);
-    }
-    console.log("---------------------------------");
     
     try {
         if (isEdit) {
@@ -220,7 +207,7 @@ export function useServiceForm({ serviceId, onSuccess, onError } = {}) {
 
   return {
     isEdit,
-    isLoadingInit: isEdit && isLoadingService,
+    isLoadingInit: isEdit && isLoadingService && !serviceFromState,
     formData,
     validationErrors,
     handleChange,

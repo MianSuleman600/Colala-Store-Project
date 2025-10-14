@@ -54,10 +54,10 @@ export const buildQuery = (params = {}) => {
 // ---------------------------
 export const ENDPOINTS = {
 
- 
+
   SEARCH: {
     TEXT: (params = {}) => `${u('/search')}${buildQuery(params)}`,
-    CAMERA: u('/search/camera'),   // ✅ New camera search endpoint
+    CAMERA: u('/search/camera'),   // ✅ New camera search endpoint
     BARCODE: u('/search/barcode'), // ✅ Optional barcode endpoint
   },
 
@@ -69,7 +69,7 @@ export const ENDPOINTS = {
     EDIT_PROFILE: u('/auth/edit-profile'), // ✅ Added
     PASSWORD: {
       RESET_REQUEST: u('/auth/forget-password'), // ✅ Corrected
-      RESET_VERIFY: u('/auth/verify-otp'),      // ✅ Corrected
+      RESET_VERIFY: u('/auth/verify-otp'),      // ✅ Corrected
       RESET_CONFIRM: u('/auth/reset-password'), // ✅ Corrected
     },
   },
@@ -255,11 +255,19 @@ export const ENDPOINTS = {
     APPLY: (code) => u(`/seller/coupons/apply/${encodeSeg(code)}`),
   },
 
-  // The old POINTS endpoints remain if they are still correct
+  // Aligning the POINTS endpoints with the confirmed seller/loyalty routes
   POINTS: {
+    // GET /seller/loyalty/customers
+    CUSTOMERS: u('/seller/loyalty/customers'),
+
+    // GET /seller/loyalty/settings
+    GET_SETTINGS: u('/seller/loyalty/settings'),
+
+    // POST /seller/loyalty/settings (Used for creating/updating settings)
+    UPDATE_SETTINGS: u('/seller/loyalty/settings'),
+
+    // Retaining the old summary endpoint for now, though CUSTOMERS may be preferred
     SUMMARY: u('/points/summary'),
-    CUSTOMERS: u('/points/customers'),
-    UPDATE_SETTINGS: u('/points/settings'),
   },
 
   PLANS: {
@@ -316,8 +324,8 @@ export const ENDPOINTS = {
     WALLET: u('/referrals/wallet'),
     WALLET_SUMMARY: u('/wallet/refferal-balance'), // GET
     CODE: u('/referrals/code'),
-    WITHDRAW: u('/wallet/withdraw/referral'),   // POST
-    TRANSFER: u('/wallet/transfer'),            // POST
+    WITHDRAW: u('/wallet/withdraw/referral'),   // POST
+    TRANSFER: u('/wallet/transfer'),            // POST
     TRANSACTIONS: (params = {}) => `${u('/referrals/transactions')}${buildQuery(params)}`,
 
     FAQS: u('/faqs/category/name/general'),

@@ -1,4 +1,3 @@
-// src/components/coupons_points/PointsSettingsModal.jsx
 import React, { useState } from 'react';
 import Button from '../ui/Button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
@@ -10,6 +9,7 @@ const Toggle = ({ enabled, onChange, brandColor }) => (
 );
 
 const PointsSettingsModal = ({ onClose, onSave, isSubmitting, brandColor }) => {
+  // State management for form inputs
   const [pointsPerCompletedOrder, setPointsPerCompletedOrder] = useState('');
   const [pointsPerReferral, setPointsPerReferral] = useState('');
   const [completedOrderPointsEnabled, setCompletedOrderPointsEnabled] = useState(true);
@@ -17,11 +17,16 @@ const PointsSettingsModal = ({ onClose, onSave, isSubmitting, brandColor }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // FIX: Convert data structure and types to match backend expectations (snake_case keys and string values for toggles)
     onSave({
-      pointsPerCompletedOrder: pointsPerCompletedOrder ? parseInt(pointsPerCompletedOrder, 10) : 0,
-      pointsPerReferral: pointsPerReferral ? parseInt(pointsPerReferral, 10) : 0,
-      completedOrderPointsEnabled,
-      referralPointsEnabled,
+      // Send numerical values as strings if the backend expects them that way, or just use the number
+      points_per_order: pointsPerCompletedOrder ? parseInt(pointsPerCompletedOrder, 10) : 0,
+      points_per_referral: pointsPerReferral ? parseInt(pointsPerReferral, 10) : 0,
+
+      // Convert booleans (true/false) to string numbers ("1"/"0") as seen in the API response
+      enable_order_points: completedOrderPointsEnabled ? "1" : "0",
+      enable_referral_points: referralPointsEnabled ? "1" : "0",
     });
   };
 

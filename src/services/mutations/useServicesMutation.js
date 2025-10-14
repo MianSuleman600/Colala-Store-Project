@@ -1,65 +1,43 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { serviceService } from '../index.js';
-import { normalizeServices } from '../../utils/dataNormalizer.js';
+import { serviceService } from '../index.js'; // Assuming this is your service API functions
+
 
 const getToken = () => (typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : '') || '';
 
-/**
- * Create a new service (supports FormData or JSON payload)
- */
 export const useCreateService = (options = {}) => {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: async (payload) => {
-      // payload can be FormData (preferred for images/video) or JSON
-      return serviceService.createService(payload, getToken());
-    },
+    mutationFn: (payload) => serviceService.createService(payload, getToken()),
     onSuccess: (data) => {
-      const normalized = normalizeServices([data?.service || data])[0] || null;
-      // Invalidate list; optionally set cache for detail
+      // ✅ Return the RAW data from the API. The component will handle it.
       queryClient.invalidateQueries({ queryKey: ['services'] });
-      if (normalized?.id) {
-        queryClient.setQueryData(['service', normalized.id], normalized);
-      }
-      options?.onSuccess?.(normalized);
+      options?.onSuccess?.(data);
     },
-    onError: (error) => {
-      options?.onError?.(error);
-    },
+    onError: (error) => options?.onError?.(error),
   });
 };
 
-/**
- * Update a service and refresh caches
- */
 export const useUpdateService = (options = {}) => {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: async ({ serviceId, payload }) => serviceService.updateService(serviceId, payload, getToken()),
+    mutationFn: ({ serviceId, payload }) => serviceService.updateService(serviceId, payload, getToken()),
     onSuccess: (data, variables) => {
-      const normalized = normalizeServices([data?.service || data])[0] || null;
+      // ✅ Return the RAW, updated data from the API.
       if (variables?.serviceId) {
-        queryClient.setQueryData(['service', variables.serviceId], normalized);
+        // Optimistically update the cache for the single service
+        queryClient.setQueryData(['service', variables.serviceId], data.data || data);
       }
       queryClient.invalidateQueries({ queryKey: ['services'] });
-      options?.onSuccess?.(normalized);
+      options?.onSuccess?.(data);
     },
-    onError: (error) => {
-      options?.onError?.(error);
-    },
+    onError: (error) => options?.onError?.(error),
   });
 };
 
-/**
- * Delete a service and invalidate cache
- */
 export const useDeleteService = (options = {}) => {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: async ({ serviceId }) => serviceService.deleteService(serviceId, getToken()),
+    mutationFn: ({ serviceId }) => serviceService.deleteService(serviceId, getToken()),
     onSuccess: (_, variables) => {
       if (variables?.serviceId) {
         queryClient.removeQueries({ queryKey: ['service', variables.serviceId] });
@@ -67,8 +45,23 @@ export const useDeleteService = (options = {}) => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
       options?.onSuccess?.();
     },
-    onError: (error) => {
-      options?.onError?.(error);
-    },
+    onError: (error) => options?.onError?.(error),
   });
+};
+
+// ✅ ADD: New mutation for updating just the status of a service.
+export const useUpdateServiceStatus = (options = {}) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ serviceId, status }) => serviceService.updateStatus(serviceId, { status }, getToken()),
+        onSuccess: (data, variables) => {
+            const updatedService = data.data || data;
+            if (variables?.serviceId) {
+                queryClient.setQueryData(['service', variables.serviceId], updatedService);
+            }
+            queryClient.invalidateQueries({ queryKey: ['services'] });
+            options?.onSuccess?.(updatedService);
+        },
+        onError: (error) => options?.onError?.(error),
+    });
 };
