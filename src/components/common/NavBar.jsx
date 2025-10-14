@@ -1,13 +1,11 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
-import { ShoppingCart, User, Menu, X } from "lucide-react";
-import { useSelector, useDispatch, shallowEqual } from "react-redux";
+import React, { useState, useCallback, useEffect } from "react";
+import { User, Menu, X } from "lucide-react";
+import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 
 import { openModal } from "../../redux/modalSlice";
-import { selectCartItemsByUser } from "../../features/cart/cartSlice";
-import CartDropdown from "./CartDropdown";
 import SearchInput from "./SearchInput"; // NEW: separate component
 
 const linkPaths = {
@@ -27,21 +25,9 @@ function NavBar() {
   const location = useLocation();
 
   const { isAuthenticated, user, status } = useSelector((state) => state.auth);
-  const userIdForCart = user?.id ?? "guest";
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-
-  const selectMemoizedCartItems = useMemo(
-    () => selectCartItemsByUser(userIdForCart),
-    [userIdForCart]
-  );
-  const cartItems = useSelector(selectMemoizedCartItems, shallowEqual);
-
-  const totalItems = useMemo(
-    () => cartItems.reduce((t, item) => t + (item.quantity || 0), 0),
-    [cartItems]
-  );
+  
 
   const brandColor = user?.store?.theme_color || "#EF4444";
   const contrastTextColor = "#fff";
@@ -65,12 +51,8 @@ function NavBar() {
     else navigate("/settings");
   };
 
-  const handleCartToggle = () => setIsCartOpen((prev) => !prev);
-  const handleCartClose = () => setIsCartOpen(false);
-
   useEffect(() => {
     setMobileMenuOpen(false);
-    setIsCartOpen(false);
   }, [location.pathname]);
 
   const displayedStoreName = isAuthenticated ? (
@@ -148,32 +130,6 @@ function NavBar() {
                 </div>
               </button>
             )}
-            <div className="relative flex items-center">
-              <button
-                className="relative cursor-pointer p-2"
-                onClick={handleCartToggle}
-              >
-                <ShoppingCart size={28} />
-                {totalItems > 0 && (
-                  <span className="absolute top-0 right-0 bg-white text-red-500 text-xs rounded-full px-1.5 py-0.5">
-                    {totalItems}
-                  </span>
-                )}
-              </button>
-              {isCartOpen && (
-                <div className="hidden sm:block fixed inset-0 z-40" onClick={handleCartClose} />
-              )}
-              {isCartOpen && (
-                <div className="hidden sm:block absolute right-0 top-full mt-2 z-50">
-                  <CartDropdown
-                    onClose={handleCartClose}
-                    brandColor={brandColor}
-                    contrastTextColor={contrastTextColor}
-                    userId={userIdForCart}
-                  />
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Mobile icons */}
@@ -281,16 +237,7 @@ function NavBar() {
         )}
 
         {/* Mobile cart dropdown */}
-        {isCartOpen && (
-          <div className="sm:hidden">
-            <CartDropdown
-              onClose={handleCartClose}
-              brandColor={brandColor}
-              contrastTextColor={contrastTextColor}
-              userId={userIdForCart}
-            />
-          </div>
-        )}
+        {/* Cart removed */}
       </nav>
     </div>
   );

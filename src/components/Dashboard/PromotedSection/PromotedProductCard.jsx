@@ -3,6 +3,7 @@ import ProductDisplayCard from '../../products/ProductDisplayCard';
 
 const PromotedProductCard = ({
   product,
+  boost,
   brandColor,
   contrastTextColor,
   onViewDetailsClick = () => {},
@@ -15,7 +16,7 @@ const PromotedProductCard = ({
         brandColor={brandColor}
         contrastTextColor={contrastTextColor}
         mode="sponsored"
-        onViewDetailsClick={() => onViewDetailsClick(product?.id ?? product)}
+        onViewDetailsClick={() => onViewDetailsClick(boost)}
       />
     </div>
   );

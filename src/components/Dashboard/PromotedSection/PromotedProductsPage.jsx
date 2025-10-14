@@ -70,6 +70,38 @@ const PromotedProductsPage = () => {
     [boosts, selectedBoostId]
   );
 
+  // ✅ Normalize selected boost into details-friendly product shape
+  const detailsProduct = useMemo(() => {
+    if (!boostToDisplay) return null;
+    const p = boostToDisplay.product || {};
+    const firstImage = p.images?.[0]?.url || p.images?.[0]?.path_url || p.imageUrl || null;
+    return {
+      id: p.id,
+      name: p.name || 'Untitled Item',
+      imageUrl: firstImage || null,
+      price: Number.isFinite(Number(p.price)) ? Number(p.price) : 0,
+      discountPrice: Number.isFinite(Number(p.discount_price)) ? Number(p.discount_price) : null,
+      isSponsored: true,
+      // Map boost campaign metrics/details for display
+      promotionDetails: {
+        status: boostToDisplay.status || 'running',
+        paymentStatus: boostToDisplay.payment_status,
+        paymentMethod: boostToDisplay.payment_method,
+        durationDays: boostToDisplay.duration,
+        budgetDaily: boostToDisplay.budget,
+        totalAmount: boostToDisplay.total_amount,
+        reach: boostToDisplay.reach,
+        impressions: boostToDisplay.impressions,
+        clicks: boostToDisplay.clicks,
+        costPerClick: boostToDisplay.cpc,
+        startDate: boostToDisplay.start_date,
+        createdAt: boostToDisplay.created_at || boostToDisplay.created_at,
+      },
+      // convenience
+      location: boostToDisplay.location || p.location,
+    };
+  }, [boostToDisplay]);
+
   // --- Navigation handlers
   const handleViewDetails = (boost) => {
     if (!boost?.id) {
@@ -156,7 +188,7 @@ const PromotedProductsPage = () => {
 
       {selectedBoostId && boostToDisplay ? (
         <PromotedProductDetails
-          product={boostToDisplay}
+          product={detailsProduct}
           brandColor={brandColor}
           contrastTextColor={contrastTextColor}
           onExtend={() => openExtend(boostToDisplay)}

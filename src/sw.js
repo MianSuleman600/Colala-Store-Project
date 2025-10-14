@@ -1,40 +1,17 @@
 //D:\Project\frontend\src\sw.js
-/* eslint-disable no-restricted-globals */
 /* Service Worker - Colala */
 
 // Workbox imports (bundled by vite-plugin-pwa in injectManifest mode)
 import { clientsClaim } from 'workbox-core';
-import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
-import { registerRoute, setCatchHandler } from 'workbox-routing';
-import { CacheFirst, NetworkFirst, StaleWhileRevalidate, NetworkOnly } from 'workbox-strategies';
+import { registerRoute } from 'workbox-routing';
+import { NetworkOnly } from 'workbox-strategies';
 import { BackgroundSyncPlugin } from 'workbox-background-sync';
 
 // Immediately activate updated SW
 self.skipWaiting();
 clientsClaim();
 
-// Precache (injected at build time)
-precacheAndRoute(self.__WB_MANIFEST || []);
-cleanupOutdatedCaches();
-
-// Runtime caching: static assets
-registerRoute(
-  ({ request }) => ['style', 'script', 'image', 'font'].includes(request.destination),
-  new CacheFirst({
-    cacheName: 'static-assets',
-    matchOptions: { ignoreVary: true },
-  })
-);
-
-// Runtime caching: API GET
-registerRoute(
-  ({ url, request }) => url.pathname.startsWith('/api') && request.method === 'GET',
-  new NetworkFirst({
-    cacheName: 'api-cache',
-    networkTimeoutSeconds: 10,
-  }),
-  'GET'
-);
+// Note: All precaching and runtime caching removed to disable offline cache.
 
 // Background Sync for API writes (no API needed to compile)
 const apiBgSync = new BackgroundSyncPlugin('api-queue', {
@@ -51,13 +28,7 @@ for (const method of writeMethods) {
   );
 }
 
-// Optional: SPA navigation fallback if needed
-setCatchHandler(async ({ event }) => {
-  if (event.request.destination === 'document') {
-    return caches.match('/index.html');
-  }
-  return Response.error();
-});
+// Note: No navigation fallback via Cache API; rely on network.
 
 // ----- Push Notifications (Web Push or FCM forwarded payload) -----
 self.addEventListener('push', (event) => {
@@ -91,12 +62,12 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     (async () => {
-      const allClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       const alreadyOpen = allClients.find((c) => c.url.includes(targetUrl));
       if (alreadyOpen) {
         alreadyOpen.focus();
       } else {
-        await clients.openWindow(targetUrl);
+        await self.clients.openWindow(targetUrl);
       }
     })()
   );
@@ -171,7 +142,7 @@ self.addEventListener('sync', (event) => {
               body: JSON.stringify(item.payload || {}),
             });
             await removeOutbox(item.id);
-          } catch (err) {
+          } catch {
             // keep in outbox for next sync
           }
         }

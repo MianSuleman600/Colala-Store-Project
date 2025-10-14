@@ -1,6 +1,6 @@
 // src/pages/products/ProductDetailsPage.jsx
 import React, { useMemo, useState, useEffect } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import Button from '../../../components/ui/Button';
 import { getContrastTextColor } from '../../../utils/colorUtils';
@@ -26,6 +26,7 @@ import BackButton from '../../../components/ui/BackButton';
 
 const ProductDetailsPage = () => {
   const { productId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { userId } = useSelector((s) => s.user);
   const { push } = useToast();
@@ -38,12 +39,20 @@ const ProductDetailsPage = () => {
   const contrastTextColor = getContrastTextColor(brandColor);
 
   // --- Product details query ---
+  const preloadedProduct = location.state?.product;
   const {
     data: product,
     isLoading,
     isError,
     error,
-  } = useProductDetailsQuery(productId, { enabled: !!productId });
+  } = useProductDetailsQuery(productId, {
+    enabled: !!productId,
+    initialData: preloadedProduct ? {
+      ...preloadedProduct,
+      detailsPageInfo: preloadedProduct.detailsPageInfo || {},
+      reviews: preloadedProduct.reviews || [],
+    } : undefined,
+  });
 
   // --- Hooks for media and actions ---
   const media = useMediaGallery(product);

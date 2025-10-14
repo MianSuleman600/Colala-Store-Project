@@ -26,6 +26,7 @@ const ProductDisplayCard = ({
   onAddToCart = () => {},
   onEdit = () => {},
   onMoreOptionsClick = () => {},
+  onViewDetailsClick,
 }) => {
   const navigate = useNavigate();
   const contrast = getContrastTextColor(brandColor);
@@ -43,7 +44,16 @@ const ProductDisplayCard = ({
     // Otherwise, normalize the raw API response
     const rawStatus = (item.status || "available").toLowerCase();
     const firstImage =
-      item.images?.[0]?.path_url || item.media?.[0]?.path_url || item.imageUrl;
+      item.images?.[0]?.url ||
+      item.images?.[0]?.path_url ||
+      item.media?.[0]?.url ||
+      item.media?.[0]?.path_url ||
+      item.imageUrl;
+
+    const hasBulkPrices = Array.isArray(item.detailsPageInfo?.bulkPrices) && item.detailsPageInfo.bulkPrices.length > 0;
+    const hasBulkFlag = item.hasBulkDiscount || hasBulkPrices;
+    const hasFreeDeliveryFlag =
+      item.hasFreeDelivery || item.markForFreeDelivery || item.delivery?.isFree || item.delivery?.is_free || false;
 
     return {
       id: item.id,
@@ -74,6 +84,9 @@ const ProductDisplayCard = ({
         productClicks: item.clicks || 0,
         messages: item.chats || 0,
       },
+      hasFreeDelivery: !!hasFreeDeliveryFlag,
+      hasBulkDiscount: !!hasBulkFlag,
+      bulkDiscountText: item.discountText || (hasBulkFlag ? "20% Off in bulk" : undefined),
       // Keep original item for handlers
       originalItem: item,
     };
@@ -91,10 +104,21 @@ const ProductDisplayCard = ({
 
   // --- Event Handlers ---
   const handleViewDetails = () => {
+    if (onViewDetailsClick) {
+      onViewDetailsClick(normalizedItem.originalItem);
+      return;
+    }
     const path = isService
       ? `/my-services/${normalizedItem.id}/details`
       : `/my-products/${normalizedItem.id}/details`;
-    navigate(path);
+    navigate(path, { state: { product: {
+      id: normalizedItem.id,
+      name: normalizedItem.name,
+      imageUrl: normalizedItem.imageUrl,
+      currentPrice: normalizedItem.price,
+      originalPrice: normalizedItem.originalPrice,
+      rating: normalizedItem.rating,
+    } } });
   };
 
   const handleEdit = () => {
@@ -150,23 +174,25 @@ const ProductDisplayCard = ({
         )}
       </div>
 
-      <div className="flex items-center gap-2 bg-gray-100 px-3 py-2">
-        <img
-          src={normalizedItem.storeLogo || "https://placehold.co/24x24"}
-          alt="store logo"
-          className="h-6 w-6 rounded-full object-cover"
-        />
-        <span className="text-sm font-medium" style={{ color: brandColor }}>
-          {normalizedItem.storeName}
-        </span>
-        <span
-          className="ml-auto flex items-center gap-1 pr-1 text-sm"
-          style={{ color: brandColor }}
-        >
-          <StarIcon className="h-4 w-4" />
-          {normalizedItem.rating.toFixed(1)}
-        </span>
-      </div>
+      {mode !== "sponsored" && (
+        <div className="flex items-center gap-2 bg-gray-100 px-3 py-2">
+          <img
+            src={normalizedItem.storeLogo || "https://placehold.co/24x24"}
+            alt="store logo"
+            className="h-6 w-6 rounded-full object-cover"
+          />
+          <span className="text-sm font-medium" style={{ color: brandColor }}>
+            {normalizedItem.storeName}
+          </span>
+          <span
+            className="ml-auto flex items-center gap-1 pr-1 text-sm"
+            style={{ color: brandColor }}
+          >
+            <StarIcon className="h-4 w-4" />
+            {normalizedItem.rating.toFixed(1)}
+          </span>
+        </div>
+      )}
 
       <div className="flex flex-1 flex-col p-4">
         <h3
@@ -193,6 +219,21 @@ const ProductDisplayCard = ({
               ₦{normalizedItem.minPrice.toLocaleString()} - ₦
               {normalizedItem.maxPrice.toLocaleString()}
             </span>
+          </div>
+        )}
+
+        {mode === "sponsored" && (
+          <div className="mb-4 flex items-center gap-2">
+            {normalizedItem.hasFreeDelivery && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/10 text-orange-600 border border-orange-200 px-2 py-1 text-xs font-semibold">
+                <ShoppingCartIcon className="h-4 w-4" /> Free delivery
+              </span>
+            )}
+            {normalizedItem.hasBulkDiscount && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-yellow-500/10 text-yellow-700 border border-yellow-200 px-2 py-1 text-xs font-semibold">
+                <ShoppingCartIcon className="h-4 w-4" /> {normalizedItem.bulkDiscountText || "Bulk discount"}
+              </span>
+            )}
           </div>
         )}
 
@@ -254,10 +295,27 @@ const ProductDisplayCard = ({
             </div>
           )}
 
+          {mode === "sponsored" && (
+            <div className="mb-3 space-y-3 text-sm text-gray-600">
+              <div className="flex items-center justify-between">
+                <span>Product Views</span>
+                <span className="font-medium text-gray-900">{normalizedItem.metrics.productViews}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Product Clicks</span>
+                <span className="font-medium text-gray-900">{normalizedItem.metrics.productClicks}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Messages</span>
+                <span className="font-medium text-gray-900">{normalizedItem.metrics.messages}</span>
+              </div>
+            </div>
+          )}
+
           {/* Renders for sponsored or search results view */}
           {(mode === "sponsored" || mode === "search") && (
             <Button
-              className="w-full rounded-lg py-2 font-semibold"
+              className="w-full rounded-xl py-3 font-semibold"
               style={{ backgroundColor: brandColor, color: contrast }}
               onClick={handleViewDetails}
               disabled={isDisabled}
