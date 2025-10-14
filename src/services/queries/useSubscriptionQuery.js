@@ -15,7 +15,19 @@ export const useGetPlansQuery = (options = {}) => {
     queryKey: subscriptionQueryKeys.plans,
     queryFn: async () => {
       const response = await subscriptionService.getPlans();
-      return response?.plans || response?.data || response || [];
+      // Handle the API response format: { status: "success", data: [...], message: "Success" }
+      if (response?.status === 'success' && Array.isArray(response.data)) {
+        return response.data.map(plan => ({
+          id: plan.id,
+          name: plan.name,
+          price: parseFloat(plan.price),
+          currency: plan.currency,
+          duration: `${plan.duration_days} days`,
+          benefits: Object.values(plan.features || {}),
+          color: '#E0BBE4' // Default color, can be customized
+        }));
+      }
+      return response?.data || response || [];
     },
     staleTime: Infinity, // Plans rarely change
     ...options,
@@ -30,9 +42,13 @@ export const useGetSubscriptionsQuery = (options = {}) => {
     queryKey: subscriptionQueryKeys.subscriptions,
     queryFn: async () => {
       const response = await subscriptionService.getSubscriptions();
-      // The API returns a list, but usually a user has one active subscription
-      const subscriptions = response?.subscriptions || response?.data || response || [];
-      return subscriptions.length > 0 ? subscriptions[0] : null;
+      // Handle the API response format: { status: "success", data: [...], message: "Success" }
+      if (response?.status === 'success' && Array.isArray(response.data)) {
+        // Find the most recent active subscription
+        const activeSubscription = response.data.find(sub => sub.status === 'active');
+        return activeSubscription || null;
+      }
+      return response?.data || response || [];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     ...options,

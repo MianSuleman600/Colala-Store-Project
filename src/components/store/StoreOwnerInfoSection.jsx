@@ -1,6 +1,6 @@
 // src/components/store/StoreOwnerInfoSection.jsx
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +16,6 @@ const StoreOwnerInfoSection = ({
   storeData = {},
   isLoggedIn = false,
   isStoreOwner = false,
-  onOpenAuthModal = () => {},
   brandColor = '#EF4444',
   contrastTextColor = '#FFFFFF',
   lightBrandColor = '#FCA5A5',
@@ -26,16 +25,22 @@ const StoreOwnerInfoSection = ({
   const handleAddProduct = () => navigate('/add-product');
   const handleAddService = () => navigate('/add-service');
 
-  // Data mapping from the normalized `storeData` object
-  const storeName = storeData?.name || 'Store Name';
-  const email = storeData?.email || '';
-  const phoneNumber = storeData?.phone || '';
-  const location = storeData?.location || '';
+  // Data mapping from the API response structure
+  const storeName = storeData?.name || storeData?.store_name || 'Store Name';
+  const email = storeData?.email || storeData?.store_email || '';
+  const phoneNumber = storeData?.phone || storeData?.store_phone || '';
+  const location = storeData?.location || storeData?.store_location || '';
   const categories = storeData?.categories || [];
-  const productsSold = storeData?.totalSold || 0;
-  const followers = storeData?.followersCount || 0;
-  const ratings = storeData?.averageRating || 0;
+  
+  // Map the correct fields from API response
+  const productsSold = storeData?.totalSold || storeData?.sold_items_sum_qty || 0;
+  const followers = storeData?.followersCount || storeData?.followers_count || 0;
+  const ratings = storeData?.averageRating || storeData?.average_rating || 0;
   const announcementText = storeData?.announcements?.[0]?.message || 'Welcome to our store!';
+
+  // Debug logging to see what data we're getting
+  console.log('StoreOwnerInfoSection - storeData:', storeData);
+  console.log('StoreOwnerInfoSection - productsSold:', productsSold, 'followers:', followers, 'ratings:', ratings);
 
   return (
     <Card className="p-6 pt-16">

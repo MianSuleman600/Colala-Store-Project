@@ -73,7 +73,7 @@ const OrderDetailsPanel = ({ customerOrder, brandColor, onBackToList }) => {
     );
   }
 
-  const displayName = customerOrder.store?.store_name || customerOrder.order?.order_no || `Order #${customerOrder.id}`;
+  const displayName = customerOrder?.store?.store_name || customerOrder?.order?.order_no || `Order #${customerOrder?.id}`;
 
   return (
     <div className="space-y-6">

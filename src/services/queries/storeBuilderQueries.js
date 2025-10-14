@@ -7,23 +7,8 @@ export const useStoreBuilderQuery = (options = {}) => {
     queryKey: ['storeBuilderData'],
     queryFn: storeBuilderService.getStoreBuilderData,
     ...options,
-    // Transforms snake_case from API to camelCase for the form
-    select: (data) => {
-      if (!data) return null;
-      return {
-        storeName: data.store_name || '',
-        email: data.store_email || '',
-        phoneNumber: data.store_phone || '',
-        showPhoneOnProfile: !!data.show_phone_on_profile,
-        location: data.store_location || 'Lagos',
-        // Ensure categories is an array of IDs from the nested objects
-        categories: Array.isArray(data.categories) ? data.categories.map(c => c.id) : [],
-        profilePictureUrl: data.profile_image || null,
-        bannerImageUrl: data.banner_image || null,
-        promotionalBannerImageUrl: data.promotional_banner_url || null, // Adjust if backend key is different
-        brandColor: data.theme_color || '#EF4444',
-      };
-    },
+    // Return the raw data as the component handles the transformation
+    select: (data) => data,
   });
 };
 

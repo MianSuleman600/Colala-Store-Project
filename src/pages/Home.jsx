@@ -1,37 +1,42 @@
 // src/pages/HomePage.jsx
-import React, { useState, useMemo, useCallback } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import Skeleton from 'react-loading-skeleton';
-import 'react-loading-skeleton/dist/skeleton.css';
+import React, { useState, useMemo, useCallback } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
-import { openModal } from '../redux/modalSlice';
-import { getContrastTextColor, adjustBrightness } from '../utils/colorUtils';
-import { ASSETS_BASE } from '../api/apiConfig';
+import { openModal } from "../redux/modalSlice";
+import { getContrastTextColor, adjustBrightness } from "../utils/colorUtils";
+import { ASSETS_BASE } from "../api/apiConfig";
 
-import StoreHeader from '../components/store/StoreHeader';
-import StoreOwnerInfoSection from '../components/store/StoreOwnerInfoSection';
-import InfoBox from '../components/ui/InfoBox';
-import PromotionalBanner from '../components/ui/PromotionBanner';
-import ActionCard from '../components/ui/ActionCard';
-import SectionHeader from '../components/ui/SectionHeader';
-import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
-import StoreProfileModal from '../components/models/StoreProfileModal';
-import StoreBuilderModal from '../components/models/StoreBuilderModal';
+import StoreHeader from "../components/store/StoreHeader";
+import StoreOwnerInfoSection from "../components/store/StoreOwnerInfoSection";
+import InfoBox from "../components/ui/InfoBox";
+import PromotionalBanner from "../components/ui/PromotionBanner";
+import ActionCard from "../components/ui/ActionCard";
+import SectionHeader from "../components/ui/SectionHeader";
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
+import StoreProfileModal from "../components/models/StoreProfileModal";
+import StoreBuilderModal from "../components/models/StoreBuilderModal";
 
-import { useOnboardingProgressQuery } from '../services/queries/useOnboardingQuery';
+import { useOnboardingProgressQuery } from "../services/queries/useOnboardingQuery";
+import { useGetBuyerOrdersQuery } from "../services/queries/useOrderQuery";
 
-import productIcon from '../assets/icons/product.png';
-import checkIcon from '../assets/icons/check.png';
-import chartbarIcon from '../assets/icons/ChartBar.png';
-import shoppingCartIcon from '../assets/icons/ShoppingCart.png';
+import productIcon from "../assets/icons/product.png";
+import checkIcon from "../assets/icons/check.png";
+import chartbarIcon from "../assets/icons/ChartBar.png";
+import shoppingCartIcon from "../assets/icons/ShoppingCart.png";
 
 export default function HomePage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { isAuthenticated, user, status: authStatus } = useSelector((state) => state.auth);
+  const {
+    isAuthenticated,
+    user,
+    status: authStatus,
+  } = useSelector((state) => state.auth);
   const storeProfileFromRedux = user?.store || null;
 
   const [isStoreProfileModalOpen, setIsStoreProfileModalOpen] = useState(false);
@@ -39,42 +44,86 @@ export default function HomePage() {
 
   // ✅ Only call query if authenticated and user exists
   const shouldFetch = isAuthenticated && !!user?.id;
-  const { data: onboardingProgress, isLoading: isProgressLoading } =
+  const { data: onboardingProgress } =
     useOnboardingProgressQuery(shouldFetch ? {} : { enabled: false });
+
+  // Fetch buyer orders
+  const { data: buyerOrders = [], isLoading: ordersLoading, error: ordersError } = useGetBuyerOrdersQuery(
+    user?.id,
+    { enabled: shouldFetch }
+  );
 
   const combinedProgress = useMemo(() => {
     if (!onboardingProgress?.steps) return 0;
     const totalSteps = onboardingProgress.steps.length;
-    const doneSteps = onboardingProgress.steps.filter((s) => s.status === 'done').length;
+    const doneSteps = onboardingProgress.steps.filter(
+      (s) => s.status === "done"
+    ).length;
     return Math.round((doneSteps / totalSteps) * 100);
   }, [onboardingProgress]);
 
-  const brandColor = useMemo(() => storeProfileFromRedux?.theme_color || '#EF4444', [storeProfileFromRedux]);
-  const contrastTextColor = useMemo(() => getContrastTextColor(brandColor), [brandColor]);
-  const lightBrandColor = useMemo(() => adjustBrightness(brandColor, 100), [brandColor]);
+  // Get latest 4 orders
+  const latestOrders = useMemo(() => {
+    console.log('buyerOrders type:', typeof buyerOrders, 'isArray:', Array.isArray(buyerOrders), 'value:', buyerOrders);
+    if (!Array.isArray(buyerOrders)) {
+      console.warn('buyerOrders is not an array:', buyerOrders);
+      return [];
+    }
+    return buyerOrders.slice(0, 4);
+  }, [buyerOrders]);
+
+  const brandColor = useMemo(
+    () => storeProfileFromRedux?.theme_color || "#EF4444",
+    [storeProfileFromRedux]
+  );
+  const contrastTextColor = useMemo(
+    () => getContrastTextColor(brandColor),
+    [brandColor]
+  );
+  const lightBrandColor = useMemo(
+    () => adjustBrightness(brandColor, 100),
+    [brandColor]
+  );
 
   const isStoreOwner = !!isAuthenticated;
 
   const handleProtectedClick = useCallback(
-    (path) => (isAuthenticated ? navigate(path) : dispatch(openModal('login'))),
+    (path) => (isAuthenticated ? navigate(path) : dispatch(openModal("login"))),
     [isAuthenticated, navigate, dispatch]
   );
 
   const handleSubscribe = useCallback(
-    () => (isAuthenticated ? navigate('/subscription') : dispatch(openModal('register'))),
+    () =>
+      isAuthenticated
+        ? navigate("/subscription")
+        : dispatch(openModal("register")),
     [isAuthenticated, navigate, dispatch]
   );
 
   const handleOpenStoreBuilder = useCallback(() => {
-    isAuthenticated ? setIsStoreBuilderModalOpen(true) : dispatch(openModal('register'));
+    isAuthenticated
+      ? setIsStoreBuilderModalOpen(true)
+      : dispatch(openModal("register"));
   }, [isAuthenticated, dispatch]);
 
   const handleViewProfileClick = useCallback(() => {
-    isAuthenticated ? setIsStoreProfileModalOpen(true) : dispatch(openModal('login'));
+    isAuthenticated
+      ? setIsStoreProfileModalOpen(true)
+      : dispatch(openModal("login"));
   }, [isAuthenticated, dispatch]);
 
+  const handleOrderClick = useCallback((orderId) => {
+    if (isAuthenticated) {
+      navigate('/orders', { 
+        state: { selectedOrderId: orderId } 
+      });
+    } else {
+      dispatch(openModal("login"));
+    }
+  }, [isAuthenticated, navigate, dispatch]);
+
   // Loading skeleton
-  if (authStatus === 'loading' || (isAuthenticated && !storeProfileFromRedux)) {
+  if (authStatus === "loading" || (isAuthenticated && !storeProfileFromRedux)) {
     return (
       <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         <Skeleton height={150} />
@@ -93,7 +142,8 @@ export default function HomePage() {
     );
   }
 
-  const showInfoBox = isAuthenticated && onboardingProgress && combinedProgress < 100;
+  const showInfoBox =
+    isAuthenticated && onboardingProgress && combinedProgress < 100;
 
   return (
     <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
@@ -115,10 +165,14 @@ export default function HomePage() {
       {/* Store Header */}
       <StoreHeader
         bannerImageUrl={
-          storeProfileFromRedux ? `${ASSETS_BASE}${storeProfileFromRedux.banner_image}` : null
+          storeProfileFromRedux
+            ? `${ASSETS_BASE}${storeProfileFromRedux.banner_image}`
+            : null
         }
         profilePictureUrl={
-          storeProfileFromRedux ? `${ASSETS_BASE}${storeProfileFromRedux.profile_image}` : null
+          storeProfileFromRedux
+            ? `${ASSETS_BASE}${storeProfileFromRedux.profile_image}`
+            : null
         }
       />
 
@@ -136,18 +190,83 @@ export default function HomePage() {
 
           <SectionHeader title="Latest Orders" style={{ color: brandColor }} />
 
-          <Card className="p-4 min-h-[200px] flex items-center justify-center text-gray-500">
-            {isAuthenticated ? (
-              <p>No recent orders to display.</p>
+          <Card className="p-4 min-h-[200px]">
+            {!isAuthenticated ? (
+              <div className="flex items-center justify-center h-full text-center">
+                <div>
+                  <p className="mb-2 text-gray-500">Login to view orders.</p>
+                  <Button
+                    style={{
+                      backgroundColor: brandColor,
+                      color: contrastTextColor,
+                    }}
+                    onClick={() => dispatch(openModal("login"))}
+                  >
+                    Login Now
+                  </Button>
+                </div>
+              </div>
+            ) : ordersLoading ? (
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                  </div>
+                ))}
+              </div>
+            ) : ordersError ? (
+              <div className="flex items-center justify-center h-full text-red-500">
+                <p>Failed to load orders. Please try again.</p>
+              </div>
+            ) : latestOrders.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                <p>No recent orders to display.</p>
+              </div>
             ) : (
-              <div className="text-center">
-                <p className="mb-2">Login to view orders.</p>
-                <Button
-                  style={{ backgroundColor: brandColor, color: contrastTextColor }}
-                  onClick={() => dispatch(openModal('login'))}
-                >
-                  Login Now
-                </Button>
+              <div className="space-y-3">
+                {latestOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    onClick={() => handleOrderClick(order.id)}
+                    className="p-3 border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm cursor-pointer transition-all duration-200"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-900">
+                        Order #{order.id}
+                      </span>
+                      <span
+                        className="text-xs px-2 py-1 rounded-full"
+                        style={{
+                          backgroundColor: order.status === 'delivered' ? '#10B981' : 
+                                         order.status === 'pending' ? '#F59E0B' : 
+                                         order.status === 'cancelled' ? '#EF4444' : '#6B7280',
+                          color: 'white'
+                        }}
+                      >
+                        {order.status}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      <p>Total: ₦{parseFloat(order.total_amount || 0).toLocaleString()}</p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(order.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {buyerOrders.length > 4 && (
+                  <div className="text-center pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate('/orders')}
+                      style={{ borderColor: brandColor, color: brandColor }}
+                    >
+                      View All Orders
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </Card>
@@ -157,7 +276,7 @@ export default function HomePage() {
         <section className="lg:col-span-2 space-y-6">
           <div className="flex justify-end gap-3">
             <Button
-              style={{ backgroundColor: 'black', color: 'white' }}
+              style={{ backgroundColor: "black", color: "white" }}
               onClick={handleViewProfileClick}
               disabled={!isAuthenticated}
             >
@@ -175,17 +294,20 @@ export default function HomePage() {
             <InfoBox
               title={
                 isAuthenticated
-                  ? 'Complete your profile to unlock more features'
-                  : 'Create your store to start selling'
+                  ? "Complete your profile to unlock more features"
+                  : "Create your store to start selling"
               }
-              actionText={isAuthenticated ? 'Complete Now' : 'Create Store'}
+              actionText={isAuthenticated ? "Complete Now" : "Create Store"}
               actionOnClick={
                 isAuthenticated
-                  ? () => navigate('/store-upgrade')
-                  : () => dispatch(openModal('register'))
+                  ? () => navigate("/store-upgrade")
+                  : () => dispatch(openModal("register"))
               }
               completionPercentage={combinedProgress}
-              actionButtonStyle={{ backgroundColor: brandColor, color: contrastTextColor }}
+              actionButtonStyle={{
+                backgroundColor: brandColor,
+                color: contrastTextColor,
+              }}
             />
           )}
 
@@ -196,21 +318,21 @@ export default function HomePage() {
               title="My Orders"
               description="Manage your customer orders"
               icon={shoppingCartIcon}
-              onClick={() => handleProtectedClick('/orders')}
+              onClick={() => handleProtectedClick("/orders")}
               brandColor={brandColor}
             />
             <ActionCard
               title="My Products"
               description="Manage all your products here"
               icon={productIcon}
-              onClick={() => handleProtectedClick('/my-products')}
+              onClick={() => handleProtectedClick("/my-products")}
               brandColor={brandColor}
             />
             <ActionCard
               title="Statistics"
               description="View detailed statistics"
               icon={chartbarIcon}
-              onClick={() => handleProtectedClick('/statistics')}
+              onClick={() => handleProtectedClick("/statistics")}
               brandColor={brandColor}
             />
             <ActionCard

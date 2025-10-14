@@ -1,5 +1,6 @@
 import React from 'react';
 import Button from '../ui/Button';
+import { API_BASE } from '../../api/apiConfig';
 
 const OrderItemCard = ({ item, onTrackOrder, brandColor, contrastTextColor }) => {
   const handleTrackClick = () => {
@@ -9,8 +10,20 @@ const OrderItemCard = ({ item, onTrackOrder, brandColor, contrastTextColor }) =>
   return (
     <div className="flex items-start p-3 rounded-lg bg-gray-50 shadow-sm">
       <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center mr-3">
-        {/* The API does not provide an image for items, so a placeholder is used. */}
-        <span className="text-gray-400 text-center text-xs">No Image</span>
+        {item?.product?.images?.length > 0 ? (
+          <img
+            src={`${API_BASE.replace('/api', '')}/storage/${item.product.images[0].path}`}
+            alt={item.name}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'block';
+            }}
+          />
+        ) : null}
+        <span className="text-gray-400 text-center text-xs" style={{ display: item?.product?.images?.length > 0 ? 'none' : 'block' }}>
+          No Image
+        </span>
       </div>
       <div className="flex-grow">
         <p className="text-base font-medium text-gray-800">{item.name}</p>

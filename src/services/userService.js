@@ -18,6 +18,16 @@ const apiUserService = {
   },
 
   /**
+   * Fetches a public store profile by store ID.
+   * This is for viewing other stores' profiles.
+   */
+  getPublicStoreProfile: async (storeId) => {
+    const url = ENDPOINTS.STORES.PROFILE(storeId);
+    const response = await apiRequest({ url, method: 'GET' });
+    return response;
+  },
+
+  /**
    * Updates the user's profile.
    */
   updateStoreProfile: async (payload) => {

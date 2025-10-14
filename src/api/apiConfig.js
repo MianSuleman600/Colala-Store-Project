@@ -57,8 +57,12 @@ export const ENDPOINTS = {
 
   SEARCH: {
     TEXT: (params = {}) => `${u('/search')}${buildQuery(params)}`,
-    CAMERA: u('/search/camera'),   // ✅ New camera search endpoint
+    CAMERA: u('/search/camera'),   // ✅ New camera search endpoint
     BARCODE: u('/search/barcode'), // ✅ Optional barcode endpoint
+  },
+
+  STORES: {
+    PROFILE: (storeId) => u(`/stores/${encodeSeg(storeId)}`), // Public store profile endpoint
   },
 
   AUTH: {
@@ -213,6 +217,11 @@ export const ENDPOINTS = {
     DETAIL: (id) => u(`/seller/orders/${encodeSeg(id)}`),
     MARK_OUT_FOR_DELIVERY: (id) => u(`/seller/orders/${encodeSeg(id)}/out-for-deliver`),
     MARK_DELIVERED: (id) => u(`/seller/orders/${encodeSeg(id)}/delivered`),
+  },
+
+  BUYER_ORDERS: {
+    LIST: u('/seller/orders'),
+    DETAIL: (id) => u(`/seller/orders/${encodeSeg(id)}`),
   },
 
 

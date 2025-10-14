@@ -287,7 +287,7 @@ const Level1Form = ({
   return (
     // FIXED: className syntax
     <div
-      className={`w-full h-full max-h-[90vh] ${
+      className={`w-full h-full max-h-[90vh] max-w-[470px] ${
         mode === "register"
           ? "max-w-[389px] px-2 py-4 sm:px-8"
           : "max-w-none p-0"

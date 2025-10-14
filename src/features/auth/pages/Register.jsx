@@ -371,7 +371,7 @@ const Register = ({ onClose, onSwitchToLogin, mode = "register" }) => {
   return (
     <>
       <div
-        className="relative flex w-full max-w-4xl rounded-2xl overflow-hidden bg-white shadow-xl max-h-[90vh]"
+        className="relative flex w-full max-w-5xl rounded-2xl overflow-hidden bg-white shadow-xl max-h-[90vh]"
         aria-busy={isSubmitting}
       >
         <button
@@ -420,7 +420,7 @@ const Register = ({ onClose, onSwitchToLogin, mode = "register" }) => {
             </Button>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto relative p-8">
+        <div className="flex-1 overflow-y-auto relative py-8 px-0">
           <h2 className="text-[24px] text-center font-semibold text-gray-800">
             {mode === "register" ? "Register" : "Upgrade Store"}
           </h2>

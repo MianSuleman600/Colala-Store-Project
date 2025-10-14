@@ -35,8 +35,13 @@ const PromotedProductsPage = () => {
     isError,
   } = useBoostsQuery({ enabled: isLoggedIn && !!userId });
 
-  // ✅ Safely extract array of boosts
-  const boosts = useMemo(() => boostsResponse?.data || [], [boostsResponse]);
+  // ✅ Safely extract array of boosts from API response
+  const boosts = useMemo(() => {
+    if (boostsResponse?.status === 'success' && Array.isArray(boostsResponse.data)) {
+      return boostsResponse.data;
+    }
+    return boostsResponse?.data || [];
+  }, [boostsResponse]);
 
   // --- Filters & local state
   const [searchTerm, setSearchTerm] = useState('');
@@ -81,6 +86,7 @@ const PromotedProductsPage = () => {
       imageUrl: firstImage || null,
       price: Number.isFinite(Number(p.price)) ? Number(p.price) : 0,
       discountPrice: Number.isFinite(Number(p.discount_price)) ? Number(p.discount_price) : null,
+      finalPrice: Number.isFinite(Number(p.final_price)) ? Number(p.final_price) : null,
       isSponsored: true,
       // Map boost campaign metrics/details for display
       promotionDetails: {
@@ -95,7 +101,7 @@ const PromotedProductsPage = () => {
         clicks: boostToDisplay.clicks,
         costPerClick: boostToDisplay.cpc,
         startDate: boostToDisplay.start_date,
-        createdAt: boostToDisplay.created_at || boostToDisplay.created_at,
+        createdAt: boostToDisplay.created_at,
       },
       // convenience
       location: boostToDisplay.location || p.location,

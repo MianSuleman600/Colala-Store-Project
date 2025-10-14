@@ -32,7 +32,14 @@ const dummySubscriptionService = {
 const apiSubscriptionService = {
   getPlans: () => apiRequest({ url: ENDPOINTS.PLANS.LIST, method: 'GET' }),
   getSubscriptions: () => apiRequest({ url: ENDPOINTS.SUBSCRIPTIONS.LIST, method: 'GET' }),
-  createSubscription: (payload) => apiRequest({ url: ENDPOINTS.SUBSCRIPTIONS.CREATE, method: 'POST', data: payload }),
+  createSubscription: (payload) => apiRequest({ 
+    url: ENDPOINTS.SUBSCRIPTIONS.CREATE, 
+    method: 'POST', 
+    data: {
+      plan_id: payload.planId,
+      payment_method: payload.paymentMethod || 'wallet'
+    }
+  }),
   cancelSubscription: (id) => apiRequest({ url: ENDPOINTS.SUBSCRIPTIONS.CANCEL(id), method: 'PATCH' }),
 };
 

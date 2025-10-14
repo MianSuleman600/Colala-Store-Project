@@ -53,41 +53,40 @@ const DashboardHeader = ({ toggleSidebar, showHamburger }) => {
       </div>
 
       <div
-        className="flex flex-col sm:flex-row items-stretch rounded-2xl p-2 shadow-md gap-2 overflow-hidden"
+        className="flex items-center rounded-2xl p-4 shadow-md overflow-hidden"
         style={{ backgroundColor: brandColor, color: contrastTextColor }}
       >
-        <div className="flex-1 min-w-0 flex justify-between items-center p-2">
+        {/* Escrow Wallet Section */}
+        <div className="flex-1 flex justify-between items-center pr-4">
           <div className="min-w-0">
-            <p className="text-sm">Escrow Wallet</p>
+            <p className="text-xs opacity-80 mb-1">Escrow Wallet</p>
             <p className="text-lg font-bold truncate">₦{escrowBalance}</p>
           </div>
-          {/* --- THIS IS THE FIX --- */}
           <Button
-            className="text-sm rounded-md px-4 py-1 shrink-0"
-            style={{ backgroundColor: 'white', color: brandColor }}
-            onClick={() => navigate('/settings/wallet/escrow')} // Use absolute path
+            className="text-xs rounded-full px-2 py-2 shrink-0"
+            style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', color: 'white' }}
+            onClick={() => navigate('/settings/wallet/escrow')}
           >
             View
           </Button>
-          {/* --- END OF FIX --- */}
         </div>
 
-        <div className="block sm:hidden h-px w-full bg-white/20" />
+        {/* Vertical Divider */}
+        <div className="w-px h-12 bg-white/20" />
 
-        <div className="flex-1 min-w-0 flex justify-between items-center p-2">
+        {/* Shopping Wallet Section */}
+        <div className="flex-1 flex justify-between items-center pl-4">
           <div className="min-w-0">
-            <p className="text-sm">Shopping Wallet</p>
+            <p className="text-xs opacity-80 mb-1">Shopping Wallet</p>
             <p className="text-lg font-bold truncate">₦{shoppingBalance}</p>
           </div>
-          {/* --- THIS IS THE FIX --- */}
           <Button
-            className="text-sm rounded-md px-4 py-1 shrink-0"
-            style={{ backgroundColor: 'white', color: brandColor }}
-            onClick={() => navigate('/settings/wallet/shopping')} // Use absolute path
+            className="text-xs rounded-full px-2 py-2 shrink-0"
+            style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', color: 'white' }}
+            onClick={() => navigate('/settings/wallet/shopping')}
           >
             View
           </Button>
-          {/* --- END OF FIX --- */}
         </div>
       </div>
 

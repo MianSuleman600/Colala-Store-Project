@@ -2,6 +2,7 @@ import React from 'react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import { CheckCircleIcon, ExclamationTriangleIcon, WalletIcon } from '@heroicons/react/24/outline';
+import { API_BASE } from '../../api/apiConfig';
 
 const OrderTrackingStep = ({
   stepNumber,
@@ -20,10 +21,6 @@ const OrderTrackingStep = ({
   showViewWalletButton = false,
   onViewWallet,
 }) => {
-  const handleImageError = (e) => {
-    e.currentTarget.onerror = null;
-    e.currentTarget.src = 'https://placehold.co/64x64/e0e0e0/000000?text=No+Image';
-  };
 
   return (
     <div className="flex relative">
@@ -52,7 +49,20 @@ const OrderTrackingStep = ({
         <div className="relative flex items-start mb-4 p-4  rounded-lg">
           {/* Image */}
           <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center mr-3">
-            <span className="text-gray-400 text-center text-xs">No Image</span>
+            {item?.product?.images?.length > 0 ? (
+              <img
+                src={`${API_BASE.replace('/api', '')}/storage/${item.product.images[0].path}`}
+                alt={item.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'block';
+                }}
+              />
+            ) : null}
+            <span className="text-gray-400 text-center text-xs" style={{ display: item?.product?.images?.length > 0 ? 'none' : 'block' }}>
+              No Image
+            </span>
           </div>
 
           {/* Info */}

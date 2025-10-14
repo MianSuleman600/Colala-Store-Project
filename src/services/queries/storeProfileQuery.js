@@ -11,7 +11,7 @@ const normalizeStoreProfile = (raw) => {
   if (!raw || !raw.store) return null;
 
   const store = raw.store;
-  
+
   // Helper to construct full URLs for images
   const toFullUrl = (relativePath) => {
     if (!relativePath) return null;
@@ -34,10 +34,11 @@ const normalizeStoreProfile = (raw) => {
     promotionalBanners: store.permotaional_banners || [],
     categories: store.categories || [],
     followersCount: store.followers_count || 0,
-    totalSold: store.total_sold || 0,
+    totalSold: store.sold_items_sum_qty || 0,
     averageRating: store.average_rating || 0,
     socialLinks: store.social_links || [],
     products: store.products || [],
+    posts: store.posts || [],
     services: store.services || [],
     storeReviews: store.storeReveiws || [],
 
@@ -46,9 +47,15 @@ const normalizeStoreProfile = (raw) => {
     addresses: raw.addresses || [],
     delivery: raw.delivery || [],
     progress: raw.progress || { percent: 0, level: 1, status: 'draft' },
+
+    // Add owner ID for comparison - using store owner from the response
+    ownerId: store.id, // Assuming the store ID is the owner ID in this context
     
-    // Add owner ID for comparison
-    ownerId: store.user_id,
+    // Add store owner information for display
+    storeOwner: {
+      name: store.name,
+      profilePicture: toFullUrl(store.profile_image),
+    }
   };
 };
 // --- END NORMALIZER ---
@@ -56,17 +63,17 @@ const normalizeStoreProfile = (raw) => {
 /**
  * Custom hook to fetch and normalize the complete store profile/overview.
  */
-export const useStoreProfile = (userId, options = {}) => {
+export const useStoreProfile = (storeId, options = {}) => {
   return useQuery({
-    queryKey: ['storeProfile', userId],
-    queryFn: () => userService.getStoreProfile(), // Remove userId parameter
-    
+    queryKey: ['storeProfile', storeId],
+    queryFn: () => userService.getStoreProfile(), // Use the existing store profile method
+
     // Use the `select` option to automatically transform the raw API data
     select: (rawApiData) => {
       return normalizeStoreProfile(rawApiData);
     },
 
-    enabled: !!userId, // Query is only enabled if a userId is provided.
+    enabled: !!storeId, // Query is only enabled if a storeId is provided.
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
     ...options,

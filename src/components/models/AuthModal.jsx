@@ -85,7 +85,7 @@ function AuthModal({ mode, onClose, onSwitchMode }) {
       {/* Center wrapper (focusable) */}
       <div
         ref={containerRef}
-        className="relative w-full max-w-4xl mx-4 outline-none"
+        className="relative w-full max-w-5xl mx-4 outline-none"
         tabIndex={-1}
       >
         {mode === 'login' ? (

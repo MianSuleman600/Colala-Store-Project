@@ -138,7 +138,7 @@ const Login = ({ onClose, onSwitchToRegister }) => {
 
   return (
     <div
-      className="relative flex w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-xl min-h-[600px] lg:h-[600px]"
+      className="relative flex w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-xl min-h-[600px] lg:h-[600px]"
       aria-busy={isLoading ? 'true' : 'false'}
     >
       <button onClick={onClose} className="absolute top-4 right-4 z-20 text-gray-500 hover:text-gray-700" aria-label="Close login modal">

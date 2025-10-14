@@ -1,32 +1,67 @@
 // src/pages/SubscriptionPage.jsx
-import React, { useMemo } from 'react';
-import { useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import Button from '../../components/ui/Button';
-import { CheckCircle } from 'lucide-react';
-import { getContrastTextColor } from '../../utils/colorUtils';
-import ScrollToTop from '../../components/ui/ScrollToTop';
-import { useStoreProfile } from '../../services/queries/storeProfileQuery';
-import { useToast } from '../../components/ui/ToastProvider';
-import { useGetPlansQuery, useGetSubscriptionsQuery } from '../../services/queries/useSubscriptionQuery';
-import { useCreateSubscriptionMutation, useCancelSubscriptionMutation } from '../../services/mutations/useSubscriptionMutation';
-import backgroundImage from '../../assets/images/subscription/2.png';
+import React, { useMemo, useState } from "react";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import Button from "../../components/ui/Button";
+import { CheckCircle } from "lucide-react";
+import { getContrastTextColor } from "../../utils/colorUtils";
+import ScrollToTop from "../../components/ui/ScrollToTop";
+import { useStoreProfile } from "../../services/queries/storeProfileQuery";
+import { useToast } from "../../components/ui/ToastProvider";
+import {
+  useGetPlansQuery,
+  useGetSubscriptionsQuery,
+} from "../../services/queries/useSubscriptionQuery";
+import {
+  useCreateSubscriptionMutation,
+  useCancelSubscriptionMutation,
+} from "../../services/mutations/useSubscriptionMutation";
+import PaymentMethodModal from "../models/PaymentMethodModal";
+import backgroundImage from "../../assets/images/subscription/2.png";
 
-const SubscriptionPlanCard = ({ plan, brandColor, onSubscribe, onCancel, isActive, isCanceling, isSubscribing }) => {
-  const cardBgColor = plan.color || '#f0f0f0';
+const SubscriptionPlanCard = ({
+  plan,
+  brandColor,
+  onSubscribe,
+  onCancel,
+  isActive,
+  isCanceling,
+  isSubscribing,
+}) => {
+  const cardBgColor = plan.color || "#f0f0f0";
   const cardTextColor = getContrastTextColor(cardBgColor);
-  const priceLabel = typeof plan.price === 'number' ? `N${plan.price.toLocaleString()}` : plan.price;
+  const priceLabel =
+    typeof plan.price === "number"
+      ? `N${plan.price.toLocaleString()}`
+      : plan.price;
 
   return (
-    <div className="relative flex flex-col items-center p-6 pb-24 rounded-3xl shadow-lg overflow-hidden transition-transform duration-200 hover:scale-[1.02]" style={{ backgroundColor: cardBgColor }}>
-      <h3 className="text-3xl font-extrabold mb-4" style={{ color: cardTextColor }}>{plan.name}</h3>
+    <div
+      className="relative flex flex-col items-center p-6 pb-24 rounded-3xl shadow-lg overflow-hidden transition-transform duration-200 hover:scale-[1.02]"
+      style={{ backgroundColor: cardBgColor }}
+    >
+      <h3
+        className="text-3xl font-extrabold mb-4"
+        style={{ color: cardTextColor }}
+      >
+        {plan.name}
+      </h3>
       <div className="bg-white px-8 py-4 rounded-full shadow-inner mb-6">
-        <p className="text-3xl font-bold" style={{ color: brandColor }}>{priceLabel}</p>
+        <p className="text-3xl font-bold" style={{ color: brandColor }}>
+          {priceLabel}
+        </p>
         <p className="text-sm text-gray-500 text-center">{plan.duration}</p>
       </div>
       <ul className="w-full space-y-3 mb-8">
         {(plan.benefits || []).map((benefit) => (
-          <li key={`${plan.name}-${benefit}`} className="flex items-center p-3 rounded-lg" style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: cardTextColor }}>
+          <li
+            key={`${plan.name}-${benefit}`}
+            className="flex items-center p-3 rounded-lg"
+            style={{
+              backgroundColor: "rgba(255,255,255,0.2)",
+              color: cardTextColor,
+            }}
+          >
             <CheckCircle size={20} className="mr-3" />
             <span className="text-base font-medium">{benefit}</span>
           </li>
@@ -39,16 +74,19 @@ const SubscriptionPlanCard = ({ plan, brandColor, onSubscribe, onCancel, isActiv
             disabled={isCanceling}
             className="w-full py-3 px-6 rounded-full font-semibold text-center shadow-md bg-gray-500 text-white"
           >
-            {isCanceling ? 'Canceling...' : 'Cancel Subscription'}
+            {isCanceling ? "Canceling..." : "Cancel Subscription"}
           </Button>
         ) : (
           <Button
             onClick={() => onSubscribe(plan)}
             disabled={isSubscribing}
             className="w-full py-3 px-6 rounded-full font-semibold shadow-md"
-            style={{ backgroundColor: brandColor, color: getContrastTextColor(brandColor) }}
+            style={{
+              backgroundColor: brandColor,
+              color: getContrastTextColor(brandColor),
+            }}
           >
-            {isSubscribing ? 'Processing...' : 'Subscribe'}
+            {isSubscribing ? "Processing..." : "Subscribe"}
           </Button>
         )}
       </div>
@@ -61,37 +99,67 @@ const SubscriptionPage = () => {
   const { push } = useToast();
   const { userId, isLoggedIn } = useSelector((s) => s.user);
 
+  // Local state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+
   // Data Fetching
-  const { data: storeProfile } = useStoreProfile(userId, { enabled: isLoggedIn && !!userId });
+  const { data: storeProfile } = useStoreProfile(userId, {
+    enabled: isLoggedIn && !!userId,
+  });
   const { data: plans = [], isLoading: plansLoading } = useGetPlansQuery();
-  const { data: activeSubscription, isLoading: subscriptionLoading } = useGetSubscriptionsQuery({ enabled: isLoggedIn && !!userId });
-  
+  const { data: activeSubscription, isLoading: subscriptionLoading } =
+    useGetSubscriptionsQuery({ enabled: isLoggedIn && !!userId });
+
   // Mutations
   const createSubscription = useCreateSubscriptionMutation();
   const cancelSubscription = useCancelSubscriptionMutation();
 
-  const brandColor = useMemo(() => storeProfile?.brandColor || '#EF4444', [storeProfile]);
+  const brandColor = useMemo(
+    () => storeProfile?.brandColor || "#EF4444",
+    [storeProfile]
+  );
 
-  const activePlanName = activeSubscription?.plan || 'Free'; // Default to a free tier if no subscription
+  // Get active plan name from subscription data
+  const activePlanName = activeSubscription?.plan?.name || "Free";
 
   const handleSubscribe = (plan) => {
     if (!isLoggedIn) {
-      push('Please log in to subscribe.', { type: 'info' });
-      navigate('/login');
+      push("Please log in to subscribe.", { type: "info" });
+      navigate("/login");
       return;
     }
-    // This now triggers the API call directly
-    createSubscription.mutate({ planId: plan.id });
+    setSelectedPlan(plan);
+    setShowPaymentModal(true);
   };
-  
+
+  const handlePaymentProceed = (paymentMethod) => {
+    if (selectedPlan) {
+      createSubscription.mutate({ 
+        planId: selectedPlan.id, 
+        paymentMethod: paymentMethod 
+      });
+      setShowPaymentModal(false);
+      setSelectedPlan(null);
+    }
+  };
+
   const handleCancel = (plan) => {
-      if(window.confirm(`Are you sure you want to cancel your ${plan.name} subscription?`)){
-          cancelSubscription.mutate(activeSubscription.id);
-      }
-  }
+    if (
+      window.confirm(
+        `Are you sure you want to cancel your ${activePlanName} subscription?`
+      )
+    ) {
+      cancelSubscription.mutate(activeSubscription.id);
+    }
+  };
 
   if (plansLoading || subscriptionLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading plans...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading plans...
+      </div>
+    );
   }
 
   return (
@@ -100,8 +168,13 @@ const SubscriptionPage = () => {
       style={{ backgroundImage: `url(${backgroundImage})` }}
     >
       <ScrollToTop />
-      <h1 className="text-4xl font-bold mb-2" style={{ color: brandColor }}>Subscription</h1>
-      <div className="h-1 w-24 rounded-full mb-10" style={{ backgroundColor: brandColor }} />
+      <h1 className="text-4xl font-bold mb-2" style={{ color: brandColor }}>
+        Subscription
+      </h1>
+      <div
+        className="h-1 w-24 rounded-full mb-10"
+        style={{ backgroundColor: brandColor }}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl w-full">
         {plans.map((plan) => (
@@ -117,6 +190,18 @@ const SubscriptionPage = () => {
           />
         ))}
       </div>
+
+      {/* Payment Method Modal */}
+      <PaymentMethodModal
+        isOpen={showPaymentModal}
+        onClose={() => {
+          setShowPaymentModal(false);
+          setSelectedPlan(null);
+        }}
+        onProceed={handlePaymentProceed}
+        walletBalance={3000000} // This should come from user's wallet balance
+        isLoading={createSubscription.isLoading}
+      />
     </div>
   );
 };

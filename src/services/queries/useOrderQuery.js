@@ -70,3 +70,58 @@ export const useGetOrderByIdQuery = (orderId, userId, options = {}) => {
     ...options,
   });
 };
+
+/**
+ * Fetches all orders for the logged-in buyer.
+ */
+export const useGetBuyerOrdersQuery = (userId, options = {}) => {
+  return useQuery({
+    queryKey: ['buyerOrders', userId],
+    queryFn: async () => {
+      const response = await orderService.getBuyerOrders();
+      console.log('Raw buyer orders response:', response);
+      
+      // Handle seller orders response structure
+      const newOrdersRaw = response?.data?.new_orders?.data || [];
+      const completedOrdersRaw = response?.data?.completed_orders?.data || [];
+      
+      // Combine all orders
+      const allOrdersRaw = [...newOrdersRaw, ...completedOrdersRaw];
+      console.log('Raw buyer orders array:', allOrdersRaw);
+      
+      const normalized = normalizeOrders(allOrdersRaw);
+      console.log('Normalized buyer orders:', normalized);
+      
+      return normalized;
+    },
+    enabled: !!userId,
+    staleTime: 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Fetch a single buyer order by ID.
+ */
+export const useGetBuyerOrderByIdQuery = (orderId, userId, options = {}) => {
+  return useQuery({
+    queryKey: ['buyerOrder', userId, orderId],
+    queryFn: async () => {
+      if (!orderId) return null;
+
+      const response = await orderService.getBuyerOrderById(orderId);
+      console.log(`Raw response for buyer order ${orderId}:`, response);
+
+      const rawOrder = response?.data;
+      console.log('Raw single buyer order before normalization:', rawOrder);
+
+      const normalized = normalizeOrders(rawOrder ? [rawOrder] : []);
+      console.log('Normalized single buyer order:', normalized[0] ?? null);
+
+      return normalized[0] ?? null;
+    },
+    enabled: !!orderId,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};

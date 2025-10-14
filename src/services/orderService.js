@@ -35,6 +35,19 @@ const apiOrderService = {
    */
   markAsDelivered: (orderId, payload) => 
     apiRequest({ url: ENDPOINTS.SELLER_ORDERS.MARK_DELIVERED(orderId), method: 'POST', data: payload }),
+
+  /**
+   * Fetches all orders for the logged-in buyer.
+   */
+  getBuyerOrders: () => 
+    apiRequest({ url: ENDPOINTS.BUYER_ORDERS.LIST, method: 'GET' }),
+
+  /**
+   * Fetches the detailed information for a single buyer order.
+   * @param {string|number} orderId - The ID of the buyer order.
+   */
+  getBuyerOrderById: (orderId) => 
+    apiRequest({ url: ENDPOINTS.BUYER_ORDERS.DETAIL(orderId), method: 'GET' }),
 };
 
 export const orderService = apiOrderService;

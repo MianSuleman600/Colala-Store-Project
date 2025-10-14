@@ -103,7 +103,7 @@ const Level2Form = ({
   }, [formData.businessType]);
 
   return (
-    <div className={`w-full h-full ${mode === 'register' ? 'max-w-[389px] px-4 py-2 sm:px-8' : 'p-0'}`}>
+    <div className={`w-full h-full ${mode === 'register' ? 'max-w-[479px] px-4 py-2 sm:px-8' : 'p-0'}`}>
       {/* Header */}
       <div className="mt-6 border p-4 rounded-[15px] bg-white shadow-sm" style={{ borderColor: brandColor }}>
         <div className="flex items-center justify-between"><h4 className="text-lg font-semibold" style={{ color: brandColor }}>Level 2</h4><span className="text-sm hover:underline" style={{ color: brandColor }}>View Benefits</span></div>

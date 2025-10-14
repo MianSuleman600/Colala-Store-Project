@@ -1,6 +1,7 @@
 import React from 'react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
+import { API_BASE } from '../../api/apiConfig';
 
 const FullOrderDetailsPanel = ({ order, brandColor, contrastTextColor, onBackToTracker }) => {
   if (!order) {
@@ -11,13 +12,13 @@ const FullOrderDetailsPanel = ({ order, brandColor, contrastTextColor, onBackToT
     );
   }
 
-  // ✅ FIX: Using the correct order ID from the nested object.
-  const formattedOrderId = `ORD-${String(order.order?.id || '').slice(0, 7).toUpperCase()}`;
+  // Using the correct order ID from the nested object
+  const formattedOrderId = order?.order?.order_no || `ORD-${String(order?.id || '').slice(0, 7).toUpperCase()}`;
   
-  // ✅ FIX: Accessing nested delivery and user details with optional chaining for safety.
-  const deliveryInfo = order.order?.delivery_address;
-  const paymentMethod = order.payment_method || 'Not specified';
-  const customerInfo = order.order?.user;
+  // Accessing nested delivery and user details with optional chaining for safety
+  const deliveryInfo = order?.order?.delivery_address;
+  const paymentMethod = order?.order?.payment_method || 'Not specified';
+  const customerInfo = order?.order?.user;
 
   return (
     <div className="space-y-6">
@@ -28,32 +29,31 @@ const FullOrderDetailsPanel = ({ order, brandColor, contrastTextColor, onBackToT
             <h3 className="text-lg text-white mb-4 p-4 rounded-2xl">{formattedOrderId}</h3>
 
             <div className="space-y-4">
-              {order.items?.map((item) => (
+              {order?.items?.map((item) => (
                 <div key={item.id} className="flex items-center p-3 rounded-lg bg-white shadow-sm">
                   <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center mr-3">
-                    {/* ✅ FIX: Accessing product image from item.product */}
-                    {item.product?.image_url ? (
+                    {item?.product?.images?.length > 0 ? (
                       <img
-                        src={item.product.image_url}
-                        alt={item.product.name}
+                        src={`${API_BASE.replace('/api', '')}/storage/${item.product.images[0].path}`}
+                        alt={item.name}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = 'https://placehold.co/64x64/e0e0e0/000000?text=No+Image';
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'block';
                         }}
                       />
-                    ) : (
-                      <span className="text-gray-400 text-center text-xs">No Image</span>
-                    )}
+                    ) : null}
+                    <span className="text-gray-400 text-center text-xs" style={{ display: item?.product?.images?.length > 0 ? 'none' : 'block' }}>
+                      No Image
+                    </span>
                   </div>
                   <div className="flex-grow">
-                    {/* ✅ FIX: Accessing product name from item.product */}
-                    <p className="text-base font-medium text-gray-800">{item.product?.name || 'Product Name'}</p>
+                    <p className="text-base font-medium text-gray-800">{item.name}</p>
                     <p className="text-sm font-bold mt-1" style={{ color: brandColor }}>
-                      N{item.price?.toLocaleString()}
+                      N{parseFloat(item.unit_price || 0).toLocaleString()}
                     </p>
                     <div className="flex items-center gap-6 mt-1">
-                      <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+                      <p className="text-xs text-gray-500">Qty: {item.qty}</p>
                       {item.color && (
                         <div className="flex items-center text-xs text-gray-500">
                           Color:
@@ -77,13 +77,13 @@ const FullOrderDetailsPanel = ({ order, brandColor, contrastTextColor, onBackToT
             <div className="rounded-xl border border-gray-200 p-4 space-y-3">
               <div>
                 <p className="text-xs text-gray-400">Phone number</p>
-                {/* ✅ FIX: Accessing nested phone number */}
-                <p className="text-sm text-gray-800 font-medium">{deliveryInfo?.phone_number || 'N/A'}</p>
+                <p className="text-sm text-gray-800 font-medium">{deliveryInfo?.phone || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-400">Address</p>
-                {/* ✅ FIX: Accessing nested address */}
-                <p className="text-sm text-gray-800 font-medium">{deliveryInfo?.address || 'N/A'}</p>
+                <p className="text-sm text-gray-800 font-medium">
+                  {deliveryInfo ? `${deliveryInfo.line1 || ''} ${deliveryInfo.line2 || ''} ${deliveryInfo.city || ''} ${deliveryInfo.state || ''} ${deliveryInfo.country || ''}`.trim() : 'N/A'}
+                </p>
               </div>
             </div>
           </Card>
@@ -91,26 +91,20 @@ const FullOrderDetailsPanel = ({ order, brandColor, contrastTextColor, onBackToT
           {/* Price Breakdown */}
           <Card className="p-4 rounded-xl shadow-md bg-white">
             <div className="grid grid-cols-2 gap-4 text-sm text-gray-700">
-              {/* ✅ FIX: Using snake_case for API consistency */}
-              <div>Items Cost</div>
-              <div className="text-right font-semibold">N{(order.items_cost || 0).toLocaleString()}</div>
+              <div>Items Subtotal</div>
+              <div className="text-right font-semibold">N{parseFloat(order?.items_subtotal || 0).toLocaleString()}</div>
 
-              <div>Coupon Discount</div>
+              <div>Discount</div>
               <div className="text-right font-semibold" style={{ color: brandColor }}>
-                -N{(order.coupon_discount || 0).toLocaleString()}
+                -N{parseFloat(order?.discount || 0).toLocaleString()}
               </div>
 
-              <div>Points Discount</div>
-              <div className="text-right font-semibold" style={{ color: brandColor }}>
-                -N{(order.points_discount || 0).toLocaleString()}
-              </div>
+              <div>Shipping Fee</div>
+              <div className="text-right font-semibold">N{parseFloat(order?.shipping_fee || 0).toLocaleString()}</div>
 
-              <div>Delivery Fee</div>
-              <div className="text-right font-semibold">N{(order.delivery_fee || 0).toLocaleString()}</div>
-
-              <div className="text-lg font-bold">Total</div>
+              <div className="text-lg font-bold">Subtotal with Shipping</div>
               <div className="text-right text-lg font-bold" style={{ color: brandColor }}>
-                N{(order.total_price || 0).toLocaleString()}
+                N{parseFloat(order?.subtotal_with_shipping || 0).toLocaleString()}
               </div>
             </div>
           </Card>
@@ -142,7 +136,7 @@ const FullOrderDetailsPanel = ({ order, brandColor, contrastTextColor, onBackToT
 
               <div>Total</div>
               <div className="text-right font-semibold" style={{ color: brandColor }}>
-                N{(order.total_price || 0).toLocaleString()}
+                N{parseFloat(order?.order?.grand_total || 0).toLocaleString()}
               </div>
             </div>
           </Card>

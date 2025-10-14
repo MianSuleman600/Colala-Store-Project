@@ -190,7 +190,7 @@ const Level3Form = ({
   };
 
   return (
-    <div className={`w-full h-full ${mode === "register" ? "max-w-[389px] px-4 py-2 sm:px-8" : "p-0 flex flex-col"}`}>
+    <div className={`w-full h-full ${mode === "register" ? "max-w-[489px] px-4 py-2 sm:px-8" : "p-0 flex flex-col"}`}>
       {/* Header */}
       <div className="p-4 mt-6 border rounded-2xl bg-white shadow-sm">
         <div className="flex justify-between items-center">

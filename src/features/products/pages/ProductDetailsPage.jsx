@@ -4,14 +4,12 @@ import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import Button from '../../../components/ui/Button';
 import { getContrastTextColor } from '../../../utils/colorUtils';
-import { useStoreProfile } from '../../../services/queries/storeProfileQuery';
 import { useProductDetailsQuery } from '../../../services/queries/useproductsQuery';
 import { useToast } from '../../../components/ui/ToastProvider';
 
-import ProductMediaGallery from '../../../features/products/pages/ProductMediaGallery';
 import ProductMoreMenu from '../../../features/products/pages/ProductMoreMenu';
 import ProductDeleteModal from '../../../components/models/ProductDeleteModal';
-import { useMediaGallery } from '../../../hooks/Products/useMediaGallery';
+import ProductImageGallery from '../../../components/products/ProductImageGallery';
 import { useProductActions } from '../../../hooks/Products/useProductActions';
 import { useLike } from '../../../hooks/Products/useLike';
 import {
@@ -32,11 +30,7 @@ const ProductDetailsPage = () => {
   const { push } = useToast();
 
   // --- Store profile for theming ---
-  const { data: storeProfileData, isLoading: profileLoading } = useStoreProfile(userId, {
-    enabled: !!userId,
-  });
-  const brandColor = storeProfileData?.brandColor || '#EF4444';
-  const contrastTextColor = getContrastTextColor(brandColor);
+  // Note: Store info is now obtained from product data
 
   // --- Product details query ---
   const preloadedProduct = location.state?.product;
@@ -54,8 +48,7 @@ const ProductDetailsPage = () => {
     } : undefined,
   });
 
-  // --- Hooks for media and actions ---
-  const media = useMediaGallery(product);
+  // --- Hooks for actions ---
   const { markStatus, deleteProduct, copyLink, shareLink, normalizeStatus } =
     useProductActions({ productId, userId });
   const { liked, toggle: toggleLike } = useLike(productId, userId);
@@ -70,13 +63,18 @@ const ProductDetailsPage = () => {
     () => normalizeStatus(product?.status),
     [product, normalizeStatus]
   );
-  const quantityLeft = Number(product?.detailsPageInfo?.quantityLeft ?? 0);
-  const reviews = Array.isArray(product?.reviews)
-    ? product.reviews
-    : Array.isArray(product?.detailsPageInfo?.reviews)
-    ? product.detailsPageInfo.reviews
-    : [];
+  const quantityLeft = Number(product?.qty ?? product?.quantity ?? 0);
+  const reviews = Array.isArray(product?.reviews) ? product.reviews : [];
   const reviewCount = reviews.length;
+  
+  // Price calculations based on API response
+  const currentPrice = product?.discount_price ? parseFloat(product.discount_price) : parseFloat(product?.price || 0);
+  const originalPrice = product?.discount_price ? parseFloat(product.price || 0) : null;
+  
+  // Store information
+  const storeInfo = product?.store;
+  const brandColor = storeInfo?.theme_color || '#EF4444';
+  const contrastTextColor = getContrastTextColor(brandColor);
 
   // --- Keep qty valid based on stock ---
   useEffect(() => {
@@ -103,13 +101,31 @@ const ProductDetailsPage = () => {
   };
 
   // --- Loading & error states ---
-  if (isLoading || profileLoading) {
-    return <div className="flex justify-center items-center h-screen">Loading product details...</div>;
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
+          <p className="text-lg font-semibold text-gray-600">Loading product details...</p>
+          <p className="text-sm text-gray-500 mt-2">Please wait while we fetch the product information</p>
+        </div>
+      </div>
+    );
   }
   if (isError || !product) {
     return (
-      <div className="flex justify-center items-center h-screen text-red-500">
-        Failed to load product: {error?.message || 'Unknown error'}
+      <div className="flex justify-center items-center h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Failed to load product</h2>
+          <p className="text-gray-600 mb-4">{error?.message || 'Unknown error occurred'}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
@@ -175,36 +191,56 @@ const ProductDetailsPage = () => {
       {/* Content */}
       <div className="bg-white rounded-lg shadow-md p-4 md:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 border border-gray-200">
         {/* Left: Media */}
-        <ProductMediaGallery
-          brandColor={brandColor}
-          mediaRawList={media.mediaRawList}
-          selectedRaw={media.selectedRaw}
-          selectedDisplay={media.selectedDisplay}
-          isVideoDisplay={media.isVideoDisplay}
-          videoRef={media.videoRef}
-          isPlaying={media.isPlaying}
-          onThumbClick={media.handleThumbClick}
-          onPlayClick={media.handlePlayClick}
-          onVideoError={media.handleVideoError}
-          onImageError={media.handleImageError}
+        <ProductImageGallery
+          images={product.images || []}
+          video={product.video}
         />
 
         {/* Right: Details and actions */}
         <div className="flex flex-col space-y-4">
           <h2 className="text-2xl font-bold text-gray-900">{product.name}</h2>
-          <p className="text-gray-600">{product.detailsPageInfo?.description}</p>
+          <p className="text-gray-600">{product.description || 'No description available'}</p>
+
+          {/* Store Information */}
+          {storeInfo && (
+            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+              <div className="w-10 h-10 rounded-full overflow-hidden">
+                {storeInfo.profile_image ? (
+                  <img
+                    src={`${import.meta.env.VITE_API_URL || 'https://colala.hmstech.xyz'}/storage/${storeInfo.profile_image}`}
+                    alt={storeInfo.store_name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                    <span className="text-sm font-medium text-gray-600">
+                      {storeInfo.store_name?.charAt(0) || 'S'}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-900">{storeInfo.store_name}</h3>
+                <p className="text-sm text-gray-600">{storeInfo.store_location}</p>
+              </div>
+              <div className="flex items-center space-x-1">
+                <span className="text-yellow-400 text-sm">★</span>
+                <span className="text-sm text-gray-600">{storeInfo.average_rating || '0'}</span>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-baseline space-x-2">
             <span className="text-3xl font-bold" style={{ color: brandColor }}>
-              ₦{product.currentPrice?.toLocaleString() ?? 'N/A'}
+              ₦{currentPrice.toLocaleString()}
             </span>
-            {product.originalPrice && (
+            {originalPrice && (
               <span className="text-lg text-gray-500 line-through">
-                ₦{product.originalPrice.toLocaleString()}
+                ₦{originalPrice.toLocaleString()}
               </span>
             )}
             <span className="text-yellow-500 text-sm font-semibold ml-auto">
-              ★ {product.rating}
+              ★ {product.average_rating || '0'}
             </span>
           </div>
 
@@ -336,8 +372,20 @@ const ProductDetailsPage = () => {
         {activeTab === 'description' ? (
           <div>
             <p className="text-gray-700 leading-relaxed">
-              {product.detailsPageInfo?.description || 'No description available.'}
+              {product.description || 'No description available.'}
             </p>
+            {product.brand && (
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <h4 className="font-semibold text-gray-800 mb-2">Brand</h4>
+                <p className="text-gray-600">{product.brand}</p>
+              </div>
+            )}
+            {product.category && (
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <h4 className="font-semibold text-gray-800 mb-2">Category</h4>
+                <p className="text-gray-600">{product.category.title}</p>
+              </div>
+            )}
           </div>
         ) : (
           <div>
