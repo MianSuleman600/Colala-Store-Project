@@ -30,6 +30,7 @@ export const chatService = {
     url: ENDPOINTS.SELLER_CHAT.SEND_MESSAGE(chatId),
     method: 'POST',
     data: payload,
-    headers: { 'Content-Type': 'multipart/form-data' },
+    // For this API, body is JSON: { message: string, sender_type: 'store' }
+    headers: { 'Content-Type': 'application/json' },
   }),
 };

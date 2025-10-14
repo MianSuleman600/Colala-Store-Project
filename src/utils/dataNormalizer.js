@@ -2,6 +2,7 @@
 import profileImage from '../assets/images/profileImage.png';
 import bannerImage from '../assets/images/bannerImage.png';
 import promotionalBannerImage from '../assets/images/bag.png';
+import { ASSETS_BASE } from '../api/apiConfig';
 
 /* ---------------- Defaults ---------------- */
 const DEFAULT_PROFILE = '/default-profile.png';
@@ -166,6 +167,43 @@ export const normalizeProducts = (products) =>
     },
   });
 
+/* ---------------- Seller Products (My Products) ---------------- */
+export const normalizeSellerProducts = (rows) => {
+  const arr = Array.isArray(rows) ? rows : Array.isArray(rows?.data) ? rows.data : [];
+  return arr.map((p) => {
+    const mainImage = Array.isArray(p.images) && p.images.length > 0
+      ? p.images.find((img) => img.is_main === 1) || p.images[0]
+      : null;
+    const imageUrl = mainImage?.path
+      ? `${ASSETS_BASE}/storage/${mainImage.path}`
+      : null;
+
+    return {
+      id: p.id,
+      name: p.name || 'Untitled Product',
+      imageUrl,
+      price: parseFloat(p.discount_price ?? p.price ?? 0),
+      originalPrice: p.discount_price != null ? parseFloat(p.price) : null,
+      category: p.category?.title || p.category || 'Uncategorized',
+      storeName: p.store?.store_name || 'Store',
+      storeLogo: p.store?.profile_image_url,
+      rating: p.average_rating ?? 0,
+      status: p.status || 'active',
+      isSold: Boolean(p.is_sold),
+      isUnavailable: Boolean(p.is_unavailable),
+      metrics: {
+        productViews: p.views || 0,
+        productClicks: p.clicks || 0,
+        messages: p.chats || 0,
+        inCart: p.carts || 0,
+        completedOrders: p.orders || 0,
+        impressions: p.impressions || 0,
+      },
+      originalItem: p,
+    };
+  });
+};
+
 /* ---------------- Promotions ---------------- */
 export const normalizePromotions = (promos) =>
   normalizeData(promos, {
@@ -242,6 +280,34 @@ export const normalizeChats = (chats) =>
       })),
     }),
   });
+
+/* ---------------- Seller Chat: List ---------------- */
+export const normalizeSellerChatsList = (rows) => {
+  const arr = Array.isArray(rows) ? rows : Array.isArray(rows?.data) ? rows.data : [];
+  return arr.map((r) => ({
+    id: r.chat_id ?? r.id ?? `chat-${Math.random().toString(36).slice(2, 9)}`,
+    chatType: r.chat_type || 'general',
+    userName: r.user || r.name || 'Unknown',
+    userProfilePic: hydrateImage(r.avatar) || DEFAULT_PROFILE,
+    lastMessage: r.last_message || '',
+    time: r.last_message_at || '',
+    unreadCount: Number(r.unread_count ?? 0) || 0,
+  }));
+};
+
+/* ---------------- Seller Chat: Messages ---------------- */
+export const normalizeSellerChatMessages = (payload) => {
+  const data = payload?.data || payload || {};
+  const msgs = Array.isArray(data.messages) ? data.messages : [];
+  return msgs.map((m, idx) => ({
+    id: m.id ?? m.message_id ?? `msg-${idx}-${Math.random().toString(36).slice(2, 6)}`,
+    type: 'text',
+    text: m.message || m.text || '',
+    createdAt: m.created_at || m.createdAt || new Date().toISOString(),
+    isMine: (m.sender_type || m.senderType) === 'store',
+    senderId: (m.sender_type || m.senderType) === 'store' ? 'store' : 'buyer',
+  }));
+};
 
 /* ---------------- Feed Posts ---------------- */
 export const normalizeFeedPosts = (posts) =>

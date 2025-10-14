@@ -53,20 +53,13 @@ const ChatPage = () => {
   const handleSendMessage = ({ text = '', file = null, tempMessage }) => {
     if (!activeChatId) return;
 
-    const payload = new FormData();
-    
-    // ✅ THE FIX: Use the keys 'message' and 'image' to match the backend validation.
-    payload.append('message', text);
+    // API expects JSON: { message, sender_type }
+    const payload = { message: text, sender_type: 'store' };
     if (file) {
-      payload.append('image', file);
+      // Attachments not supported by current API sample; ignoring file for now.
+      console.warn('[Chat] File attachment provided but API expects only text. Skipping file.');
     }
-    
-    sendMessageMutation.mutate({ 
-        chatId: activeChatId, 
-        payload, 
-        tempMessage,
-        userId 
-    });
+    sendMessageMutation.mutate({ chatId: activeChatId, payload, tempMessage, userId });
   };
 
   return (

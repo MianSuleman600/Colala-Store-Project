@@ -1,7 +1,7 @@
 // src/services/queries/useChatQuery.js
 import { useQuery } from '@tanstack/react-query';
 import { chatService } from '../index.js';
-import { normalizeChats, normalizeChatThread } from '../../utils/dataNormalizer.js';
+import { normalizeSellerChatsList, normalizeSellerChatMessages } from '../../utils/dataNormalizer.js';
 
 /**
  * Fetch all chat conversations for the user/store.
@@ -12,7 +12,7 @@ export const useChatsQuery = (userId, options = {}) => {
     queryKey: ['chats', userId],
     queryFn: async () => {
       const data = await chatService.getChats();
-      return normalizeChats(data?.chats || data?.data || data);
+      return normalizeSellerChatsList(data);
     },
     enabled: !!userId, // Ensure query only runs when logged in
     staleTime: 60 * 1000, // 1 minute
@@ -29,7 +29,7 @@ export const useChatMessagesQuery = (chatId, options = {}) => {
     queryFn: async () => {
       if (!chatId) return [];
       const data = await chatService.getChatMessages(chatId);
-      return normalizeChatThread(data?.messages || data?.data || data);
+      return normalizeSellerChatMessages(data);
     },
     enabled: !!chatId,
     staleTime: 10 * 1000,

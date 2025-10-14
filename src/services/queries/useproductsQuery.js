@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { productService } from '../productService.js'; 
-import { normalizeProducts } from '../../utils/dataNormalizer.js';
+import { normalizeProducts, normalizeSellerProducts } from '../../utils/dataNormalizer.js';
 
 // --- My Products (user-scoped, points to the correct endpoint) ---
 // This is the ONLY hook that fetches a list of products.
@@ -11,8 +11,7 @@ export const useGetMyProductsQuery = (userId, options = {}) =>
     queryKey: ['myProducts', userId],
     queryFn: async () => {
       const response = await productService.getProducts();
-      const productsArray = response?.data || [];
-      return normalizeProducts(productsArray);
+      return normalizeSellerProducts(response);
     },
     enabled: !!userId,
     staleTime: 5 * 60 * 1000,

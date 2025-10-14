@@ -1,6 +1,7 @@
 // src/components/Chat/ChatListItem.jsx
 import React from 'react';
 import { getContrastTextColor } from '../../utils/colorUtils';
+import { formatChatTime } from '../../utils/formatDate';
 
 const hexToRgba = (hex, alpha = 0.1) => {
   const m = hex.replace('#', '');
@@ -38,7 +39,7 @@ const ChatListItem = ({ chat, isActive, onClick, brandColor = '#EF4444' }) => {
         <div className="flex justify-between items-center">
           <h3 className="font-semibold text-sm text-gray-800 truncate">{chat.userName}</h3>
           <span className="text-[10px] text-gray-500">
-            {typeof chat.time === 'string' ? chat.time : ''}
+            {formatChatTime(chat.time)}
           </span>
         </div>
 

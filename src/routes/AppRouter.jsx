@@ -165,7 +165,7 @@ const MainLayout = () => {
         </Suspense>
       </main>
 
-      <AuthDebugger />
+      {/* <AuthDebugger /> */}
 
       {open && (
         <AuthModal

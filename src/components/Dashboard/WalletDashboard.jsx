@@ -74,12 +74,36 @@ const WithdrawalModal = ({ isOpen, onClose, onWithdraw, brandColor }) => {
 /* ---------------- Success Modal ---------------- */
 const WithdrawalSuccessModal = ({ isOpen, onClose, withdrawalAmount, currency = '₦', brandColor }) => (
     <Transition appear show={isOpen} as={Fragment}>
-      {/* ... Unchanged Success Modal JSX ... */}
+      <Dialog className="relative z-50" onClose={onClose}>
+        <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
+          <div className="fixed inset-0 bg-black/50" />
+        </Transition.Child>
+        <div className="fixed inset-0 overflow-y-auto"><div className="flex min-h-full items-center justify-center p-4">
+          <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
+            <Dialog.Panel className="w-full max-w-md transform rounded-3xl bg-white p-6 text-center shadow-xl">
+              <div className="flex justify-center mb-4">
+                <CheckCircle size={64} className="text-green-500" />
+              </div>
+              <Dialog.Title className="text-xl font-bold mb-2">Withdrawal Successful!</Dialog.Title>
+              <p className="text-gray-600 mb-4">
+                Your withdrawal of {currency}{Intl.NumberFormat().format(withdrawalAmount)} has been processed successfully.
+              </p>
+              <button
+                onClick={onClose}
+                className="w-full py-3 font-semibold rounded-2xl text-white"
+                style={{ backgroundColor: brandColor }}
+              >
+                Close
+              </button>
+            </Dialog.Panel>
+          </Transition.Child>
+        </div></div>
+      </Dialog>
     </Transition>
 );
 
 /* ---------------- Main Wallet Dashboard Component ---------------- */
-const WalletDashboard = ({ embedded = true }) => {
+const WalletDashboard = ({ embedded = true, type = 'overview' }) => {
   const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [withdrawalAmount, setWithdrawalAmount] = useState(0);
@@ -168,7 +192,18 @@ const WalletDashboard = ({ embedded = true }) => {
   );
   
   if (!embedded) {
-      // ... Standalone page logic remains the same
+    return (
+      <div className="min-h-screen bg-gray-100 p-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="w-full space-y-4">
+            {header}
+            {transactionsSection}
+            <WithdrawalModal isOpen={isWithdrawalModalOpen} onClose={() => setIsWithdrawalModalOpen(false)} onWithdraw={onWithdraw} brandColor={brandColor} />
+            <WithdrawalSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} withdrawalAmount={withdrawalAmount} currency={currency} brandColor={brandColor}/>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
