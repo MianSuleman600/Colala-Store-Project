@@ -1,23 +1,28 @@
 // src/services/mutations/useProductMutation.js
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-// CORRECTED IMPORT: Point directly to the productService file.
 import { productService } from '../productService.js';
 
-// Helper to update a product's status optimistically
+// -------------------------------------------------------------
+// 🔹 Helper: Optimistically update product status in cache
+// -------------------------------------------------------------
 const optimisticStatusUpdate = (queryClient, userId, productId, newStatus) => {
   const queryKey = ['myProducts', userId];
   queryClient.setQueryData(queryKey, (oldData) => {
     if (!oldData) return oldData;
-    return oldData.map(product => 
+    return oldData.map((product) =>
       product.id === productId ? { ...product, status: newStatus } : product
     );
   });
 };
 
+// -------------------------------------------------------------
+// ✅ ADD PRODUCT
+// -------------------------------------------------------------
 export const useAddProductMutation = (options = {}) => {
   const queryClient = useQueryClient();
   const { userId } = options;
+
   return useMutation({
     mutationFn: (payload) => productService.addProduct(payload),
     onSuccess: (data) => {
@@ -28,9 +33,13 @@ export const useAddProductMutation = (options = {}) => {
   });
 };
 
+// -------------------------------------------------------------
+// ✅ UPDATE PRODUCT
+// -------------------------------------------------------------
 export const useUpdateProductMutation = (options = {}) => {
   const queryClient = useQueryClient();
   const { userId } = options;
+
   return useMutation({
     mutationFn: ({ id, payload }) => productService.updateProduct(id, payload),
     onSuccess: (data, variables) => {
@@ -42,22 +51,30 @@ export const useUpdateProductMutation = (options = {}) => {
   });
 };
 
+// -------------------------------------------------------------
+// ✅ DELETE PRODUCT
+// -------------------------------------------------------------
 export const useDeleteProductMutation = (options = {}) => {
   const queryClient = useQueryClient();
   const { userId } = options;
+
   return useMutation({
     mutationFn: (id) => productService.deleteProduct(id),
-    
+
+    // Optimistic removal from cache
     onMutate: async (id) => {
       const queryKey = ['myProducts', userId];
       await queryClient.cancelQueries({ queryKey });
       const previousProducts = queryClient.getQueryData(queryKey);
-      
-      queryClient.setQueryData(queryKey, (old) => old ? old.filter(p => p.id !== id) : []);
-      
+
+      queryClient.setQueryData(queryKey, (old) =>
+        old ? old.filter((p) => p.id !== id) : []
+      );
+
       return { previousProducts };
     },
 
+    // Rollback on error
     onError: (err, id, context) => {
       if (context?.previousProducts) {
         queryClient.setQueryData(['myProducts', userId], context.previousProducts);
@@ -65,6 +82,7 @@ export const useDeleteProductMutation = (options = {}) => {
       options.onError?.(err);
     },
 
+    // Refetch after delete
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['myProducts', userId] });
     },
@@ -72,10 +90,13 @@ export const useDeleteProductMutation = (options = {}) => {
   });
 };
 
-// --- NEW MUTATIONS FOR STATUS ---
+// -------------------------------------------------------------
+// ✅ MARK PRODUCT STATUS (sold / available / unavailable)
+// -------------------------------------------------------------
 export const useMarkProductStatusMutation = (options = {}) => {
   const queryClient = useQueryClient();
   const { userId } = options;
+
   return useMutation({
     mutationFn: ({ productId, status }) => {
       if (status === 'sold') return productService.markAsSold(productId);
@@ -83,7 +104,7 @@ export const useMarkProductStatusMutation = (options = {}) => {
       if (status === 'available') return productService.markAsAvailable(productId);
       throw new Error('Invalid status');
     },
-    
+
     onMutate: async ({ productId, status }) => {
       const queryKey = ['myProducts', userId];
       await queryClient.cancelQueries({ queryKey });
@@ -100,48 +121,72 @@ export const useMarkProductStatusMutation = (options = {}) => {
     },
 
     onSettled: (data, error, { productId }) => {
-        // Invalidate both the list and the specific product detail to keep them in sync
-        queryClient.invalidateQueries({ queryKey: ['myProducts', userId] });
-        queryClient.invalidateQueries({ queryKey: ['productDetail', productId] });
+      queryClient.invalidateQueries({ queryKey: ['myProducts', userId] });
+      queryClient.invalidateQueries({ queryKey: ['productDetail', productId] });
     },
     ...options,
   });
 };
 
+// -------------------------------------------------------------
+// ✅ VARIANT MUTATIONS
+// -------------------------------------------------------------
+export const useCreateVariantMutation = (options = {}) =>
+  useMutation({
+    mutationFn: ({ productId, payload }) =>
+      productService.createVariant(productId, payload),
+    ...options,
+  });
 
-export const useCreateVariantMutation = (options = {}) => useMutation({
-  mutationFn: ({ productId, payload }) => productService.createVariant(productId, payload),
-  ...options,
-});
+export const useUpdateVariantMutation = (options = {}) =>
+  useMutation({
+    mutationFn: ({ productId, variantId, payload }) =>
+      productService.updateVariant(productId, variantId, payload),
+    ...options,
+  });
 
-export const useUpdateVariantMutation = (options = {}) => useMutation({
-  mutationFn: ({ productId, variantId, payload }) => productService.updateVariant(productId, variantId, payload),
-  ...options,
-});
+export const useDeleteVariantMutation = (options = {}) =>
+  useMutation({
+    mutationFn: ({ productId, variantId }) =>
+      productService.deleteVariant(productId, variantId),
+    ...options,
+  });
 
-export const useDeleteVariantMutation = (options = {}) => useMutation({
-  mutationFn: ({ productId, variantId }) => productService.deleteVariant(productId, variantId),
-  ...options,
-});
+// -------------------------------------------------------------
+// ✅ BULK OPERATIONS
+// -------------------------------------------------------------
+export const useUpdateBulkPricesMutation = (options = {}) =>
+  useMutation({
+    mutationFn: ({ productId, payload }) =>
+      productService.updateBulkPrices(productId, payload),
+    ...options,
+  });
 
-export const useUpdateBulkPricesMutation = (options = {}) => useMutation({
-  mutationFn: ({ productId, payload }) => productService.updateBulkPrices(productId, payload),
-  ...options,
-});
+export const useUpdateDeliveryOptionsMutation = (options = {}) =>
+  useMutation({
+    mutationFn: ({ productId, payload }) =>
+      productService.updateDeliveryOptions(productId, payload),
+    ...options,
+  });
 
-export const useUpdateDeliveryOptionsMutation = (options = {}) => useMutation({
-  mutationFn: ({ productId, payload }) => productService.updateDeliveryOptions(productId, payload),
-  ...options,
-});
-
+// -------------------------------------------------------------
+// ✅ BULK UPLOAD FILE
+// -------------------------------------------------------------
 export const useUploadBulkFileMutation = (options = {}) => {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: (file) => productService.uploadBulkFile(file),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['myProducts'] });
-            options.onSuccess?.();
-        },
-        ...options
-    });
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file) => productService.uploadBulkFile(file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myProducts'] });
+      options.onSuccess?.();
+    },
+    ...options,
+  });
 };
+
+// -------------------------------------------------------------
+// ✅ Legacy Export Aliases (Fixes Vite "export not found" errors)
+// -------------------------------------------------------------
+export const useDeleteProduct = useDeleteProductMutation;
+export const useUpdateProduct = useUpdateProductMutation;

@@ -112,7 +112,7 @@ export const ENDPOINTS = {
   SELLER_PRODUCTS: {
     MY_PRODUCTS: u('/seller/products/my-products'),
     LIST: u('/seller/products'),
-    DETAIL: (id) => u(`/seller/products/${encodeSeg(id)}`), // Generic detail endpoint
+    DETAIL: (id) => u(`/buyer/product-details/${encodeSeg(id)}`), // Generic detail endpoint
     CREATE: u('/seller/products/create'),
     UPDATE: (id) => u(`/seller/products/update/${encodeSeg(id)}`),
     DELETE: (id) => u(`/seller/products/delete/${encodeSeg(id)}`),

@@ -14,9 +14,15 @@ import ProductDeleteModal from '../../../components/models/ProductDeleteModal';
 import { useMediaGallery } from '../../../hooks/Products/useMediaGallery';
 import { useProductActions } from '../../../hooks/Products/useProductActions';
 import { useLike } from '../../../hooks/Products/useLike';
-import { HeartIcon as HeartIconOutline, ChartBarIcon, TrashIcon } from '@heroicons/react/24/outline';
+import {
+  HeartIcon as HeartIconOutline,
+  ChartBarIcon,
+  TrashIcon,
+} from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import BackButton from '../../../components/ui/BackButton';
+
+// ✅ Removed duplicate mutation imports — handled by useProductActions internally
 
 const ProductDetailsPage = () => {
   const { productId } = useParams();
@@ -24,24 +30,37 @@ const ProductDetailsPage = () => {
   const { userId } = useSelector((s) => s.user);
   const { push } = useToast();
 
-  // Hooks must always be called
-  const { data: storeProfileData, isLoading: profileLoading } = useStoreProfile(userId, { enabled: !!userId });
+  // --- Store profile for theming ---
+  const { data: storeProfileData, isLoading: profileLoading } = useStoreProfile(userId, {
+    enabled: !!userId,
+  });
   const brandColor = storeProfileData?.brandColor || '#EF4444';
   const contrastTextColor = getContrastTextColor(brandColor);
 
-  const { data: product, isLoading, isError, error } = useProductDetailsQuery(productId, { enabled: !!productId });
+  // --- Product details query ---
+  const {
+    data: product,
+    isLoading,
+    isError,
+    error,
+  } = useProductDetailsQuery(productId, { enabled: !!productId });
 
+  // --- Hooks for media and actions ---
   const media = useMediaGallery(product);
-  const { markStatus, deleteProduct, copyLink, shareLink, normalizeStatus } = useProductActions({ productId, userId });
+  const { markStatus, deleteProduct, copyLink, shareLink, normalizeStatus } =
+    useProductActions({ productId, userId });
   const { liked, toggle: toggleLike } = useLike(productId, userId);
 
-  // Local UI state (always declared before any early return)
+  // --- Local UI state ---
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState('description'); // 'description' | 'reviews'
+  const [activeTab, setActiveTab] = useState('description');
   const [qty, setQty] = useState(1);
 
-  // Derivations that are safe even when product is undefined
-  const currentStatus = useMemo(() => normalizeStatus(product?.status), [product, normalizeStatus]);
+  // --- Derived values ---
+  const currentStatus = useMemo(
+    () => normalizeStatus(product?.status),
+    [product, normalizeStatus]
+  );
   const quantityLeft = Number(product?.detailsPageInfo?.quantityLeft ?? 0);
   const reviews = Array.isArray(product?.reviews)
     ? product.reviews
@@ -50,7 +69,7 @@ const ProductDetailsPage = () => {
     : [];
   const reviewCount = reviews.length;
 
-  // Keep qty in range based on quantityLeft
+  // --- Keep qty valid based on stock ---
   useEffect(() => {
     setQty(quantityLeft > 0 ? 1 : 0);
   }, [productId, quantityLeft]);
@@ -58,9 +77,7 @@ const ProductDetailsPage = () => {
   const isMinusDisabled = qty <= 1;
   const isPlusDisabled = quantityLeft <= 0 || qty >= quantityLeft;
 
-  const handleDecrement = () => {
-    setQty((q) => Math.max(1, q - 1));
-  };
+  const handleDecrement = () => setQty((q) => Math.max(1, q - 1));
 
   const handleIncrement = () => {
     if (quantityLeft <= 0) {
@@ -76,7 +93,7 @@ const ProductDetailsPage = () => {
     });
   };
 
-  // Early returns AFTER all hooks
+  // --- Loading & error states ---
   if (isLoading || profileLoading) {
     return <div className="flex justify-center items-center h-screen">Loading product details...</div>;
   }
@@ -88,6 +105,7 @@ const ProductDetailsPage = () => {
     );
   }
 
+  // --- Render UI ---
   return (
     <div className="container mx-auto p-4 md:p-8 bg-gray-50 min-h-screen font-sans">
       {/* Mobile back button */}
@@ -107,7 +125,10 @@ const ProductDetailsPage = () => {
 
       {/* Header with Like + More menu */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800" style={{ fontFamily: 'Manrope' }}>
+        <h1
+          className="text-2xl md:text-3xl font-bold text-gray-800"
+          style={{ fontFamily: 'Manrope' }}
+        >
           <Link to="/my-products" className="hover:underline text-black/50">
             My product
           </Link>{' '}
@@ -173,15 +194,18 @@ const ProductDetailsPage = () => {
                 ₦{product.originalPrice.toLocaleString()}
               </span>
             )}
-            <span className="text-yellow-500 text-sm font-semibold ml-auto">★ {product.rating} </span>
+            <span className="text-yellow-500 text-sm font-semibold ml-auto">
+              ★ {product.rating}
+            </span>
           </div>
 
-          {/* Optional tags placeholder */}
+          {/* Info tag */}
           <div className="flex flex-col space-y-2">
             <div className="bg-orange-500 text-white p-2 h-2.5 rounded-md flex items-center">
-              <span className="flex items-center w-7 h-full justify-center pr-1" style={{ backgroundColor: brandColor }}>
-                {/* your icon here */}
-              </span>
+              <span
+                className="flex items-center w-7 h-full justify-center pr-1"
+                style={{ backgroundColor: brandColor }}
+              />
               <span className="text-[12px]">Information tag 1</span>
             </div>
           </div>
@@ -196,14 +220,13 @@ const ProductDetailsPage = () => {
                 {quantityLeft}
               </span>
             </div>
+
             <div className="flex items-center rounded-md overflow-hidden">
               <button
                 className="px-3 py-1 text-lg rounded-l-xl disabled:opacity-50"
                 style={{ backgroundColor: brandColor, color: contrastTextColor }}
                 onClick={handleDecrement}
                 disabled={isMinusDisabled}
-                aria-label="Decrease quantity"
-                title="Decrease quantity"
               >
                 -
               </button>
@@ -212,22 +235,19 @@ const ProductDetailsPage = () => {
                 value={qty}
                 readOnly
                 className="w-12 text-center bg-white text-gray-900 py-1"
-                aria-label="Selected quantity"
               />
               <button
                 className="px-3 py-1 text-lg rounded-r-xl disabled:opacity-50"
                 style={{ backgroundColor: brandColor, color: contrastTextColor }}
                 onClick={handleIncrement}
                 disabled={isPlusDisabled}
-                aria-label="Increase quantity"
-                title="Increase quantity"
               >
                 +
               </button>
             </div>
           </div>
 
-          {/* Actions (with set icons for status and delete) */}
+          {/* Actions */}
           <div className="grid grid-cols-4 gap-4 mt-2">
             <Button
               onClick={() => setShowDeleteConfirm(true)}
@@ -272,18 +292,33 @@ const ProductDetailsPage = () => {
       <div className="bg-white rounded-lg shadow-md p-4 md:p-6 mt-6 border border-gray-200">
         <div className="flex border-b rounded-2xl border-gray-200 mb-4 gap-2">
           <button
-            className={`py-2 px-4 text-lg rounded-xl ${activeTab === 'description' ? '' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}
-            style={activeTab === 'description' ? { backgroundColor: brandColor, color: contrastTextColor } : {}}
+            className={`py-2 px-4 text-lg rounded-xl ${
+              activeTab === 'description'
+                ? ''
+                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+            }`}
+            style={
+              activeTab === 'description'
+                ? { backgroundColor: brandColor, color: contrastTextColor }
+                : {}
+            }
             onClick={() => setActiveTab('description')}
-            aria-selected={activeTab === 'description'}
           >
             Description
           </button>
+
           <button
-            className={`py-2 px-4 text-lg rounded-xl ${activeTab === 'reviews' ? '' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}
-            style={activeTab === 'reviews' ? { backgroundColor: brandColor, color: contrastTextColor } : {}}
+            className={`py-2 px-4 text-lg rounded-xl ${
+              activeTab === 'reviews'
+                ? ''
+                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+            }`}
+            style={
+              activeTab === 'reviews'
+                ? { backgroundColor: brandColor, color: contrastTextColor }
+                : {}
+            }
             onClick={() => setActiveTab('reviews')}
-            aria-selected={activeTab === 'reviews'}
           >
             Reviews {reviewCount ? `(${reviewCount})` : ''}
           </button>
@@ -304,10 +339,15 @@ const ProductDetailsPage = () => {
                   const rating = typeof r?.rating === 'number' ? r.rating : null;
                   const comment = r?.comment || r?.text || '';
                   return (
-                    <li key={r?.id || r?._id || idx} className="border border-gray-200 rounded-lg p-3">
+                    <li
+                      key={r?.id || r?._id || idx}
+                      className="border border-gray-200 rounded-lg p-3"
+                    >
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-semibold text-gray-800">{author}</span>
-                        {rating != null && <span className="text-yellow-500 text-sm">★ {rating}</span>}
+                        {rating != null && (
+                          <span className="text-yellow-500 text-sm">★ {rating}</span>
+                        )}
                       </div>
                       <p className="text-gray-700 text-sm">{comment}</p>
                     </li>

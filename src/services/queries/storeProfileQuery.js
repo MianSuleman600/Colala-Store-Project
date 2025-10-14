@@ -59,7 +59,7 @@ const normalizeStoreProfile = (raw) => {
 export const useStoreProfile = (userId, options = {}) => {
   return useQuery({
     queryKey: ['storeProfile', userId],
-    queryFn: () => userService.getStoreProfile(userId),
+    queryFn: () => userService.getStoreProfile(), // Remove userId parameter
     
     // Use the `select` option to automatically transform the raw API data
     select: (rawApiData) => {

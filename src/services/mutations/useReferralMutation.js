@@ -2,9 +2,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { referralService } from '../settings/referralService.js';
 import { referralQueryKeys } from '../queries/useReferralQuery.js';
-
-// Replace with your actual toast provider hook
-const useToast = () => ({ push: (msg, opts) => console.log(`[Toast ${opts?.type}]: ${msg}`) });
+import { useToast } from '../../components/ui/ToastProvider.jsx';
 
 export const useReferralWithdrawMutation = () => {
   const queryClient = useQueryClient();

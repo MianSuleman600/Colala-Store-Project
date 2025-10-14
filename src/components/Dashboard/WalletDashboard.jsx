@@ -4,7 +4,6 @@ import { ArrowUpCircle, ArrowDownCircle, CheckCircle, X } from 'lucide-react';
 import { Transition, Dialog } from '@headlessui/react';
 import ScrollToTop from '../ui/ScrollToTop';
 import { useToast } from '../ui/ToastProvider';
-import { getContrastTextColor } from '../../utils/colorUtils';
 
 // Import the correct, live data hooks
 import { useWalletBalanceQuery } from '../../services/queries/useWalletQuery';
@@ -103,7 +102,7 @@ const WithdrawalSuccessModal = ({ isOpen, onClose, withdrawalAmount, currency = 
 );
 
 /* ---------------- Main Wallet Dashboard Component ---------------- */
-const WalletDashboard = ({ embedded = true, type = 'overview' }) => {
+const WalletDashboard = ({ embedded = true }) => {
   const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [withdrawalAmount, setWithdrawalAmount] = useState(0);
