@@ -15,7 +15,7 @@ const StoreHeader = ({
   isStoreOwner,
 }) => {
   return (
-    <div className="w-full h-[120px] sm:h-[150px] bg-gray-200 mb-6 sm:mb-8 md:mb-12 relative rounded-2xl">
+    <div className="w-full h-[150px] bg-gray-200 mb-12 relative rounded-2xl">
       <ImagePlaceholder
         src={bannerImageUrl}
         alt="Store Banner"
@@ -51,11 +51,11 @@ const StoreHeader = ({
         </>
       )}
 
-      <div className="absolute left-4 sm:left-6 -bottom-6 sm:-bottom-8 md:-bottom-10">
+      <div className="absolute left-6 -bottom-10">
         <ImagePlaceholder
           src={profilePictureUrl}
           alt="Profile Picture"
-          className="w-16 h-16 sm:w-18 sm:h-18 md:w-20 md:h-20 rounded-full object-cover border-3 sm:border-4 border-white shadow-lg"
+          className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg"
         />
       </div>
     </div>

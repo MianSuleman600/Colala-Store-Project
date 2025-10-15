@@ -168,9 +168,9 @@ function NavBar() {
           )}
         </div>
 
-        {/* Bottom nav links - hidden on mobile, shown on desktop */}
+        {/* Bottom nav links */}
         <div
-          className="hidden md:flex w-full h-[70px] rounded-b-4xl items-center justify-start px-4 lg:px-44 lg:ps-20"
+          className="hidden sm:flex w-full h-[70px] rounded-b-4xl items-center justify-start px-4 lg:px-44 lg:ps-20"
           style={{ backgroundColor: brandColor, color: contrastTextColor }}
         >
           {isAuthenticated && (

@@ -5,7 +5,6 @@ import { useSelector } from "react-redux";
 
 import DashboardHeader from "../components/Dashboard/DashboardHeader";
 import DashboardSidebar from "../components/Dashboard/DashboardSidebar";
-import MobileSettingsLayout from "../components/Dashboard/MobileSettingsLayout";
 import MyServicesPage from "../features/services/pages/MyServicesPage";
 import MyProductsPage from "../features/products/pages/MyProduct";
 import AnalyticsPage from "../components/Dashboard/AnalyticsPage";
@@ -201,14 +200,7 @@ const SellerDashboardPage = () => {
   };
 
   return (
-    <>
-      {/* Mobile Layout */}
-      <div className="lg:hidden">
-        <MobileSettingsLayout />
-      </div>
-
-      {/* Desktop Layout */}
-      <div className="hidden lg:flex min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 flex">
       {/* Sidebar */}
       <div
         className={`fixed top-0 left-0 h-full min-w-[380px] transform transition-transform duration-300 ease-in-out
@@ -246,7 +238,7 @@ const SellerDashboardPage = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile Header */}
-        <div className="lg:hidden p-3 sm:p-4">
+        <div className="lg:hidden p-4">
           <DashboardHeader
             brandColor={brandColor}
             contrastTextColor={contrastTextColor}
@@ -256,12 +248,11 @@ const SellerDashboardPage = () => {
           />
         </div>
 
-        <main className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 lg:p-0">
+        <main className="flex-1 overflow-y-auto custom-scrollbar">
           {hasNestedRoute ? <Outlet /> : renderPageContent()}
         </main>
       </div>
-      </div>
-    </>
+    </div>
   );
 };
 

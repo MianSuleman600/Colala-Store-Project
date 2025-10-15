@@ -6,8 +6,6 @@ const ProductImageGallery = ({ images, video }) => {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [videoError, setVideoError] = useState(null);
   const [videoRetryCount, setVideoRetryCount] = useState(0);
-  const [showNativeControls, setShowNativeControls] = useState(false);
-  const [userInteracted, setUserInteracted] = useState(false);
   const videoRef = useRef(null);
 
   // Combine images and video into a single media array
@@ -86,53 +84,21 @@ const ProductImageGallery = ({ images, video }) => {
   }
 
   const handlePlayPause = async () => {
-    console.log('=== PLAY BUTTON CLICKED ===');
-    console.log('isVideo:', isVideo);
-    console.log('videoRef.current:', videoRef.current);
-    console.log('isVideoPlaying:', isVideoPlaying);
-    console.log('mediaUrl:', mediaUrl);
-    
-    // Mark that user has interacted
-    setUserInteracted(true);
-    
     if (isVideo && videoRef.current) {
       try {
         if (isVideoPlaying) {
-          console.log('Pausing video...');
           videoRef.current.pause();
           setIsVideoPlaying(false);
         } else {
-          console.log('Playing video...');
           setVideoError(null);
-          
-          // Ensure video is loaded before playing
-          if (videoRef.current.readyState < 2) {
-            console.log('Video not ready, waiting for canplay event...');
-            videoRef.current.load();
-            // Wait a bit for the video to load
-            setTimeout(async () => {
-              try {
-                await videoRef.current.play();
-                setIsVideoPlaying(true);
-                console.log('Video started playing after load');
-              } catch (playError) {
-                console.error('Video play error after load:', playError);
-                setVideoError(playError.message || 'Failed to play video after load');
-              }
-            }, 500);
-          } else {
-            await videoRef.current.play();
-            setIsVideoPlaying(true);
-            console.log('Video started playing immediately');
-          }
+          await videoRef.current.play();
+          setIsVideoPlaying(true);
         }
       } catch (error) {
         console.error('Video playback error:', error);
         setVideoError(error.message || 'Failed to play video');
         setIsVideoPlaying(false);
       }
-    } else {
-      console.error('Cannot play video - missing video element or not a video');
     }
   };
 
@@ -175,7 +141,6 @@ const ProductImageGallery = ({ images, video }) => {
                     ref={videoRef}
                     src={mediaUrl}
                     className="w-full h-full object-cover"
-                    onClick={() => setUserInteracted(true)}
                     onEnded={handleVideoEnded}
                     onError={(e) => {
                       console.error('Video failed to load:', e);
@@ -186,31 +151,11 @@ const ProductImageGallery = ({ images, video }) => {
                     onLoadStart={() => {
                       console.log('Video loading started:', mediaUrl);
                     }}
-                    onLoadedData={() => {
-                      console.log('Video data loaded:', mediaUrl);
-                    }}
                     onCanPlay={() => {
                       console.log('Video can play:', mediaUrl);
                     }}
-                    onCanPlayThrough={() => {
-                      console.log('Video can play through:', mediaUrl);
-                    }}
-                    onPlay={() => {
-                      console.log('Video play event fired');
-                      setIsVideoPlaying(true);
-                    }}
-                    onPause={() => {
-                      console.log('Video pause event fired');
-                      setIsVideoPlaying(false);
-                    }}
-                    onWaiting={() => {
-                      console.log('Video waiting for data');
-                    }}
-                    onStalled={() => {
-                      console.log('Video stalled');
-                    }}
                     preload="metadata"
-                    controls={showNativeControls}
+                    controls={false}
                     playsInline
                     webkit-playsinline="true"
                   />
@@ -220,42 +165,24 @@ const ProductImageGallery = ({ images, video }) => {
                       <div className="text-center text-white p-4">
                         <p className="text-sm mb-2">Video Error</p>
                         <p className="text-xs opacity-75">{videoError}</p>
-                        <div className="flex gap-2 mt-2">
-                          <button
-                            onClick={retryVideoLoad}
-                            className="px-3 py-1 bg-white bg-opacity-20 rounded text-xs hover:bg-opacity-30"
-                          >
-                            Retry ({videoRetryCount > 0 ? videoRetryCount : ''})
-                          </button>
-                          <button
-                            onClick={() => setShowNativeControls(true)}
-                            className="px-3 py-1 bg-white bg-opacity-20 rounded text-xs hover:bg-opacity-30"
-                          >
-                            Use Native Controls
-                          </button>
-                        </div>
+                        <button
+                          onClick={retryVideoLoad}
+                          className="mt-2 px-3 py-1 bg-white bg-opacity-20 rounded text-xs hover:bg-opacity-30"
+                        >
+                          Retry ({videoRetryCount > 0 ? videoRetryCount : ''})
+                        </button>
                       </div>
                     ) : (
-                      <div className="text-center">
-                        <button
-                          onClick={handlePlayPause}
-                          className="p-4 bg-white bg-opacity-90 rounded-full hover:bg-opacity-100 transition-all"
-                        >
-                          {isVideoPlaying ? (
-                            <Pause className="h-8 w-8 text-gray-800" />
-                          ) : (
-                            <Play className="h-8 w-8 text-gray-800 ml-1" />
-                          )}
-                        </button>
-                        {(videoRetryCount > 2 || !userInteracted) && (
-                          <button
-                            onClick={() => setShowNativeControls(true)}
-                            className="mt-2 px-3 py-1 bg-white bg-opacity-20 rounded text-xs hover:bg-opacity-30 text-white"
-                          >
-                            Use Native Controls
-                          </button>
+                      <button
+                        onClick={handlePlayPause}
+                        className="p-4 bg-white bg-opacity-90 rounded-full hover:bg-opacity-100 transition-all"
+                      >
+                        {isVideoPlaying ? (
+                          <Pause className="h-8 w-8 text-gray-800" />
+                        ) : (
+                          <Play className="h-8 w-8 text-gray-800 ml-1" />
                         )}
-                      </div>
+                      </button>
                     )}
                   </div>
                 </>

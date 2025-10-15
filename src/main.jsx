@@ -11,7 +11,52 @@ import { loadFormData } from './features/auth/registrationSlice.js';
 import { loadFromIndexedDB } from './utils/indexedDB.js';
 import { restoreAuthState } from './redux/authMiddleware.js';
 
-// Service Worker registration removed - using auto-generated SW from VitePWA
+const SWManager = () => {
+  const { push } = useToast();
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+
+    const register = async () => {
+      try {
+        const isDev = import.meta.env.DEV;
+        const swUrl = isDev ? '/dev-sw.js?dev-sw' : '/sw.js';
+        const reg = await navigator.serviceWorker.register(swUrl, {
+          scope: '/',
+          ...(isDev ? { type: 'module' } : {}), // important: dev SW must be module
+        });
+
+        // Show toasts similar to virtual:pwa-register behavior
+        reg.addEventListener('updatefound', () => {
+          const installing = reg.installing;
+          if (!installing) return;
+          installing.addEventListener('statechange', () => {
+            if (installing.state === 'installed') {
+              if (navigator.serviceWorker.controller) {
+                // Updated SW installed, page controlled by old SW
+                push?.('A new version is available. Refresh to update.', { type: 'info', duration: 5000 });
+              } else {
+                // First install: offline ready
+                push?.('App is ready to work offline.', { type: 'success' });
+              }
+            }
+          });
+        });
+
+        if (isDev) {
+          // Optional: quiet message on successful dev registration
+          console.info('[PWA] Dev SW registered as module.');
+        }
+      } catch (err) {
+        console.error('SW registration failed:', err);
+      }
+    };
+
+    register();
+  }, [push]);
+
+  return null;
+};
 
 // Initialize offline data and auth state
 const OfflineInitializer = ({ children }) => {
@@ -53,6 +98,7 @@ ReactDOM.createRoot(root).render(
     <Provider store={store}>
       <BrowserRouter>
         <ToastProvider>
+          <SWManager />
           <OfflineInitializer>
             <App />
           </OfflineInitializer>
