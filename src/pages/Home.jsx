@@ -20,7 +20,6 @@ import Button from "../components/ui/Button";
 import StoreProfileModal from "../components/models/StoreProfileModal";
 import StoreBuilderModal from "../components/models/StoreBuilderModal";
 
-import { useOnboardingProgressQuery } from "../services/queries/useOnboardingQuery";
 import { useGetBuyerOrdersQuery } from "../services/queries/useOrderQuery";
 
 import productIcon from "../assets/icons/product.png";
@@ -44,29 +43,37 @@ export default function HomePage() {
 
   // ✅ Only call query if authenticated and user exists
   const shouldFetch = isAuthenticated && !!user?.id;
-  const { data: onboardingProgress } =
-    useOnboardingProgressQuery(shouldFetch ? {} : { enabled: false });
+  // const { data: onboardingProgress } = useOnboardingProgressQuery(
+  //   shouldFetch ? {} : { enabled: false }
+  // );
 
   // Fetch buyer orders
-  const { data: buyerOrders = [], isLoading: ordersLoading, error: ordersError } = useGetBuyerOrdersQuery(
-    user?.id,
-    { enabled: shouldFetch }
-  );
+  const {
+    data: buyerOrders = [],
+    isLoading: ordersLoading,
+  } = useGetBuyerOrdersQuery(user?.id, { enabled: shouldFetch });
 
-  const combinedProgress = useMemo(() => {
-    if (!onboardingProgress?.steps) return 0;
-    const totalSteps = onboardingProgress.steps.length;
-    const doneSteps = onboardingProgress.steps.filter(
-      (s) => s.status === "done"
-    ).length;
-    return Math.round((doneSteps / totalSteps) * 100);
-  }, [onboardingProgress]);
+  // const combinedProgress = useMemo(() => {
+  //   if (!onboardingProgress?.steps) return 0;
+  //   const totalSteps = onboardingProgress.steps.length;
+  //   const doneSteps = onboardingProgress.steps.filter(
+  //     (s) => s.status === "done"
+  //   ).length;
+  //   return Math.round((doneSteps / totalSteps) * 100);
+  // }, [onboardingProgress]);
 
   // Get latest 4 orders
   const latestOrders = useMemo(() => {
-    console.log('buyerOrders type:', typeof buyerOrders, 'isArray:', Array.isArray(buyerOrders), 'value:', buyerOrders);
+    console.log(
+      "buyerOrders type:",
+      typeof buyerOrders,
+      "isArray:",
+      Array.isArray(buyerOrders),
+      "value:",
+      buyerOrders
+    );
     if (!Array.isArray(buyerOrders)) {
-      console.warn('buyerOrders is not an array:', buyerOrders);
+      console.warn("buyerOrders is not an array:", buyerOrders);
       return [];
     }
     return buyerOrders.slice(0, 4);
@@ -112,15 +119,18 @@ export default function HomePage() {
       : dispatch(openModal("login"));
   }, [isAuthenticated, dispatch]);
 
-  const handleOrderClick = useCallback((orderId) => {
-    if (isAuthenticated) {
-      navigate('/orders', { 
-        state: { selectedOrderId: orderId } 
-      });
-    } else {
-      dispatch(openModal("login"));
-    }
-  }, [isAuthenticated, navigate, dispatch]);
+  const handleOrderClick = useCallback(
+    (orderId) => {
+      if (isAuthenticated) {
+        navigate("/orders", {
+          state: { selectedOrderId: orderId },
+        });
+      } else {
+        dispatch(openModal("login"));
+      }
+    },
+    [isAuthenticated, navigate, dispatch]
+  );
 
   // Loading skeleton
   if (authStatus === "loading" || (isAuthenticated && !storeProfileFromRedux)) {
@@ -142,8 +152,8 @@ export default function HomePage() {
     );
   }
 
-  const showInfoBox =
-    isAuthenticated && onboardingProgress && combinedProgress < 100;
+  // const showInfoBox =
+  //   isAuthenticated && onboardingProgress && combinedProgress < 100;
 
   return (
     <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
@@ -176,7 +186,7 @@ export default function HomePage() {
         }
       />
 
-      <div className="grid grid-cols-1 mt-12 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 mt-12 gap-6 lg:grid-cols-2">
         {/* Left Column */}
         <section className="lg:col-span-1 space-y-6">
           <StoreOwnerInfoSection
@@ -215,11 +225,7 @@ export default function HomePage() {
                   </div>
                 ))}
               </div>
-            ) : ordersError ? (
-              <div className="flex items-center justify-center h-full text-red-500">
-                <p>Failed to load orders. Please try again.</p>
-              </div>
-            ) : latestOrders.length === 0 ? (
+             ) : latestOrders.length === 0 ? (
               <div className="flex items-center justify-center h-full text-gray-500">
                 <p>No recent orders to display.</p>
               </div>
@@ -238,17 +244,25 @@ export default function HomePage() {
                       <span
                         className="text-xs px-2 py-1 rounded-full"
                         style={{
-                          backgroundColor: order.status === 'delivered' ? '#10B981' : 
-                                         order.status === 'pending' ? '#F59E0B' : 
-                                         order.status === 'cancelled' ? '#EF4444' : '#6B7280',
-                          color: 'white'
+                          backgroundColor:
+                            order.status === "delivered"
+                              ? "#10B981"
+                              : order.status === "pending"
+                              ? "#F59E0B"
+                              : order.status === "cancelled"
+                              ? "#EF4444"
+                              : "#6B7280",
+                          color: "white",
                         }}
                       >
                         {order.status}
                       </span>
                     </div>
                     <div className="text-sm text-gray-600">
-                      <p>Total: ₦{parseFloat(order.total_amount || 0).toLocaleString()}</p>
+                      <p>
+                        Total: ₦
+                        {parseFloat(order.total_amount || 0).toLocaleString()}
+                      </p>
                       <p className="text-xs text-gray-500">
                         {new Date(order.created_at).toLocaleDateString()}
                       </p>
@@ -260,7 +274,7 @@ export default function HomePage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => navigate('/orders')}
+                      onClick={() => navigate("/orders")}
                       style={{ borderColor: brandColor, color: brandColor }}
                     >
                       View All Orders
@@ -273,7 +287,7 @@ export default function HomePage() {
         </section>
 
         {/* Right Column */}
-        <section className="lg:col-span-2 space-y-6">
+        <section className="lg:col-span-1 space-y-6">
           <div className="flex justify-end gap-3">
             <Button
               style={{ backgroundColor: "black", color: "white" }}
@@ -290,26 +304,7 @@ export default function HomePage() {
             </Button>
           </div>
 
-          {showInfoBox && (
-            <InfoBox
-              title={
-                isAuthenticated
-                  ? "Complete your profile to unlock more features"
-                  : "Create your store to start selling"
-              }
-              actionText={isAuthenticated ? "Complete Now" : "Create Store"}
-              actionOnClick={
-                isAuthenticated
-                  ? () => navigate("/store-upgrade")
-                  : () => dispatch(openModal("register"))
-              }
-              completionPercentage={combinedProgress}
-              actionButtonStyle={{
-                backgroundColor: brandColor,
-                color: contrastTextColor,
-              }}
-            />
-          )}
+           {/* InfoBox removed for cleaner layout */}
 
           <PromotionalBanner placement="home" />
 

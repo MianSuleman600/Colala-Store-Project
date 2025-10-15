@@ -61,17 +61,17 @@ const PromotionalBanner = ({ className = '' }) => {
       
       {/* Text content */}
       <div className="relative z-10 flex flex-col items-center md:items-start text-center md:text-left mb-6 md:mb-0 md:w-1/2 lg:w-2/3">
-        <h2 className="text-2xl md:text-3xl lg:text-4xl mb-3 leading-tight" style={{ color: contrastTextColor }}>
+        <h2 className="text-md md:text:xl lg:text-2xl mb-3 leading-tight" style={{ color: contrastTextColor }}>
           {titlePrefix} <span style={{ fontFamily: 'Oleo Script', color: contrastTextColor }}>{storeName}</span>
         </h2>
-        <p className="text-sm md:text-base lg:text-lg mb-6 max-w-md" style={{ color: contrastTextColor }}>{description}</p>
+        <p className="text-sm md:text-base lg:text-sm mb-6 max-w-md" style={{ color: contrastTextColor }}>{description}</p>
         <Button onClick={handleButtonClick} className="bg-white" style={{ color: brandColor }}>
           {buttonText}
         </Button>
       </div>
 
       {/* Image content */}
-      <div className="relative z-10 w-full md:w-1/2 lg:w-1/3 flex justify-center items-center mt-6 md:mt-0">
+      <div className="relative z-10 w-full md:w-1/2 lg:w-1/4 flex justify-center items-center mt-6 md:mt-0">
         <img 
           src={banner.imageUrl || shoppingBagImage} 
           alt={banner.alt || 'Promotional Banner'} 

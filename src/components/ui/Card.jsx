@@ -7,7 +7,7 @@ const Card = React.forwardRef(
     return (
       <div
         ref={ref}
-        className={`rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.2)] ${
+        className={`${
           clickable
             ? 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-300'
             : ''

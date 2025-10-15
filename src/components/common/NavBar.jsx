@@ -27,7 +27,6 @@ function NavBar() {
   const { isAuthenticated, user, status } = useSelector((state) => state.auth);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
 
   const brandColor = user?.store?.theme_color || "#EF4444";
   const contrastTextColor = "#fff";
@@ -70,7 +69,7 @@ function NavBar() {
       <nav className="flex flex-col">
         {/* Top nav bar */}
         <div
-          className="h-[64px] sm:h-[80px] flex items-center justify-between px-4 sm:px-6 lg:px-8 relative gap-3"
+          className="h-[64px] sm:h-[80px] flex items-center justify-between sm:px-6 lg:px-44 lg:ps-52 relative gap-3"
           style={{ backgroundColor: brandColor, color: contrastTextColor }}
         >
           {/* Mobile menu toggle */}
@@ -115,7 +114,9 @@ function NavBar() {
                 <User size={28} />
                 <div className="flex flex-col items-start text-white">
                   <span className="text-xs">Welcome</span>
-                  <span className="font-bold leading-tight">Sign In/Register</span>
+                  <span className="font-bold leading-tight">
+                    Sign In/Register
+                  </span>
                 </div>
               </button>
             ) : (
@@ -135,7 +136,10 @@ function NavBar() {
           {/* Mobile icons */}
           <div className="flex sm:hidden items-center gap-3 ml-auto">
             {!isAuthenticated ? (
-              <button onClick={() => dispatch(openModal("login"))} className="p-1">
+              <button
+                onClick={() => dispatch(openModal("login"))}
+                className="p-1"
+              >
                 <User size={24} />
               </button>
             ) : (
@@ -147,7 +151,10 @@ function NavBar() {
         </div>
 
         {/* Mobile search */}
-        <div className="sm:hidden px-4 pt-2 pb-3 rounded-b-2xl" style={{ backgroundColor: brandColor }}>
+        <div
+          className="sm:hidden px-4 pt-2 pb-3 rounded-b-2xl"
+          style={{ backgroundColor: brandColor }}
+        >
           <SearchInput />
           {isAuthenticated && (
             <div className="mt-2 text-center">
@@ -163,7 +170,7 @@ function NavBar() {
 
         {/* Bottom nav links */}
         <div
-          className="hidden sm:flex w-full h-[70px] rounded-b-4xl items-center justify-start px-4 lg:px-8"
+          className="hidden sm:flex w-full h-[70px] rounded-b-4xl items-center justify-start px-4 lg:px-44 lg:ps-52"
           style={{ backgroundColor: brandColor, color: contrastTextColor }}
         >
           {isAuthenticated && (
@@ -197,7 +204,10 @@ function NavBar() {
         {/* Mobile menu dropdown */}
         {mobileMenuOpen && (
           <div className="sm:hidden relative">
-            <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setMobileMenuOpen(false)} />
+            <div
+              className="fixed inset-0 bg-black/40 z-40"
+              onClick={() => setMobileMenuOpen(false)}
+            />
             <div className="fixed top-[64px] left-0 right-0 z-50 bg-white rounded-b-2xl shadow-lg overflow-hidden">
               <div className="grid grid-cols-2 gap-2 p-4">
                 {Object.keys(linkPaths).map((link) => (
