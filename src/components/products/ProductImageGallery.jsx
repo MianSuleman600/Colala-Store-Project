@@ -5,6 +5,7 @@ const ProductImageGallery = ({ images, video }) => {
   const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [videoError, setVideoError] = useState(null);
+  const [videoRetryCount, setVideoRetryCount] = useState(0);
   const videoRef = useRef(null);
 
   // Combine images and video into a single media array
@@ -46,8 +47,21 @@ const ProductImageGallery = ({ images, video }) => {
       return null;
     }
     
+    // Check if the path is already a full URL
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    
     // Check if the path looks like a valid storage path
-    if (path.includes('products/') || path.includes('services/') || path.includes('videos/')) {
+    // Allow any path that doesn't start with /tmp/ and has a file extension
+    if (path.includes('/') && (path.includes('.') || path.includes('products/') || path.includes('services/') || path.includes('videos/'))) {
+      return `${import.meta.env.VITE_API_URL || 'https://colala.hmstech.xyz'}/storage/${path}`;
+    }
+    
+    // For any other path that doesn't match the above patterns, still try to construct the URL
+    // This handles cases where the path might be valid but doesn't match our strict patterns
+    if (path.length > 0 && !path.startsWith('/tmp/')) {
+      console.log('Attempting to construct URL for path:', path);
       return `${import.meta.env.VITE_API_URL || 'https://colala.hmstech.xyz'}/storage/${path}`;
     }
     
@@ -59,9 +73,14 @@ const ProductImageGallery = ({ images, video }) => {
 
   // Debug info for video
   if (isVideo) {
+    console.log('=== VIDEO DEBUG INFO ===');
     console.log('Video URL:', mediaUrl);
     console.log('Video path:', selectedMedia.path);
     console.log('Is valid path:', mediaUrl !== null);
+    console.log('Video type:', selectedMedia.type);
+    console.log('All media items:', mediaItems);
+    console.log('Selected media index:', selectedMediaIndex);
+    console.log('========================');
   }
 
   const handlePlayPause = async () => {
@@ -87,6 +106,28 @@ const ProductImageGallery = ({ images, video }) => {
     setIsVideoPlaying(false);
   };
 
+  const retryVideoLoad = () => {
+    setVideoError(null);
+    setVideoRetryCount(prev => prev + 1);
+    if (videoRef.current) {
+      // Try different URL constructions on retry
+      const path = selectedMedia.path;
+      let newUrl = mediaUrl;
+      
+      if (videoRetryCount === 1) {
+        // Try without /storage/ prefix
+        newUrl = `${import.meta.env.VITE_API_URL || 'https://colala.hmstech.xyz'}/${path}`;
+      } else if (videoRetryCount === 2) {
+        // Try with different base URL
+        newUrl = `https://colala.hmstech.xyz/storage/${path}`;
+      }
+      
+      console.log('Retrying video with URL:', newUrl);
+      videoRef.current.src = newUrl;
+      videoRef.current.load();
+    }
+  };
+
   return (
     <div className="flex gap-4">
       {/* Main Media Display */}
@@ -103,7 +144,9 @@ const ProductImageGallery = ({ images, video }) => {
                     onEnded={handleVideoEnded}
                     onError={(e) => {
                       console.error('Video failed to load:', e);
-                      setVideoError('Failed to load video');
+                      console.error('Video src:', mediaUrl);
+                      console.error('Video path:', selectedMedia.path);
+                      setVideoError(`Failed to load video (attempt ${videoRetryCount + 1})`);
                     }}
                     onLoadStart={() => {
                       console.log('Video loading started:', mediaUrl);
@@ -123,15 +166,10 @@ const ProductImageGallery = ({ images, video }) => {
                         <p className="text-sm mb-2">Video Error</p>
                         <p className="text-xs opacity-75">{videoError}</p>
                         <button
-                          onClick={() => {
-                            setVideoError(null);
-                            if (videoRef.current) {
-                              videoRef.current.load();
-                            }
-                          }}
+                          onClick={retryVideoLoad}
                           className="mt-2 px-3 py-1 bg-white bg-opacity-20 rounded text-xs hover:bg-opacity-30"
                         >
-                          Retry
+                          Retry ({videoRetryCount > 0 ? videoRetryCount : ''})
                         </button>
                       </div>
                     ) : (

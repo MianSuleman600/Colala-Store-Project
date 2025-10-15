@@ -244,16 +244,7 @@ const ProductDetailsPage = () => {
             </span>
           </div>
 
-          {/* Info tag */}
-          <div className="flex flex-col space-y-2">
-            <div className="bg-orange-500 text-white p-2 h-2.5 rounded-md flex items-center">
-              <span
-                className="flex items-center w-7 h-full justify-center pr-1"
-                style={{ backgroundColor: brandColor }}
-              />
-              <span className="text-[12px]">Information tag 1</span>
-            </div>
-          </div>
+      
 
           <hr className="my-4 border-t border-gray-300 opacity-60" />
 

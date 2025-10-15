@@ -1,6 +1,6 @@
 // src/features/products/hooks/useProductActions.js
 import { useQueryClient } from '@tanstack/react-query';
-import { useUpdateProduct, useDeleteProduct } from '../../services/mutations/useProductMutation';
+import { useUpdateProduct, useDeleteProduct, useMarkProductStatusMutation } from '../../services/mutations/useProductMutation';
 import { useToast } from '../../components/ui/ToastProvider';
 
 const normalizeStatus = (s) => {
@@ -17,10 +17,11 @@ export const useProductActions = ({ productId, userId }) => {
 
   const updateMutation = useUpdateProduct(userId);
   const deleteMutation = useDeleteProduct(userId);
+  const markStatusMutation = useMarkProductStatusMutation({ userId });
 
   const markStatus = (status) => {
-    updateMutation.mutate(
-      { id: productId, payload: { status } },
+    markStatusMutation.mutate(
+      { productId, status },
       {
         onSuccess: () => {
           push(`Product marked as ${status}.`, { type: 'success' });
