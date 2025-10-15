@@ -4,7 +4,6 @@ import { ASSETS_BASE } from '../../api/apiConfig';
 
 export const toAbsolute = (url) => {
     if (!url || url.startsWith('http') || url.startsWith('blob:')) return url;
-    // Your API returns URLs with a leading slash, like "/storage/...", so we don't need to add another one.
     return `${ASSETS_BASE}${url}`;
 };
 
@@ -52,31 +51,20 @@ export const useGetPostsQuery = (options = {}) => {
     queryKey: ['posts'],
     queryFn: async () => {
       const response = await feedService.getPosts();
-      
-      // ✅ THE ROOT FIX: Get BOTH lists from the API response.
       const publicPosts = response?.data?.posts?.data;
       const userOwnedPosts = response?.data?.myPosts?.data;
-
-      // Combine them into a single list. Your own posts will appear first.
       const combinedPosts = [
         ...(Array.isArray(userOwnedPosts) ? userOwnedPosts : []),
         ...(Array.isArray(publicPosts) ? publicPosts : []),
       ];
-
-      // De-duplicate the list to ensure each post appears only once,
-      // keeping the version from `myPosts` if there's an overlap.
       const uniquePostsMap = new Map();
       combinedPosts.forEach(post => {
         if (post && post.id && !uniquePostsMap.has(post.id)) {
           uniquePostsMap.set(post.id, post);
         }
       });
-
       const uniquePosts = Array.from(uniquePostsMap.values());
-      
-      // Sort all posts by creation date, newest first.
       uniquePosts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
       return uniquePosts.map(normalizePost);
     },
     staleTime: 60 * 1000,
@@ -84,48 +72,40 @@ export const useGetPostsQuery = (options = {}) => {
   });
 };
 
-
-// ✅ NEW HOOK ADDED: This hook fetches posts for a SPECIFIC store.
 export const useStoreFeedQuery = (storeId, options = {}) => {
   return useQuery({
-    // The query key includes the storeId to ensure data is cached per-store.
     queryKey: ['posts', { storeId }],
     queryFn: async () => {
-      // Pass the storeId to your service. This assumes your getPosts service
-      // can accept an object of query parameters.
       const response = await feedService.getPosts({ storeId });
-      
-      // We'll assume the filtered response has the same structure.
       const postsData = response?.data?.posts?.data || response?.data;
       const posts = Array.isArray(postsData) ? postsData : [];
-
       return posts.map(normalizePost);
     },
-    // This query is disabled by default unless a storeId is provided.
-    // The component's `enabled` option will override this as needed.
     enabled: !!storeId,
     staleTime: 5 * 60 * 1000,
     ...options,
   });
 };
 
-
 export const useGetPostCommentsQuery = (postId, options = {}) => {
   return useQuery({
     queryKey: ['postComments', postId],
     queryFn: async () => {
       if (!postId) return [];
+
       const response = await feedService.getPostComments(postId);
-      const commentsData = response?.data?.data || response?.data;
-      const comments = Array.isArray(commentsData) ? commentsData : [];
-      
-      return comments.map(comment => ({
-          id: comment.id,
-          text: comment.body,
-          createdAt: comment.created_at,
-          timeAgo: timeAgo(comment.created_at),
-          userName: comment.user?.full_name || 'Anonymous',
-          userProfilePic: toAbsolute(comment.user?.profile_picture),
+
+      // Correct path to comments array
+      const commentsData = response?.data?.data || [];
+
+      return commentsData.map(comment => ({
+        id: comment.id,
+        text: comment.body,
+        createdAt: comment.created_at,
+        timeAgo: timeAgo(comment.created_at),
+        userName: comment.user?.full_name || 'Anonymous',
+        userProfilePic: toAbsolute(comment.user?.profile_picture),
+        parent_id: comment.parent_id,
       }));
     },
     enabled: !!postId,

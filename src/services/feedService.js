@@ -1,8 +1,6 @@
 import { apiRequest } from '../api/apiClient';
 import { ENDPOINTS } from '../api/apiConfig';
 
-// --- Real API Feed Service ---
-// All dummy data and the USE_DUMMY_DATA flag have been removed.
 const apiFeedService = {
   getPosts: () => apiRequest({ url: ENDPOINTS.POSTS.LIST, method: 'GET' }),
   
@@ -13,9 +11,10 @@ const apiFeedService = {
   createPost: (formData) => apiRequest({ url: ENDPOINTS.POSTS.CREATE, method: 'POST', data: formData }),
   
   updatePost: (postId, formData) => {
-    // Backend expects POST for updates and needs FormData for potential file uploads.
-    // We also add method spoofing in case the framework requires it for file updates.
-    formData.append('_method', 'POST'); 
+    // Backend expects POST for updates with FormData. We use method spoofing to tell
+    // the backend framework (like Laravel) to treat this as a PUT request.
+    // ✅ FIX: Corrected method spoofing from 'POST' to 'PUT'.
+    formData.append('_method', 'PUT'); 
     return apiRequest({ url: ENDPOINTS.POSTS.UPDATE(postId), method: 'POST', data: formData });
   },
   
@@ -25,7 +24,28 @@ const apiFeedService = {
   
   sharePost: (postId) => apiRequest({ url: ENDPOINTS.POSTS.SHARE(postId), method: 'POST' }),
   
-  createComment: (postId, payload) => apiRequest({ url: ENDPOINTS.POSTS.COMMENTS.CREATE(postId), method: 'POST', data: payload }),
+  /**
+   * Creates a new comment or a reply.
+   * ✅ CRITICAL UPDATE: This function now acts as an adapter between the JS frontend
+   * (which uses camelCase `parentId`) and the PHP backend (which expects snake_case `parent_id`).
+   * @param {string|number} postId - The ID of the post being commented on.
+   * @param {object} payload - The comment data.
+   * @param {string} payload.body - The text of the comment.
+   * @param {string|number|null} payload.parentId - The ID of the parent comment for a reply.
+   */
+  createComment: (postId, { body, parentId }) => {
+    // Transform the payload to match the backend's expected schema.
+    const apiPayload = {
+      body,
+      parent_id: parentId, // Mapping camelCase to snake_case
+    };
+
+    return apiRequest({ 
+      url: ENDPOINTS.POSTS.COMMENTS.CREATE(postId), 
+      method: 'POST', 
+      data: apiPayload 
+    });
+  },
 };
 
 export const feedService = apiFeedService;

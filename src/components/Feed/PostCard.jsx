@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { useToast } from '../ui/ToastProvider';
 import Card from '../ui/Card';
-import Button from '../ui/Button';
 import { EllipsisVerticalIcon } from '@heroicons/react/24/outline';
 import HeartIcon from '../../assets/icons/Heart.png';
 import ShareIcon from '../../assets/icons/sharee.png';
 import CommentIcon from '../../assets/icons/comment.png';
 import TrashIcon from '../../assets/icons/delete.png';
 import PencilSquareIcon from '../../assets/icons/Pencil.png';
+import DownloadIcon from '../../../public/icons/download.png'; // download icon
 
 const PostCard = ({
   post,
@@ -19,32 +19,46 @@ const PostCard = ({
   isOwner,
   brandColor,
 }) => {
-  // ✅ DEBUGGING STEP 3: Log the props received by the card.
-  console.log(`[PostCard] Rendering Post ID: ${post?.id}. Is Owner: ${isOwner}. Image URL: ${post?.imageUrl}`);
 
   const { push } = useToast();
   const [showEllipsisMenu, setShowEllipsisMenu] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
 
   const likeStyle = useMemo(() => ({
     filter: post.isLiked ? `drop-shadow(0 0 4px ${brandColor})` : 'none',
     transform: post.isLiked ? 'scale(1.1)' : 'scale(1)',
   }), [post.isLiked, brandColor]);
 
+  // ✅ Share logic (used in both button and menu)
   const handleShare = () => {
     const postUrl = `${window.location.origin}/post/${post.id}`;
     navigator.clipboard.writeText(postUrl)
-      .then(() => onShare(post.id))
+      .then(() => {
+        onShare(post.id);
+        push('Post link copied to clipboard!', { type: 'success' });
+      })
       .catch(() => push('Failed to copy link.', { type: 'error' }));
   };
 
-  if (!post) {
-    console.error("[PostCard] Received null or undefined post prop.");
-    return null;
-  }
+  const handleDownload = () => {
+    if (!post.imageUrl) {
+      push('No image available to download.', { type: 'error' });
+      return;
+    }
+
+    const link = document.createElement('a');
+    link.href = post.imageUrl;
+    link.download = `post_${post.id}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    push('Image downloaded successfully!', { type: 'success' });
+  };
+
+  if (!post) return null;
 
   return (
-    <Card className="flex flex-col p-4 rounded-lg shadow-md bg-white w-full max-w-lg mx-auto">
+    <Card className="flex flex-col p-4 rounded-lg  bg-white w-full mx-auto">
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
           <img
@@ -60,14 +74,49 @@ const PostCard = ({
 
         {isOwner && (
           <div className="relative">
-            <button onClick={() => setShowEllipsisMenu(p => !p)} className="p-1 rounded-full hover:bg-gray-100">
+            <button
+              onClick={() => setShowEllipsisMenu(p => !p)}
+              className="p-1 rounded-full cursor-pointer hover:bg-gray-100"
+            >
               <EllipsisVerticalIcon className="h-6 w-6 text-gray-600" />
             </button>
+
+            {/* Ellipsis Menu */}
             {showEllipsisMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border rounded-md shadow-lg z-10">
+              <div className="absolute right-0 mt-2 w-52 bg-white border rounded-md shadow-lg z-10">
                 <ul className="py-1">
-                  <li><button onClick={() => { onEditPost(); setShowEllipsisMenu(false); }} className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"><img src={PencilSquareIcon} alt="Edit" className="h-4 w-4 mr-2" />Edit Post</button></li>
-                  <li><button onClick={() => { onDelete(post.id); setShowEllipsisMenu(false); }} className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"><img src={TrashIcon} alt="Delete" className="h-4 w-4 mr-2" />Delete Post</button></li>
+                  {/* ✅ Share This Post */}
+                  <li>
+                    <button
+                      onClick={() => { handleShare(); setShowEllipsisMenu(false); }}
+                      className="flex items-center w-full px-4 py-2 text-sm cursor-pointer text-gray-700 hover:bg-gray-100"
+                    >
+                      <img src={ShareIcon} alt="Share" className="h-4 w-4 mr-2" />
+                      Share This Post
+                    </button>
+                  </li>
+
+                  {/* Edit Post */}
+                  <li>
+                    <button
+                      onClick={() => { onEditPost(); setShowEllipsisMenu(false); }}
+                      className="flex items-center w-full cursor-pointer px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <img src={PencilSquareIcon} alt="Edit" className="h-4 w-4 mr-2" />
+                      Edit Post
+                    </button>
+                  </li>
+
+                  {/* Delete Post (Red) */}
+                  <li>
+                    <button
+                      onClick={() => { onDelete(post.id); setShowEllipsisMenu(false); }}
+                      className="flex items-center w-full px-4  cursor-pointer py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      <img src={TrashIcon} alt="Delete" className="h-4 w-4 mr-2" />
+                      Delete Post
+                    </button>
+                  </li>
                 </ul>
               </div>
             )}
@@ -75,44 +124,67 @@ const PostCard = ({
         )}
       </div>
 
-      {post.text && <p className="text-gray-800 mb-4 whitespace-pre-line">{post.text}</p>}
-      
-      {post.imageUrl ? (
+      {/* Post Image */}
+      {post.imageUrl && (
         <div className="mb-4 rounded-lg overflow-hidden bg-gray-100">
-          <img src={post.imageUrl} alt="Post content" className="w-full max-h-[400px] object-cover" />
+          <img
+            src={post.imageUrl}
+            alt="Post content"
+            className="w-full max-h-[400px] object-cover"
+          />
         </div>
-      ) : (
-        // This block helps us see if the image URL is missing
-        <div className="hidden">Image URL is missing: {post.imageUrl}</div>
       )}
 
+      {/* Post Text */}
+      {post.text && (
+        <span className="bg-gray-100 p-4 flex items-center rounded-xl text-start">
+          <p className="text-gray-800 whitespace-pre-line">{post.text}</p>
+        </span>
+      )}
+
+      {/* Post Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-t border-gray-100 pt-3 gap-4">
         <div className="flex items-center gap-4">
-          <button onClick={() => onLike(post.id)} className="flex items-center text-sm font-medium text-gray-600 hover:text-red-500">
+          {/* Like */}
+          <button
+            onClick={() => onLike(post.id)}
+            className="flex items-center cursor-pointer text-sm font-medium text-gray-600 hover:text-red-500"
+          >
             <img src={HeartIcon} alt="Likes" className="h-6 w-6 mr-1.5 transition-all" style={likeStyle} />
             <span>{post.likes}</span>
           </button>
-          <button onClick={onCommentClick} className="flex items-center text-sm font-medium text-gray-600 hover:text-blue-500">
+
+          {/* Comment */}
+          <button
+            onClick={onCommentClick}
+            className="flex cursor-pointer items-center text-sm font-medium text-gray-600 hover:text-blue-500"
+          >
             <img src={CommentIcon} alt="Comments" className="h-6 w-6 mr-1.5" />
             <span>{post.comments}</span>
           </button>
-          <button onClick={handleShare} className="flex items-center text-sm font-medium text-gray-600 hover:text-green-500">
+
+          {/* Share */}
+          <button
+            onClick={handleShare}
+            className="flex cursor-pointer items-center text-sm font-medium text-gray-600 hover:text-green-500"
+          >
             <img src={ShareIcon} alt="Shares" className="h-6 w-6 mr-1.5" />
             <span>{post.shares}</span>
           </button>
         </div>
-        {!isOwner && (
-            <Button
-                type="button"
-                onClick={() => setIsFollowing(p => !p)}
-                className={`px-4 py-1.5 text-sm rounded-full ${isFollowing ? 'bg-gray-200 text-gray-800' : ''}`}
-                style={!isFollowing ? { backgroundColor: brandColor, color: '#FFFFFF' } : {}}
-            >
-                {isFollowing ? 'Following' : 'Follow Store'}
-            </Button>
+
+        {/* Download */}
+        {post.imageUrl && (
+          <button
+            onClick={handleDownload}
+            className="flex cursor-pointer items-center px-4 py-1.5 text-sm hover:bg-gray-300"
+          >
+            <img src={DownloadIcon} alt="Download" className="h-6 w-6 mr-2" />
+            
+          </button>
         )}
       </div>
-    </Card> 
+    </Card>
   );
 };
 

@@ -1,81 +1,90 @@
 // src/services/queries/useStoreProfileQuery.js
 
 import { useQuery } from '@tanstack/react-query';
-import { userService } from '../userService.js';
+import { userService } from '../userService.js'; // Assuming this has a method to get profile by ID
 import { ASSETS_BASE } from '../../api/apiConfig';
 
 // --- DATA NORMALIZER FUNCTION ---
-// This function takes the raw snake_case data from the backend
-// and transforms it into a clean camelCase object that your components expect.
+// This is now more robust, handling potential missing data gracefully.
 const normalizeStoreProfile = (raw) => {
-  if (!raw || !raw.store) return null;
+  // If the API returns nothing or an empty object, return null.
+  if (!raw || Object.keys(raw).length === 0) return null;
 
-  const store = raw.store;
+  // The store data might be at the top level or nested under `store`.
+  // This handles both possibilities.
+  const store = raw.store || raw;
 
-  // Helper to construct full URLs for images
   const toFullUrl = (relativePath) => {
     if (!relativePath) return null;
-    // Ensure we don't double the /storage part
-    const path = relativePath.replace('/storage/', '');
-    return `${ASSETS_BASE}/storage/${path}`;
+    return relativePath.startsWith('http') ? relativePath : `${ASSETS_BASE}${relativePath}`;
   };
 
   return {
-    // Mapped from `store` object
+    // --- Core Store Info ---
     id: store.id,
-    name: store.name,
+    ownerId: store.user_id, // This is the actual owner's ID for comparisons
+    name: store.store_name,
     email: store.email,
     phone: store.phone,
     location: store.location,
-    brandColor: store.theme_color,
+    brandColor: store.theme_color || '#EF4444', // Provide a default
     profilePictureUrl: toFullUrl(store.profile_image),
     bannerImageUrl: toFullUrl(store.banner_image),
-    announcements: store.announcements || [],
-    promotionalBanners: store.permotaional_banners || [],
-    categories: store.categories || [],
-    followersCount: store.followers_count || 0,
-    totalSold: store.sold_items_sum_qty || 0,
-    averageRating: store.average_rating || 0,
-    socialLinks: store.social_links || [],
+    
+    // --- Store Content ---
     products: store.products || [],
     posts: store.posts || [],
-    services: store.services || [],
-    storeReviews: store.storeReveiws || [],
+    storeReviews: store.reviews || store.storeReveiws || [], // Accept multiple key names
+    socialLinks: store.social_links || [],
+    
+    // --- Store Stats ---
+    followersCount: store.followers_count || 0,
+    totalSold: store.sold_items_sum_qty || 0,
+    averageRating: parseFloat(store.average_rating || 0).toFixed(1),
 
-    // Mapped from other top-level keys in the API response
+    // --- Nested data from the API response ---
+    // If the API response structure is flat, these might be at the `raw` level.
     business: raw.business || {},
     addresses: raw.addresses || [],
     delivery: raw.delivery || [],
-    progress: raw.progress || { percent: 0, level: 1, status: 'draft' },
 
-    // Add owner ID for comparison - using store owner from the response
-    ownerId: store.id, // Assuming the store ID is the owner ID in this context
-    
-    // Add store owner information for display
+    // --- Store Owner Details (for display) ---
     storeOwner: {
-      name: store.name,
-      profilePicture: toFullUrl(store.profile_image),
+      fullName: raw.user?.full_name || store.store_name,
+      profilePicture: toFullUrl(raw.user?.profile_image || store.profile_image),
     }
   };
 };
 // --- END NORMALIZER ---
 
 /**
- * Custom hook to fetch and normalize the complete store profile/overview.
+ * Custom hook to fetch and normalize a specific store profile by its ID.
  */
 export const useStoreProfile = (storeId, options = {}) => {
   return useQuery({
+    // The queryKey uniquely identifies this specific query.
+    // It includes the storeId so that fetching data for store '1'
+    // is cached separately from fetching for store '2'.
     queryKey: ['storeProfile', storeId],
-    queryFn: () => userService.getStoreProfile(), // Use the existing store profile method
 
-    // Use the `select` option to automatically transform the raw API data
-    select: (rawApiData) => {
-      return normalizeStoreProfile(rawApiData);
+    // ✅ FIX: The queryFn now correctly fetches the profile for the *specific storeId*.
+    // It assumes your `userService` has a method like `getStoreById(id)`.
+    // The `queryKey` is automatically passed as an argument.
+    queryFn: ({ queryKey }) => {
+      const [_key, id] = queryKey;
+      // You MUST have a service method that can fetch a profile by ID.
+      // If `userService.getStoreProfile()` doesn't accept an ID, you need to change it.
+      return userService.getStoreProfile(id); 
     },
 
-    enabled: !!storeId, // Query is only enabled if a storeId is provided.
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
+    // Transforms the raw API data into the clean object our components use.
+    select: normalizeStoreProfile,
+
+    // Production-level query options:
+    enabled: !!storeId, // Only run the query if a storeId exists.
+    staleTime: 1000 * 60 * 5, // 5 minutes: Data is considered "fresh" for 5 mins, no refetch on mount.
+    gcTime: 1000 * 60 * 15, // 15 minutes: Data is kept in cache for 15 mins after it's unused.
+    refetchOnWindowFocus: true, // Refetch when user returns to the tab (good for live data).
     ...options,
   });
 };

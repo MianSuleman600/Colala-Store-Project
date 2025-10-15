@@ -19,6 +19,7 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import StoreProfileModal from "../components/models/StoreProfileModal";
 import StoreBuilderModal from "../components/models/StoreBuilderModal";
+import StoreSocialLinks from "../components/store/StoreSocialLinks"
 
 import { useGetBuyerOrdersQuery } from "../services/queries/useOrderQuery";
 
@@ -198,6 +199,7 @@ export default function HomePage() {
             lightBrandColor={lightBrandColor}
           />
 
+         
           <SectionHeader title="Latest Orders" style={{ color: brandColor }} />
 
           <Card className="p-4 min-h-[200px]">

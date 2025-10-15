@@ -14,7 +14,7 @@ import {
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
 import PromotionalBanner from "../ui/PromotionBanner";
-import { getContrastTextColor } from "../../utils/colorUtils";
+import { getContrastTextColor , adjustBrightness } from "../../utils/colorUtils";
 import { openModal } from "../../redux/modalSlice";
 
 import StoreHeader from "../store/StoreHeader";
@@ -66,6 +66,11 @@ function StoreProfileModal({ isOpen, onClose, storeId }) {
   );
   const contrastTextColor = useMemo(
     () => getContrastTextColor(brandColor),
+    [brandColor]
+  );
+
+    const lightBrandColor = useMemo(
+    () => adjustBrightness(brandColor, 100),
     [brandColor]
   );
   const isStoreOwner = useMemo(
@@ -748,6 +753,8 @@ function StoreProfileModal({ isOpen, onClose, storeId }) {
           isStoreOwner={isStoreOwner}
           brandColor={brandColor}
           contrastTextColor={contrastTextColor}
+          // ✅ 3. PASS the `lightBrandColor` prop here
+          lightBrandColor={lightBrandColor}
         />
         <PromotionalBanner placement="profile" />
       </div>

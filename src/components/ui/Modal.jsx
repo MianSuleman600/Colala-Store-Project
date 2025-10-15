@@ -3,20 +3,23 @@ import ReactDOM from 'react-dom';
 import { X } from 'lucide-react';
 
 /**
- * Production-ready Reusable Modal Component
- *
- * @param {object} props
- * @param {boolean} props.isOpen - Controls modal visibility.
- * @param {function} props.onClose - Callback to close the modal.
- * @param {React.ReactNode} props.children - Modal body content.
- * @param {string|React.ReactNode} [props.title] - Title (can be text or custom JSX).
- * @param {string} [props.className] - Additional classes for modal container.
- * @param {string} [props.headerClassName] - Classes for the header container.
- * @param {string} [props.titleClassName] - Classes for the title.
- * @param {boolean} [props.showHeader=true] - Whether to display the header.
- * @param {React.ReactNode} [props.footer] - Optional footer content.
- * @param {string} [props.footerClassName] - Classes for the footer.
+ * Merge default Tailwind classes with user-provided classes.
+ * If the user provides a conflicting utility, it overrides the default.
  */
+const mergeClasses = (defaults, userClass) => {
+  if (!userClass) return defaults;
+
+  const defaultsArr = defaults.split(' ');
+  const userArr = userClass.split(' ');
+
+  const tailwindKeys = userArr.map(cls => cls.split('-')[0]); // crude, but works for width, padding, margin
+  const filteredDefaults = defaultsArr.filter(
+    cls => !tailwindKeys.includes(cls.split('-')[0])
+  );
+
+  return [...filteredDefaults, ...userArr].join(' ');
+};
+
 const Modal = ({
   isOpen,
   onClose,
@@ -24,12 +27,19 @@ const Modal = ({
   title,
   className = '',
   headerClassName = '',
-  titleClassName = 'text-left', // Default left
+  titleClassName = 'text-left',
   showHeader = true,
   footer,
   footerClassName = '',
 }) => {
   if (!isOpen) return null;
+
+  // Default classes
+  const defaultModalClasses =
+    'bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] transform transition-all duration-300 scale-100 opacity-100 flex flex-col';
+
+  const defaultHeaderClasses = 'flex items-center justify-between p-4 border-b border-gray-200';
+  const defaultFooterClasses = 'p-4 border-t border-gray-200 flex justify-end gap-2';
 
   return ReactDOM.createPortal(
     <div
@@ -37,18 +47,13 @@ const Modal = ({
       onClick={onClose}
     >
       <div
-        className={`bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] transform transition-all duration-300 scale-100 opacity-100 flex flex-col ${className}`}
+        className={mergeClasses(defaultModalClasses, className)}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         {showHeader && (
-          <div
-            className={`flex items-center justify-between p-4 border-b border-gray-200 ${headerClassName}`}
-          >
-            <h2
-              className={`text-xl font-semibold text-gray-800 flex-1 ${titleClassName}`}
-              style={{ fontFamily: 'Manrope' }}
-            >
+          <div className={mergeClasses(defaultHeaderClasses, headerClassName)}>
+            <h2 className={`${titleClassName} text-xl font-semibold text-gray-800 flex-1`} style={{ fontFamily: 'Manrope' }}>
               {title}
             </h2>
             <button
@@ -66,9 +71,7 @@ const Modal = ({
 
         {/* Footer */}
         {footer && (
-          <div
-            className={`p-4 border-t border-gray-200 flex justify-end gap-2 ${footerClassName}`}
-          >
+          <div className={mergeClasses(defaultFooterClasses, footerClassName)}>
             {footer}
           </div>
         )}

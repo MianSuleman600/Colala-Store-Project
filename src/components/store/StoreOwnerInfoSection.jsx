@@ -30,32 +30,23 @@ const StoreOwnerInfoSection = ({
   const handleAddProduct = () => navigate("/add-product");
   const handleAddService = () => navigate("/add-service");
 
-  // Data mapping from the API response structure
   const storeName = storeData?.name || storeData?.store_name || "Store Name";
   const email = storeData?.email || storeData?.store_email || "";
   const phoneNumber = storeData?.phone || storeData?.store_phone || "";
   const location = storeData?.location || storeData?.store_location || "";
   const categories = storeData?.categories || [];
+  
+  // ✅ FIX 1: Extract the social links array from the storeData prop.
+  // Your API response shows this array is named `social_links`.
+  const socialLinks = storeData?.social_links || [];
 
-  // Map the correct fields from API response
   const productsSold =
-    storeData?.totalSold || storeData?.sold_items_sum_qty || 0;
+    storeData?.totalSold || storeData?.sold_items_sum_qty || storeData?.total_sold || 0;
   const followers =
     storeData?.followersCount || storeData?.followers_count || 0;
   const ratings = storeData?.averageRating || storeData?.average_rating || 0;
   const announcementText =
     storeData?.announcements?.[0]?.message || "Welcome to our store!";
-
-  // Debug logging to see what data we're getting
-  console.log("StoreOwnerInfoSection - storeData:", storeData);
-  console.log(
-    "StoreOwnerInfoSection - productsSold:",
-    productsSold,
-    "followers:",
-    followers,
-    "ratings:",
-    ratings
-  );
 
   return (
     <Card className="p-6">
@@ -187,7 +178,10 @@ const StoreOwnerInfoSection = ({
               </div>
             </div>
 
-            <StoreSocialLinks storeData={storeData} />
+            {/* ✅ FIX 2: Remove the old, incorrect calls and replace with one correct call. */}
+            {/* Pass the extracted socialLinks array to the component. */}
+            <StoreSocialLinks socialLinks={socialLinks} />
+         
             {isStoreOwner && (
               <div className="flex space-x-4 mt-4">
                 <Button
