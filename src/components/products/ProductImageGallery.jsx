@@ -35,12 +35,33 @@ const ProductImageGallery = ({ images, video }) => {
 
   const selectedMedia = mediaItems[selectedMediaIndex];
   const isVideo = selectedMedia.type === 'video';
-  const mediaUrl = `${import.meta.env.VITE_API_URL || 'https://colala.hmstech.xyz'}/storage/${selectedMedia.path}`;
+  
+  // Validate media path and generate URL
+  const getMediaUrl = (path) => {
+    if (!path) return null;
+    
+    // Check if the path is a temporary file path (starts with /tmp/)
+    if (path.startsWith('/tmp/')) {
+      console.warn('Invalid media path detected (temporary file):', path);
+      return null;
+    }
+    
+    // Check if the path looks like a valid storage path
+    if (path.includes('products/') || path.includes('services/') || path.includes('videos/')) {
+      return `${import.meta.env.VITE_API_URL || 'https://colala.hmstech.xyz'}/storage/${path}`;
+    }
+    
+    console.warn('Invalid media path format:', path);
+    return null;
+  };
+  
+  const mediaUrl = getMediaUrl(selectedMedia.path);
 
   // Debug info for video
   if (isVideo) {
     console.log('Video URL:', mediaUrl);
     console.log('Video path:', selectedMedia.path);
+    console.log('Is valid path:', mediaUrl !== null);
   }
 
   const handlePlayPause = async () => {
@@ -73,67 +94,87 @@ const ProductImageGallery = ({ images, video }) => {
         <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative">
           {isVideo ? (
             <div className="relative w-full h-full">
-              <video
-                ref={videoRef}
-                src={mediaUrl}
-                className="w-full h-full object-cover"
-                onEnded={handleVideoEnded}
-                onError={(e) => {
-                  console.error('Video failed to load:', e);
-                  setVideoError('Failed to load video');
-                }}
-                onLoadStart={() => {
-                  console.log('Video loading started:', mediaUrl);
-                }}
-                onCanPlay={() => {
-                  console.log('Video can play:', mediaUrl);
-                }}
-                preload="metadata"
-                controls={false}
-                playsInline
-                webkit-playsinline="true"
-              />
-              {/* Video Play/Pause Overlay */}
-              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
-                {videoError ? (
-                  <div className="text-center text-white p-4">
-                    <p className="text-sm mb-2">Video Error</p>
-                    <p className="text-xs opacity-75">{videoError}</p>
-                    <button
-                      onClick={() => {
-                        setVideoError(null);
-                        if (videoRef.current) {
-                          videoRef.current.load();
-                        }
-                      }}
-                      className="mt-2 px-3 py-1 bg-white bg-opacity-20 rounded text-xs hover:bg-opacity-30"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={handlePlayPause}
-                    className="p-4 bg-white bg-opacity-90 rounded-full hover:bg-opacity-100 transition-all"
-                  >
-                    {isVideoPlaying ? (
-                      <Pause className="h-8 w-8 text-gray-800" />
+              {mediaUrl ? (
+                <>
+                  <video
+                    ref={videoRef}
+                    src={mediaUrl}
+                    className="w-full h-full object-cover"
+                    onEnded={handleVideoEnded}
+                    onError={(e) => {
+                      console.error('Video failed to load:', e);
+                      setVideoError('Failed to load video');
+                    }}
+                    onLoadStart={() => {
+                      console.log('Video loading started:', mediaUrl);
+                    }}
+                    onCanPlay={() => {
+                      console.log('Video can play:', mediaUrl);
+                    }}
+                    preload="metadata"
+                    controls={false}
+                    playsInline
+                    webkit-playsinline="true"
+                  />
+                  {/* Video Play/Pause Overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
+                    {videoError ? (
+                      <div className="text-center text-white p-4">
+                        <p className="text-sm mb-2">Video Error</p>
+                        <p className="text-xs opacity-75">{videoError}</p>
+                        <button
+                          onClick={() => {
+                            setVideoError(null);
+                            if (videoRef.current) {
+                              videoRef.current.load();
+                            }
+                          }}
+                          className="mt-2 px-3 py-1 bg-white bg-opacity-20 rounded text-xs hover:bg-opacity-30"
+                        >
+                          Retry
+                        </button>
+                      </div>
                     ) : (
-                      <Play className="h-8 w-8 text-gray-800 ml-1" />
+                      <button
+                        onClick={handlePlayPause}
+                        className="p-4 bg-white bg-opacity-90 rounded-full hover:bg-opacity-100 transition-all"
+                      >
+                        {isVideoPlaying ? (
+                          <Pause className="h-8 w-8 text-gray-800" />
+                        ) : (
+                          <Play className="h-8 w-8 text-gray-800 ml-1" />
+                        )}
+                      </button>
                     )}
-                  </button>
-                )}
-              </div>
+                  </div>
+                </>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                  <div className="text-center text-gray-500 p-4">
+                    <p className="text-sm mb-2">Video Not Available</p>
+                    <p className="text-xs opacity-75">Invalid video path</p>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
-            <img
-              src={mediaUrl}
-              alt="Product"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.target.src = '/placeholder-image.png';
-              }}
-            />
+            mediaUrl ? (
+              <img
+                src={mediaUrl}
+                alt="Product"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.src = '/placeholder-image.png';
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                <div className="text-center text-gray-500 p-4">
+                  <p className="text-sm mb-2">Image Not Available</p>
+                  <p className="text-xs opacity-75">Invalid image path</p>
+                </div>
+              </div>
+            )
           )}
         </div>
       </div>
@@ -156,31 +197,45 @@ const ProductImageGallery = ({ images, video }) => {
             >
               {media.type === 'video' ? (
                 <div className="relative w-full h-full">
-                  <video
-                    src={`${import.meta.env.VITE_API_URL || 'https://colala.hmstech.xyz'}/storage/${media.path}`}
-                    className="w-full h-full object-cover"
-                    muted
-                    preload="metadata"
-                    playsInline
-                    webkit-playsinline="true"
-                    onError={(e) => {
-                      console.error('Video thumbnail failed to load:', e);
-                    }}
-                  />
-                  {/* Video Play Icon Overlay */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40">
-                    <Play className="h-4 w-4 text-white" />
-                  </div>
+                  {getMediaUrl(media.path) ? (
+                    <>
+                      <video
+                        src={getMediaUrl(media.path)}
+                        className="w-full h-full object-cover"
+                        muted
+                        preload="metadata"
+                        playsInline
+                        webkit-playsinline="true"
+                        onError={(e) => {
+                          console.error('Video thumbnail failed to load:', e);
+                        }}
+                      />
+                      {/* Video Play Icon Overlay */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40">
+                        <Play className="h-4 w-4 text-white" />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                      <Play className="h-4 w-4 text-gray-400" />
+                    </div>
+                  )}
                 </div>
               ) : (
-                <img
-                  src={`${import.meta.env.VITE_API_URL || 'https://colala.hmstech.xyz'}/storage/${media.path}`}
-                  alt={`Product ${index + 1}`}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.src = '/placeholder-image.png';
-                  }}
-                />
+                getMediaUrl(media.path) ? (
+                  <img
+                    src={getMediaUrl(media.path)}
+                    alt={`Product ${index + 1}`}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = '/placeholder-image.png';
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                    <span className="text-xs text-gray-400">N/A</span>
+                  </div>
+                )
               )}
             </button>
           ))}

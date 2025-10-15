@@ -326,7 +326,41 @@ const ProductDetailsPage = () => {
           <Button
             className="w-full py-3 rounded-md shadow-sm hover:shadow-md text-white mt-4"
             style={{ backgroundColor: 'black' }}
-            onClick={() => navigate(`/my-products/${productId}/boost-setup`)}
+            onClick={() => {
+              // Prepare product data with image as primary (not video)
+              const boostProductData = {
+                ...product,
+                // Ensure the first image is used as primary, not video
+                primaryImage: product?.images?.find(img => img.is_main === 1) || product?.images?.[0],
+                // Remove video from the data to ensure only images are used
+                video: null,
+                // Keep all other data intact
+                images: product?.images || [],
+                name: product?.name,
+                price: product?.price,
+                discount_price: product?.discount_price,
+                description: product?.description,
+                category: product?.category,
+                brand: product?.brand,
+                id: product?.id,
+                store_id: product?.store_id,
+                status: product?.status,
+                views: product?.views,
+                clicks: product?.clicks,
+                carts: product?.carts,
+                orders: product?.orders,
+                chats: product?.chats,
+                average_rating: product?.average_rating,
+                impressions: product?.impressions,
+                variants: product?.variants || [],
+                created_at: product?.created_at,
+                updated_at: product?.updated_at,
+              };
+              
+              navigate(`/my-products/${productId}/boost-setup`, { 
+                state: { product: boostProductData } 
+              });
+            }}
           >
             Boost Post
           </Button>

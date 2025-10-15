@@ -14,7 +14,18 @@ export const useReferralWithdrawMutation = () => {
       queryClient.invalidateQueries({ queryKey: referralQueryKeys.wallet });
       queryClient.invalidateQueries({ queryKey: referralQueryKeys.transactions() });
     },
-    onError: (err) => push(err?.message || 'Failed to process withdrawal', { type: 'error' }),
+    onError: (err) => {
+      console.error('Withdrawal error:', err);
+      
+      // Handle validation errors from backend
+      if (err?.response?.status === 422) {
+        const validationErrors = err?.response?.data?.errors || {};
+        const errorMessages = Object.values(validationErrors).flat();
+        push(errorMessages.join(', ') || 'Validation failed. Please check your input.', { type: 'error' });
+      } else {
+        push(err?.message || 'Failed to process withdrawal', { type: 'error' });
+      }
+    },
   });
 };
 

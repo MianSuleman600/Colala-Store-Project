@@ -243,16 +243,34 @@ export const normalizePromotions = (promos) =>
 export const normalizeServices = (services) =>
   normalizeData(services, {
     imageKeys: ['imageUrl', 'profilePic', 'gallery', 'images'],
-    postProcess: (service) => ({
-      ...service,
-      id: service.id || `service-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      name: service.name || service.title || 'Untitled Service',
-      description: service.description || '',
-      price: service.price ?? 0,
-      rating: service.rating ?? 0,
-      category: service.category || '',
-      isActive: service.isActive ?? true,
-    }),
+    postProcess: (service) => {
+      // Get the first image from media array
+      const firstImage = service.media?.find(m => m.type === 'image')?.path;
+      const imageUrl = firstImage ? `${ASSETS_BASE}/storage/${firstImage}` : null;
+      
+      return {
+        ...service,
+        id: service.id || `service-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        name: service.name || service.title || 'Untitled Service',
+        description: service.short_description || service.full_description || service.description || '',
+        price: parseFloat(service.price_from ?? 0),
+        minPrice: parseFloat(service.price_from ?? 0),
+        maxPrice: parseFloat(service.price_to ?? 0),
+        originalPrice: service.discount_price ? parseFloat(service.discount_price) : null,
+        rating: service.average_rating ?? service.rating ?? 0,
+        category: service.category?.title || service.category || 'Uncategorized',
+        isActive: service.status === 'active',
+        imageUrl,
+        // Statistics data from API
+        views: service.views || 0,
+        clicks: service.clicks || 0,
+        chats: service.chats || 0,
+        impressions: service.impressions || 0,
+        phone_views: service.phone_views || 0,
+        // Store original data for reference
+        originalItem: service,
+      };
+    },
   });
 
 /* ---------------- Orders ---------------- */

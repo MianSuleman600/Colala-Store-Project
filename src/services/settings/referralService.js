@@ -42,16 +42,38 @@ export const referralService = {
   },
 
   withdraw: async (payload) => {
+    // Debug logging to see what's being sent
+    console.log('Withdrawal payload received:', payload);
+    
+    // Validate and ensure correct data types
+    const withdrawalData = {
+      amount: Number(payload.amount), // Ensure it's a number
+      bank_name: String(payload.bankName || '').trim(), // Ensure it's a string and trim whitespace
+      account_number: String(payload.accountNumber || '').trim(), // Ensure it's a string and trim whitespace
+      account_name: String(payload.accountName || '').trim(), // Ensure it's a string and trim whitespace
+    };
+    
+    // Additional validation
+    if (!withdrawalData.amount || withdrawalData.amount <= 0) {
+      throw new Error('Amount must be greater than 0');
+    }
+    if (!withdrawalData.bank_name) {
+      throw new Error('Bank name is required');
+    }
+    if (!withdrawalData.account_number) {
+      throw new Error('Account number is required');
+    }
+    if (!withdrawalData.account_name) {
+      throw new Error('Account name is required');
+    }
+    
+    console.log('Withdrawal data being sent to API:', withdrawalData);
+    
     // Your backend for referral withdrawal has a different payload structure.
     return apiRequest({
       url: ENDPOINTS.REFERRALS.WITHDRAW,
       method: 'POST',
-      data: {
-        amount: payload.amount,
-        bank_name: payload.bankName,
-        account_number: payload.accountNumber,
-        account_name: payload.accountName,
-      }
+      data: withdrawalData
     });
   },
   

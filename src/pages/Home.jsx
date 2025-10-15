@@ -156,7 +156,7 @@ export default function HomePage() {
   //   isAuthenticated && onboardingProgress && combinedProgress < 100;
 
   return (
-    <main className="mx-2 lg:mx-12  px-4 sm:px-6 py-6 space-y-6">
+    <main className="mx-2 lg:mx-0F  px-4 sm:px-6 py-6 space-y-6">
       {/* Modals */}
       {isStoreProfileModalOpen && (
         <StoreProfileModal

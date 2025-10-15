@@ -15,7 +15,13 @@ const BoostProductSetupPage = () => {
   const brandColor = useSelector((s) => s.ui?.brandColor) || '#EF4444';
   const contrastTextColor = getContrastTextColor(brandColor);
 
-  const { data: product, isLoading, isError } = useProductDetailsQuery(productId, { enabled: !!productId });
+  // Use the product data passed from ProductDetailsPage, fallback to query if needed
+  const passedProduct = state?.product;
+  const { data: queryProduct, isLoading, isError } = useProductDetailsQuery(productId, { 
+    enabled: !!productId && !passedProduct 
+  });
+  
+  const product = passedProduct || queryProduct;
 
   const [dailyBudget, setDailyBudget] = useState(state?.dailyBudget ?? 2000);
   const [duration, setDuration] = useState(state?.duration ?? 7);
@@ -26,16 +32,44 @@ const BoostProductSetupPage = () => {
     if (!productId) navigate('/my-products');
   }, [productId, navigate]);
 
-  if (isLoading) return <div className="flex justify-center items-center h-screen">Loading boost setup...</div>;
+  if (isLoading && !passedProduct) return <div className="flex justify-center items-center h-screen">Loading boost setup...</div>;
   if (isError || !product) {
     return <div className="flex justify-center items-center h-screen text-red-500">Failed to load product.</div>;
   }
 
-  const displayImage = product.detailsPageInfo?.mainImageUrl || product.imageUrl || '/placeholder.png';
+  // Get the correct image - prioritize the primaryImage passed from ProductDetailsPage
+  const getDisplayImage = () => {
+    // First try the primaryImage passed from ProductDetailsPage
+    if (product.primaryImage?.path) {
+      return `${import.meta.env.VITE_API_URL || 'https://colala.hmstech.xyz'}/storage/${product.primaryImage.path}`;
+    }
+    
+    // Then try to find the main image from the images array
+    const mainImage = product.images?.find(img => img.is_main === 1);
+    if (mainImage?.path) {
+      return `${import.meta.env.VITE_API_URL || 'https://colala.hmstech.xyz'}/storage/${mainImage.path}`;
+    }
+    
+    // Fallback to first image
+    if (product.images?.[0]?.path) {
+      return `${import.meta.env.VITE_API_URL || 'https://colala.hmstech.xyz'}/storage/${product.images[0].path}`;
+    }
+    
+    // Last resort fallbacks
+    return product.detailsPageInfo?.mainImageUrl || product.imageUrl || '/placeholder.png';
+  };
+
+  const displayImage = getDisplayImage();
   const productName = product.name || 'Product';
-  const currentPrice = product.currentPrice || 0;
-  const originalPrice = product.originalPrice || null;
-  const discountText = product.discountText || '';
+  const currentPrice = product.discount_price || product.price || 0;
+  const originalPrice = product.discount_price ? product.price : null;
+  const discountText = product.discount_price ? `${Math.round(((product.price - product.discount_price) / product.price) * 100)}% Off` : '';
+
+  // Debug logging
+  console.log('BoostProductSetupPage - Product data:', product);
+  console.log('BoostProductSetupPage - Primary image:', product.primaryImage);
+  console.log('BoostProductSetupPage - Images array:', product.images);
+  console.log('BoostProductSetupPage - Display image URL:', displayImage);
 
   const handleProceed = () => {
     navigate(`/my-products/${productId}/boost-preview`, {
@@ -44,6 +78,7 @@ const BoostProductSetupPage = () => {
         duration,
         selectedLocation: location,
         audienceSliderValue,
+        product: product, // Pass the product data to the preview page
       },
     });
   };
