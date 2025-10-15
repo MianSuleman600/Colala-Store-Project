@@ -156,7 +156,7 @@ export default function HomePage() {
   //   isAuthenticated && onboardingProgress && combinedProgress < 100;
 
   return (
-    <main className="mx-2 lg:mx-0F  px-4 sm:px-6 py-6 space-y-6">
+    <main className="mx-2 lg:mx-0 px-2 sm:px-4 md:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6">
       {/* Modals */}
       {isStoreProfileModalOpen && (
         <StoreProfileModal
@@ -186,159 +186,158 @@ export default function HomePage() {
         }
       />
 
-      <div className="grid grid-cols-1 mt-12 gap-6 lg:grid-cols-2">
-        {/* Left Column */}
-        <section className="lg:col-span-1 space-y-6">
-          <StoreOwnerInfoSection
-            storeData={storeProfileFromRedux}
-            isLoggedIn={isAuthenticated}
-            isStoreOwner={isStoreOwner}
-            brandColor={brandColor}
-            contrastTextColor={contrastTextColor}
-            lightBrandColor={lightBrandColor}
-          />
+      {/* Store Info Section */}
+      <StoreOwnerInfoSection
+        storeData={storeProfileFromRedux}
+        isLoggedIn={isAuthenticated}
+        isStoreOwner={isStoreOwner}
+        brandColor={brandColor}
+        contrastTextColor={contrastTextColor}
+        lightBrandColor={lightBrandColor}
+      />
 
-          <SectionHeader title="Latest Orders" style={{ color: brandColor }} />
+      {/* Action Buttons */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-4">
+        <Button
+          style={{ backgroundColor: "black", color: "white" }}
+          onClick={handleViewProfileClick}
+          disabled={!isAuthenticated}
+          className="flex-1 py-2 sm:py-3"
+        >
+          View Profile
+        </Button>
+        <Button
+          style={{ backgroundColor: brandColor, color: contrastTextColor }}
+          onClick={handleOpenStoreBuilder}
+          className="flex-1 py-2 sm:py-3"
+        >
+          Store Builder
+        </Button>
+      </div>
 
-          <Card className="p-4 min-h-[200px]">
-            {!isAuthenticated ? (
-              <div className="flex items-center justify-center h-full text-center">
-                <div>
-                  <p className="mb-2 text-gray-500">Login to view orders.</p>
+      {/* Promotional Banner */}
+      <PromotionalBanner placement="home" />
+
+      {/* Action Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <ActionCard
+          title="My Orders"
+          description="Manage your customer orders"
+          icon={shoppingCartIcon}
+          onClick={() => handleProtectedClick("/orders")}
+          brandColor={brandColor}
+        />
+        <ActionCard
+          title="My Products"
+          description="Manage all your products here"
+          icon={productIcon}
+          onClick={() => handleProtectedClick("/my-products")}
+          brandColor={brandColor}
+        />
+        <ActionCard
+          title="Statistics"
+          description="View detailed statistics"
+          icon={chartbarIcon}
+          onClick={() => handleProtectedClick("/statistics")}
+          brandColor={brandColor}
+        />
+        <ActionCard
+          title="Subscription"
+          description="Manage your subscription"
+          icon={checkIcon}
+          onClick={handleSubscribe}
+          brandColor={brandColor}
+        />
+      </div>
+
+      {/* Latest Orders - Now at the bottom */}
+      <div className="mt-6 sm:mt-8">
+        <SectionHeader title="Latest Orders" style={{ color: brandColor }} />
+        
+        <Card className="p-4 min-h-[200px]">
+          {!isAuthenticated ? (
+            <div className="flex items-center justify-center h-full text-center">
+              <div>
+                <p className="mb-2 text-gray-500">Login to view orders.</p>
+                <Button
+                  style={{
+                    backgroundColor: brandColor,
+                    color: contrastTextColor,
+                  }}
+                  onClick={() => dispatch(openModal("login"))}
+                >
+                  Login Now
+                </Button>
+              </div>
+            </div>
+          ) : ordersLoading ? (
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              ))}
+            </div>
+           ) : latestOrders.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-gray-500">
+              <p>No recent orders to display.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {latestOrders.map((order) => (
+                <div
+                  key={order.id}
+                  onClick={() => handleOrderClick(order.id)}
+                  className="p-3 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm cursor-pointer transition-all duration-200"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-900">
+                      Order #{order.id}
+                    </span>
+                    <span
+                      className="text-xs px-2 py-1 rounded-full"
+                      style={{
+                        backgroundColor:
+                          order.status === "delivered"
+                            ? "#10B981"
+                            : order.status === "pending"
+                            ? "#F59E0B"
+                            : order.status === "cancelled"
+                            ? "#EF4444"
+                            : "#6B7280",
+                        color: "white",
+                      }}
+                    >
+                      {order.status}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    <p>
+                      Total: ₦
+                      {parseFloat(order.total_amount || 0).toLocaleString()}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(order.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {buyerOrders.length > 4 && (
+                <div className="text-center pt-2">
                   <Button
-                    style={{
-                      backgroundColor: brandColor,
-                      color: contrastTextColor,
-                    }}
-                    onClick={() => dispatch(openModal("login"))}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate("/orders")}
+                    style={{ borderColor: brandColor, color: brandColor }}
                   >
-                    Login Now
+                    View All Orders
                   </Button>
                 </div>
-              </div>
-            ) : ordersLoading ? (
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="animate-pulse">
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                  </div>
-                ))}
-              </div>
-             ) : latestOrders.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-gray-500">
-                <p>No recent orders to display.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {latestOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    onClick={() => handleOrderClick(order.id)}
-                    className="p-3 border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm cursor-pointer transition-all duration-200"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-900">
-                        Order #{order.id}
-                      </span>
-                      <span
-                        className="text-xs px-2 py-1 rounded-full"
-                        style={{
-                          backgroundColor:
-                            order.status === "delivered"
-                              ? "#10B981"
-                              : order.status === "pending"
-                              ? "#F59E0B"
-                              : order.status === "cancelled"
-                              ? "#EF4444"
-                              : "#6B7280",
-                          color: "white",
-                        }}
-                      >
-                        {order.status}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      <p>
-                        Total: ₦
-                        {parseFloat(order.total_amount || 0).toLocaleString()}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(order.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                {buyerOrders.length > 4 && (
-                  <div className="text-center pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate("/orders")}
-                      style={{ borderColor: brandColor, color: brandColor }}
-                    >
-                      View All Orders
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-          </Card>
-        </section>
-
-        {/* Right Column */}
-        <section className="lg:col-span-1 space-y-6">
-          <div className="flex justify-end gap-3">
-            <Button
-              style={{ backgroundColor: "black", color: "white" }}
-              onClick={handleViewProfileClick}
-              disabled={!isAuthenticated}
-            >
-              View Profile
-            </Button>
-            <Button
-              style={{ backgroundColor: brandColor, color: contrastTextColor }}
-              onClick={handleOpenStoreBuilder}
-            >
-              Store Builder
-            </Button>
-          </div>
-
-           {/* InfoBox removed for cleaner layout */}
-
-          <PromotionalBanner placement="home" />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <ActionCard
-              title="My Orders"
-              description="Manage your customer orders"
-              icon={shoppingCartIcon}
-              onClick={() => handleProtectedClick("/orders")}
-              brandColor={brandColor}
-            />
-            <ActionCard
-              title="My Products"
-              description="Manage all your products here"
-              icon={productIcon}
-              onClick={() => handleProtectedClick("/my-products")}
-              brandColor={brandColor}
-            />
-            <ActionCard
-              title="Statistics"
-              description="View detailed statistics"
-              icon={chartbarIcon}
-              onClick={() => handleProtectedClick("/statistics")}
-              brandColor={brandColor}
-            />
-            <ActionCard
-              title="Subscription"
-              description="Manage your subscription"
-              icon={checkIcon}
-              onClick={handleSubscribe}
-              brandColor={brandColor}
-            />
-          </div>
-        </section>
+              )}
+            </div>
+          )}
+        </Card>
       </div>
     </main>
   );

@@ -7,6 +7,7 @@ import { ENDPOINTS } from '../api/apiConfig';
 
 import ScrollToTop from '../components/ui/ScrollToTop';
 import NavBar from '../components/common/NavBar.jsx';
+import BottomTabBar from '../components/common/BottomTabBar.jsx';
 import ProtectedRoute from './ProtectedRoute';
 import AuthModal from '../components/models/AuthModal.jsx';
 import { openModal, closeModal, switchMode } from '../redux/modalSlice.js';
@@ -150,20 +151,29 @@ const MainLayout = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      <NavBar
-        onSearchChange={(term) => console.log('Search changed:', term)}
-        onSearchSubmit={(term) => console.log('Search submitted:', term)}
-        onAccountClick={handleAccountClick}
-        onCameraClick={() => console.log('Camera clicked')}
-      />
+      {/* Top header - simplified for mobile */}
+      <div className="sticky top-0 z-40 bg-white shadow-sm">
+        <NavBar
+          onSearchChange={(term) => console.log('Search changed:', term)}
+          onSearchSubmit={(term) => console.log('Search submitted:', term)}
+          onAccountClick={handleAccountClick}
+          onCameraClick={() => console.log('Camera clicked')}
+        />
+      </div>
 
       <NotificationPermissionPrompt delayMs={10000} debugForceShow={false} debugLog />
 
-      <main className="flex-grow p-4 md:p-8 md:mx-20">
+      {/* Main content with bottom padding for tab bar */}
+      <main className="flex-grow p-4 md:p-8 md:mx-20 pb-20 md:pb-8">
         <Suspense fallback={<div className="text-center py-10">Loading...</div>}>
           <Outlet />
         </Suspense>
       </main>
+
+      {/* Bottom Tab Bar - only show on mobile */}
+      <div className="md:hidden">
+        <BottomTabBar />
+      </div>
 
       {/* <AuthDebugger /> */}
 

@@ -58,12 +58,12 @@ const StoreOwnerInfoSection = ({
   );
 
   return (
-    <Card className="p-6">
+    <Card className="p-3 sm:p-4 md:p-6">
       <div className="rounded-lg space-y-4">
         {isLoggedIn ? (
           <>
-            <div className="flex items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-800 flex items-center">
+            <div className="flex items-center mb-3 sm:mb-4">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center">
                 {storeName}
                 <img
                   src={VerifiedIcon}
@@ -72,7 +72,7 @@ const StoreOwnerInfoSection = ({
                 />
               </h3>
             </div>
-            <div className="space-y-2 mb-4">
+            <div className="space-y-2 mb-3 sm:mb-4">
               {email && (
                 <p className="flex items-center text-sm text-gray-600">
                   <EnvelopeIcon className="h-4 w-4 mr-2 text-gray-500" />{" "}
@@ -117,56 +117,44 @@ const StoreOwnerInfoSection = ({
             {/* Metrics Card */}
             <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
               {/* --- Top Section: Metrics --- */}
-              <div className="grid grid-cols-3 divide-x divide-gray-200 text-center">
+              <div className="grid grid-cols-3 divide-x divide-gray-200 text-center py-2 sm:py-3">
                 {/* Qty Sold */}
-                <div className="flex  items-center justify-center">
-                  <div className="">
-                    <img
-                      src={ShoppingBagIcon}
-                      alt="Products Sold"
-                      className="h-6 w-6 text-gray-500 mb-1.5"
-                    />
-                  </div>
-                  <div className="flex flex-col items-center justify-center ms-4">
-                    <span className="text-xs text-gray-500">Qty Sold</span>
-                    <span className="text-lg font-semibold text-gray-900 mt-1">
-                      {productsSold}
-                    </span>
-                  </div>
+                <div className="flex flex-col items-center justify-center px-1">
+                  <img
+                    src={ShoppingBagIcon}
+                    alt="Products Sold"
+                    className="h-5 w-5 sm:h-6 sm:w-6 text-gray-500 mb-1"
+                  />
+                  <span className="text-xs text-gray-500">Qty Sold</span>
+                  <span className="text-sm sm:text-lg font-semibold text-gray-900">
+                    {productsSold}
+                  </span>
                 </div>
 
                 {/* Followers */}
-                <div className="flex items-center justify-center">
-                  <div>
-                    <img
-                      src={UsersIcon}
-                      alt="Followers"
-                      className="h-6 w-6 text-gray-500 mb-1.5"
-                    />
-                  </div>
-                  <div className="flex flex-col items-center justify-center ms-4">
-                    <span className="text-xs text-gray-500">Followers</span>
-                    <span className="text-lg font-semibold text-gray-900 mt-1">
-                      {followers}
-                    </span>
-                  </div>
+                <div className="flex flex-col items-center justify-center px-1">
+                  <img
+                    src={UsersIcon}
+                    alt="Followers"
+                    className="h-5 w-5 sm:h-6 sm:w-6 text-gray-500 mb-1"
+                  />
+                  <span className="text-xs text-gray-500">Followers</span>
+                  <span className="text-sm sm:text-lg font-semibold text-gray-900">
+                    {followers}
+                  </span>
                 </div>
 
                 {/* Ratings */}
-                <div className="flex items-center justify-center py-2">
-                  <div>
-                    <img
-                      src={StarIcon}
-                      alt="Ratings"
-                      className="h-6 w-6 text-gray-500 mb-1.5"
-                    />
-                  </div>
-                  <div className="flex flex-col items-center justify-center ms-4">
-                    <span className="text-xs text-gray-500">Ratings</span>
-                    <span className="text-lg font-semibold text-gray-900 mt-1">
-                      {ratings}
-                    </span>
-                  </div>
+                <div className="flex flex-col items-center justify-center px-1">
+                  <img
+                    src={StarIcon}
+                    alt="Ratings"
+                    className="h-5 w-5 sm:h-6 sm:w-6 text-gray-500 mb-1"
+                  />
+                  <span className="text-xs text-gray-500">Ratings</span>
+                  <span className="text-sm sm:text-lg font-semibold text-gray-900">
+                    {ratings}
+                  </span>
                 </div>
               </div>
 
@@ -189,10 +177,10 @@ const StoreOwnerInfoSection = ({
 
             <StoreSocialLinks storeData={storeData} />
             {isStoreOwner && (
-              <div className="flex space-x-4 mt-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-4">
                 <Button
                   onClick={handleAddProduct}
-                  className="flex-1"
+                  className="flex-1 py-2 sm:py-3"
                   style={{
                     backgroundColor: brandColor,
                     color: contrastTextColor,
@@ -202,7 +190,7 @@ const StoreOwnerInfoSection = ({
                 </Button>
                 <Button
                   onClick={handleAddService}
-                  className="flex-1 bg-black text-white"
+                  className="flex-1 py-2 sm:py-3 bg-black text-white"
                 >
                   Add Service
                 </Button>
