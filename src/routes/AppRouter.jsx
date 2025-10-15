@@ -159,7 +159,7 @@ const MainLayout = () => {
 
       <NotificationPermissionPrompt delayMs={10000} debugForceShow={false} debugLog />
 
-      <main className="flex-grow p-4 md:p-8">
+      <main className="flex-grow p-4 md:p-8 md:mx-20">
         <Suspense fallback={<div className="text-center py-10">Loading...</div>}>
           <Outlet />
         </Suspense>

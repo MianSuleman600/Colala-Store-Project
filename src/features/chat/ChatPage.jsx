@@ -63,8 +63,8 @@ const ChatPage = () => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-[calc(100vh-80px)] overflow-hidden">
-      <div className={`w-full md:w-1/4 md:min-w-[280px] overflow-y-auto scrollbar-custom mt-4 ${activeChatId ? 'hidden md:block' : 'block'}`}>
+    <div className="flex flex-col md:flex-row h-[calc(100vh-80px)] overflow-hidden md:px-6">
+      <div className={`w-full md:w-1/4 md:min-w-[400px] overflow-y-auto scrollbar-custom mt-4 ${activeChatId ? 'hidden md:block' : 'block'}`}>
         {chats.length > 0 ? (
           chats.map((chat) => {
             const id = getChatId(chat);

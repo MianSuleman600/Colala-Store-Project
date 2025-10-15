@@ -69,7 +69,7 @@ function NavBar() {
       <nav className="flex flex-col">
         {/* Top nav bar */}
         <div
-          className="h-[64px] sm:h-[80px] flex items-center justify-between sm:px-6 lg:px-44 lg:ps-52 relative gap-3"
+          className="h-[64px] sm:h-[80px] flex items-center justify-between sm:px-6 lg:px-44 lg:ps-20 relative gap-3"
           style={{ backgroundColor: brandColor, color: contrastTextColor }}
         >
           {/* Mobile menu toggle */}
@@ -170,7 +170,7 @@ function NavBar() {
 
         {/* Bottom nav links */}
         <div
-          className="hidden sm:flex w-full h-[70px] rounded-b-4xl items-center justify-start px-4 lg:px-44 lg:ps-52"
+          className="hidden sm:flex w-full h-[70px] rounded-b-4xl items-center justify-start px-4 lg:px-44 lg:ps-20"
           style={{ backgroundColor: brandColor, color: contrastTextColor }}
         >
           {isAuthenticated && (

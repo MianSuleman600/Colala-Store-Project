@@ -1,7 +1,15 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { PlusCircle, Loader2, Heart, MessageCircle, Share, MoreVertical, Download } from "lucide-react";
+import {
+  PlusCircle,
+  Loader2,
+  Heart,
+  MessageCircle,
+  Share,
+  MoreVertical,
+  Download,
+} from "lucide-react";
 
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
@@ -76,14 +84,17 @@ function StoreProfileModal({ isOpen, onClose, storeId }) {
   // Feed mutations
   const createCommentMutation = useCreateCommentMutation({
     onSuccess: () => push("Comment added successfully!"),
-    onError: (e) => push(e.data?.message || "Failed to add comment", { type: "error" })
+    onError: (e) =>
+      push(e.data?.message || "Failed to add comment", { type: "error" }),
   });
   const likePostMutation = useLikePostMutation({
-    onError: (e) => push(e.data?.message || "Failed to like post", { type: "error" })
+    onError: (e) =>
+      push(e.data?.message || "Failed to like post", { type: "error" }),
   });
   const sharePostMutation = useSharePostMutation({
     onSuccess: () => push("Post link copied to clipboard!"),
-    onError: (e) => push(e.data?.message || "Failed to share post", { type: "error" })
+    onError: (e) =>
+      push(e.data?.message || "Failed to share post", { type: "error" }),
   });
 
   const handleFollowToggle = () => {
@@ -102,66 +113,181 @@ function StoreProfileModal({ isOpen, onClose, storeId }) {
     setFilters((prev) => ({ ...prev, ...newFilters }));
   }, []);
 
-  const handleLikePost = useCallback((postId) => {
-    if (!isLoggedIn) {
-      dispatch(openModal("login"));
-      return;
-    }
-    likePostMutation.mutate(postId);
-    // Update local state for immediate UI feedback
-    setLikedPosts((prev) => {
-      const newLikedPosts = new Set(prev);
-      if (newLikedPosts.has(postId)) {
-        newLikedPosts.delete(postId);
-      } else {
-        newLikedPosts.add(postId);
+  const handleLikePost = useCallback(
+    (postId) => {
+      if (!isLoggedIn) {
+        dispatch(openModal("login"));
+        return;
       }
-      return newLikedPosts;
-    });
-  }, [isLoggedIn, dispatch, likePostMutation]);
+      likePostMutation.mutate(postId);
+      // Update local state for immediate UI feedback
+      setLikedPosts((prev) => {
+        const newLikedPosts = new Set(prev);
+        if (newLikedPosts.has(postId)) {
+          newLikedPosts.delete(postId);
+        } else {
+          newLikedPosts.add(postId);
+        }
+        return newLikedPosts;
+      });
+    },
+    [isLoggedIn, dispatch, likePostMutation]
+  );
 
-  const handleSharePost = useCallback((postId) => {
-    if (!isLoggedIn) {
-      dispatch(openModal("login"));
-      return;
+  const handleSharePost = useCallback(
+    async (post) => {
+      if (!isLoggedIn) {
+        dispatch(openModal("login"));
+        return;
+      }
+
+      // Try to use native Web Share API first
+      if (navigator.share) {
+        try {
+          const shareData = {
+            title: `${storeProfile?.name} - Post`,
+            text: post.body,
+            url: window.location.href,
+          };
+
+          // If post has media, try to include it
+          if (post.media_urls && post.media_urls.length > 0) {
+            const mediaUrl = `${import.meta.env.VITE_API_URL || "https://colala.hmstech.xyz"}${post.media_urls[0].url}`;
+            try {
+              const response = await fetch(mediaUrl);
+              const blob = await response.blob();
+              const file = new File([blob], `post-${post.id}.jpg`, { type: blob.type });
+              shareData.files = [file];
+            } catch (error) {
+              console.warn("Could not include media in share:", error);
+            }
+          }
+
+          await navigator.share(shareData);
+          
+          // Update local state and call API
+          sharePostMutation.mutate(post.id);
+          setPostShares((prev) => {
+            const newShares = new Map(prev);
+            const currentShares = newShares.get(post.id) || 0;
+            newShares.set(post.id, currentShares + 1);
+            return newShares;
+          });
+        } catch (error) {
+          if (error.name !== 'AbortError') {
+            console.error('Error sharing:', error);
+            // Fallback to API-only sharing
+            sharePostMutation.mutate(post.id);
+            setPostShares((prev) => {
+              const newShares = new Map(prev);
+              const currentShares = newShares.get(post.id) || 0;
+              newShares.set(post.id, currentShares + 1);
+              return newShares;
+            });
+          }
+        }
+      } else {
+        // Fallback for browsers that don't support Web Share API
+        try {
+          await navigator.clipboard.writeText(`${post.body}\n\nView more at: ${window.location.href}`);
+          push("Post content copied to clipboard!", { type: "success" });
+          
+          // Still call the API to track shares
+          sharePostMutation.mutate(post.id);
+          setPostShares((prev) => {
+            const newShares = new Map(prev);
+            const currentShares = newShares.get(post.id) || 0;
+            newShares.set(post.id, currentShares + 1);
+            return newShares;
+          });
+        } catch (error) {
+          console.error('Error copying to clipboard:', error);
+          push("Failed to share post", { type: "error" });
+        }
+      }
+    },
+    [isLoggedIn, dispatch, sharePostMutation, storeProfile?.name, push]
+  );
+
+  const handleDownloadPost = useCallback(async (post) => {
+    try {
+      // If post has media, download the media
+      if (post.media_urls && post.media_urls.length > 0) {
+        const mediaUrl = `${import.meta.env.VITE_API_URL || "https://colala.hmstech.xyz"}${post.media_urls[0].url}`;
+        
+        // Create a temporary link to download the image
+        const response = await fetch(mediaUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `post-${post.id}-${Date.now()}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up the URL object
+        window.URL.revokeObjectURL(url);
+        
+        push("Image downloaded successfully!", { type: "success" });
+      } else {
+        // If no media, create a text file with the post content
+        const postContent = `Post by ${storeProfile?.name || 'Store'}\n\n${post.body}\n\nPosted: ${new Date(post.created_at).toLocaleString()}\n\nView more at: ${window.location.href}`;
+        
+        const blob = new Blob([postContent], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `post-${post.id}-${Date.now()}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        window.URL.revokeObjectURL(url);
+        
+        push("Post content downloaded as text file!", { type: "success" });
+      }
+    } catch (error) {
+      console.error('Error downloading post:', error);
+      push("Failed to download post", { type: "error" });
     }
-    sharePostMutation.mutate(postId);
-    // Update local state for immediate UI feedback
-    setPostShares((prev) => {
-      const newShares = new Map(prev);
-      const currentShares = newShares.get(postId) || 0;
-      newShares.set(postId, currentShares + 1);
-      return newShares;
-    });
-  }, [isLoggedIn, dispatch, sharePostMutation]);
+  }, [storeProfile?.name, push]);
 
-  const handleDownloadPost = useCallback((postId) => {
-    // Implement download functionality
-    console.log("Downloading post:", postId);
-  }, []);
+  const handleCommentClick = useCallback(
+    (post) => {
+      if (!isLoggedIn) {
+        dispatch(openModal("login"));
+        return;
+      }
+      setSelectedPostForComments(post);
+      setShowCommentsModal(true);
+    },
+    [isLoggedIn, dispatch]
+  );
 
-  const handleCommentClick = useCallback((post) => {
-    if (!isLoggedIn) {
-      dispatch(openModal("login"));
-      return;
-    }
-    setSelectedPostForComments(post);
-    setShowCommentsModal(true);
-  }, [isLoggedIn, dispatch]);
-
-  const handleAddComment = useCallback((postId, commentText) => {
-    createCommentMutation.mutate({ postId, body: commentText });
-  }, [createCommentMutation]);
+  const handleAddComment = useCallback(
+    (postId, commentText) => {
+      createCommentMutation.mutate({ postId, body: commentText });
+    },
+    [createCommentMutation]
+  );
 
   const formatTimeAgo = useCallback((dateString) => {
     const now = new Date();
     const postDate = new Date(dateString);
     const diffInMinutes = Math.floor((now - postDate) / (1000 * 60));
-    
+
     if (diffInMinutes < 1) return "just now";
     if (diffInMinutes < 60) return `${diffInMinutes} min ago`;
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} hour${Math.floor(diffInMinutes / 60) > 1 ? 's' : ''} ago`;
-    return `${Math.floor(diffInMinutes / 1440)} day${Math.floor(diffInMinutes / 1440) > 1 ? 's' : ''} ago`;
+    if (diffInMinutes < 1440)
+      return `${Math.floor(diffInMinutes / 60)} hour${
+        Math.floor(diffInMinutes / 60) > 1 ? "s" : ""
+      } ago`;
+    return `${Math.floor(diffInMinutes / 1440)} day${
+      Math.floor(diffInMinutes / 1440) > 1 ? "s" : ""
+    } ago`;
   }, []);
 
   const filteredProducts = useMemo(() => {
@@ -240,10 +366,9 @@ function StoreProfileModal({ isOpen, onClose, storeId }) {
               }/storage/${mainImage.path}`
             : null;
 
-
           const handleProductClick = () => {
             navigate(`/my-products/${product.id}/details`, {
-              state: { product }
+              state: { product },
             });
           };
 
@@ -263,38 +388,36 @@ function StoreProfileModal({ isOpen, onClose, storeId }) {
                   />
                 )}{" "}
               </div>
-
-              <div className="p-2">
-                {/* Store Information */}
-                <div className="flex items-center space-x-2 mb-3">
-                  <div className="w-8 h-8 rounded-full overflow-hidden flex  justify-center">
-                    {storeProfile?.storeOwner?.profilePicture ? (
-                      <img
-                        src={storeProfile.storeOwner.profilePicture}
-                        alt={storeProfile?.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                        <span className="text-xs font-medium text-gray-600">
-                          {storeProfile?.name?.charAt(0) || "S"}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">
-                      {storeProfile?.name}
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <span className="text-yellow-400 text-sm">★</span>
-                    <span className="text-sm text-gray-600">
-                      {storeProfile?.averageRating || "4.5"}
-                    </span>
-                  </div>
+              {/* Store Information */}
+              <div className="flex items-center space-x-2 mb-3 bg-[#F2F2F2] p-3">
+                <div className="w-8 h-8 rounded-full overflow-hidden flex  justify-center">
+                  {storeProfile?.storeOwner?.profilePicture ? (
+                    <img
+                      src={storeProfile.storeOwner.profilePicture}
+                      alt={storeProfile?.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                      <span className="text-xs font-medium text-gray-600">
+                        {storeProfile?.name?.charAt(0) || "S"}
+                      </span>
+                    </div>
+                  )}
                 </div>
-
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">
+                    {storeProfile?.name}
+                  </p>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <span className="text-yellow-400 text-sm">★</span>
+                  <span className="text-sm text-gray-600">
+                    {storeProfile?.averageRating || "4.5"}
+                  </span>
+                </div>
+              </div>
+              <div className="p-2">
                 {/* Product Name */}
                 <h3 className="font-semibold text-gray-900 mb-2 text-lg">
                   {product.name}
@@ -379,7 +502,10 @@ function StoreProfileModal({ isOpen, onClose, storeId }) {
           const totalShares = post.shares_count + currentShares;
 
           return (
-            <div key={post.id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
+            <div
+              key={post.id}
+              className="bg-white rounded-lg shadow-sm border overflow-hidden"
+            >
               {/* Header Section */}
               <div className="flex items-center justify-between p-4 pb-3">
                 <div className="flex items-center space-x-3">
@@ -459,29 +585,43 @@ function StoreProfileModal({ isOpen, onClose, storeId }) {
                       onClick={() => handleLikePost(post.id)}
                       disabled={likePostMutation.isLoading}
                       className={`flex items-center space-x-1 ${
-                        isLiked ? "text-red-500" : "text-gray-500 hover:text-red-500"
-                      } transition-colors ${likePostMutation.isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                        isLiked
+                          ? "text-red-500"
+                          : "text-gray-500 hover:text-red-500"
+                      } transition-colors ${
+                        likePostMutation.isLoading
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
                     >
-                      <Heart className={`h-5 w-5 ${isLiked ? "fill-current" : ""}`} />
+                      <Heart
+                        className={`h-5 w-5 ${isLiked ? "fill-current" : ""}`}
+                      />
                       <span className="text-sm font-medium">{totalLikes}</span>
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleCommentClick(post)}
                       className="flex items-center space-x-1 text-gray-500 hover:text-blue-500 transition-colors"
                     >
                       <MessageCircle className="h-5 w-5" />
-                      <span className="text-sm font-medium">{post.comments_count}</span>
+                      <span className="text-sm font-medium">
+                        {post.comments_count}
+                      </span>
                     </button>
                     <button
-                      onClick={() => handleSharePost(post.id)}
+                      onClick={() => handleSharePost(post)}
                       disabled={sharePostMutation.isLoading}
-                      className={`flex items-center space-x-1 text-gray-500 hover:text-green-500 transition-colors ${sharePostMutation.isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                      className={`flex items-center space-x-1 text-gray-500 hover:text-green-500 transition-colors ${
+                        sharePostMutation.isLoading
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
                     >
                       <Share className="h-5 w-5" />
                       <span className="text-sm font-medium">{totalShares}</span>
                     </button>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2">
                     {!isStoreOwner && (
                       <button
@@ -493,7 +633,7 @@ function StoreProfileModal({ isOpen, onClose, storeId }) {
                       </button>
                     )}
                     <button
-                      onClick={() => handleDownloadPost(post.id)}
+                      onClick={() => handleDownloadPost(post)}
                       className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
                     >
                       <Download className="h-5 w-5" />
@@ -654,7 +794,13 @@ function StoreProfileModal({ isOpen, onClose, storeId }) {
           isCommenting={createCommentMutation.isLoading}
           brandColor={brandColor}
           contrastColor={contrastTextColor}
-          currentUserProfilePic={user?.store?.profile_image ? `${import.meta.env.VITE_API_URL || 'https://colala.hmstech.xyz'}/storage/${user.store.profile_image}` : '/default-profile.png'}
+          currentUserProfilePic={
+            user?.store?.profile_image
+              ? `${
+                  import.meta.env.VITE_API_URL || "https://colala.hmstech.xyz"
+                }/storage/${user.store.profile_image}`
+              : "/default-profile.png"
+          }
           isAuthenticated={isLoggedIn}
         />
       )}
