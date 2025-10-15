@@ -231,44 +231,37 @@ export default function HomePage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {latestOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    onClick={() => handleOrderClick(order.id)}
-                    className="p-3 border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm cursor-pointer transition-all duration-200"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-900">
-                        Order #{order.id}
-                      </span>
-                      <span
-                        className="text-xs px-2 py-1 rounded-full"
-                        style={{
-                          backgroundColor:
-                            order.status === "delivered"
-                              ? "#10B981"
-                              : order.status === "pending"
-                              ? "#F59E0B"
-                              : order.status === "cancelled"
-                              ? "#EF4444"
-                              : "#6B7280",
-                          color: "white",
-                        }}
-                      >
-                        {order.status}
-                      </span>
+                {latestOrders.map((order) => {
+                  const displayName = order?.store?.store_name || order?.customer_name || `Order #${order.id}`;
+                  const itemsCount = Array.isArray(order?.items) ? order.items.length : (order?.items_count ?? 0);
+                  const totalAmount = Number(order?.subtotal_with_shipping ?? order?.total_amount ?? 0);
+                  return (
+                    <div
+                      key={order.id}
+                      onClick={() => handleOrderClick(order.id)}
+                      className="flex items-center justify-between p-4 rounded-xl bg-gray-50 hover:bg-gray-100 cursor-pointer transition-all"
+                    >
+                      <div className="flex items-center">
+                        <div
+                          className="w-12 h-12 rounded-full flex items-center justify-center mr-4"
+                          style={{ backgroundColor: "#FDE2E2" }}
+                        >
+                          {/* cart icon from Orders list style */}
+                          <img src={shoppingCartIcon} alt="cart" className="h-6 w-6" style={{ filter: "invert(23%) sepia(93%) saturate(3159%) hue-rotate(337deg) brightness(92%) contrast(99%)" }} />
+                        </div>
+                        <div>
+                          <p className="text-base font-semibold text-gray-800">{displayName}</p>
+                          <p className="text-xs text-gray-500">{itemsCount} {itemsCount === 1 ? 'Item' : 'Items'}</p>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-base md:text-lg font-bold" style={{ color: brandColor }}>
+                          ₦{totalAmount.toLocaleString()}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-600">
-                      <p>
-                        Total: ₦
-                        {parseFloat(order.total_amount || 0).toLocaleString()}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(order.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {buyerOrders.length > 4 && (
                   <div className="text-center pt-2">
                     <Button
